@@ -96,13 +96,13 @@ function requestPromise(url: string, body: string, action: string, certPath?: st
     }
 
     const requester = isHttps ? httpsRequest : httpRequest;
-    const req = requester(options as any, (res) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+    const req = requester(options as any, (res: any) => {
+      const chunks: Array<{ toString(): string }> = [];
+      res.on('data', (chunk: { toString(): string }) => chunks.push(chunk));
       res.on('end', () => {
         resolve({
           statusCode: res.statusCode || 0,
-          body: Buffer.concat(chunks).toString('utf-8'),
+          body: Buffer.concat(chunks as any).toString('utf-8'),
           headers: res.headers as Record<string, string>,
         });
       });

@@ -17,6 +17,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "jsx": "preserve",
+    "typeRoots": ["./types", "./node_modules/@types"],
     "paths": {
       "@dfecentral/shared": ["./packages/shared/src"],
       "@dfecentral/shared/*": ["./packages/shared/src/*"]
