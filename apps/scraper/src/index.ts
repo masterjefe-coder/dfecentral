@@ -1,4 +1,4 @@
-import http from 'node:http';
+import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { scrapeNFeporChave } from './scraper.js';
 
 const PORT = Number(process.env.SCRAPER_PORT || 3100);
@@ -8,10 +8,10 @@ interface ScrapeRequest {
   chaveAcesso: string;
 }
 
-function parseBody(req: http.IncomingMessage): Promise<any> {
+function parseBody(req: IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk: Buffer) => (body += chunk.toString()));
+    req.on('data', (chunk: { toString(): string }) => (body += chunk.toString()));
     req.on('end', () => {
       try {
         resolve(body ? JSON.parse(body) : {});
@@ -20,11 +20,11 @@ function parseBody(req: http.IncomingMessage): Promise<any> {
         reject(new Error('JSON invalido'));
       }
     });
-    req.on('error', (err) => reject(err));
+    req.on('error', (err: Error) => reject(err));
   });
 }
 
-function sendJson(res: http.ServerResponse, status: number, data: any) {
+function sendJson(res: ServerResponse, status: number, data: any) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
