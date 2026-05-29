@@ -11,15 +11,16 @@ interface ScrapeRequest {
 function parseBody(req: http.IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk) => (body += chunk));
+    req.on('data', (chunk: Buffer) => (body += chunk.toString()));
     req.on('end', () => {
       try {
         resolve(body ? JSON.parse(body) : {});
-      } catch {
+      } catch (e) {
+        console.error(`[scraper] Erro parse JSON. Body len=${body.length} raw="${body.slice(0, 200)}"`);
         reject(new Error('JSON invalido'));
       }
     });
-    req.on('error', reject);
+    req.on('error', (err) => reject(err));
   });
 }
 
