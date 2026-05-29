@@ -2,6 +2,8 @@ export type Ambiente = 1 | 2;
 
 export type TipoDocumento = 'nfe' | 'nfce' | 'nfse' | 'cte' | 'mdfe' | 'dce';
 
+export type Fonte = 'sefaz' | 'cache' | 'mock' | 'scraper';
+
 export type StatusDocumento =
   | 'autorizada'
   | 'cancelada'
@@ -65,7 +67,7 @@ export interface ConsultaResultado {
   sucesso: boolean;
   documento?: DocumentoFiscal;
   erro?: string;
-  fonte: 'sefaz' | 'cache' | 'mock' | 'scraper';
+  fonte: Fonte;
 }
 
 export interface ConsultaComCache extends ConsultaChaveParams {
@@ -78,7 +80,7 @@ export interface DistribuicaoResultado {
   documentos: DocumentoFiscal[];
   ultraimoNSU?: string;
   erro?: string;
-  fonte: 'sefaz' | 'cache' | 'mock' | 'scraper';
+  fonte: Fonte;
 }
 
 export interface InfoChave {

@@ -1,7 +1,7 @@
 import { db } from './index';
 import { documentos } from './schema';
 import { eq, and } from 'drizzle-orm';
-import type { DocumentoFiscal, Fonte, StatusDocumento, TipoDocumento } from '@dfecentral/sdk';
+import type { DocumentoFiscal, StatusDocumento, TipoDocumento } from '@dfecentral/sdk';
 
 interface CacheEntry {
   chaveAcesso: string;
@@ -17,9 +17,8 @@ interface CacheEntry {
   status: StatusDocumento;
   xml?: string | null;
   protocolo?: string | null;
-  fonte: Fonte;
 }
-
+                                                          
 export async function buscarNoCache(chaveAcesso: string): Promise<CacheEntry | null> {
   try {
     const result = await db
