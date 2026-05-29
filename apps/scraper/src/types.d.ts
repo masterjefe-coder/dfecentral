@@ -2,6 +2,16 @@ declare const process: {
   env: Record<string, string | undefined>;
 };
 
+declare class Buffer<TArrayBuffer extends ArrayBufferLike = ArrayBufferLike> extends Uint8Array<TArrayBuffer> {
+  static from(data: string, encoding?: string): Buffer;
+  static from(data: ArrayLike<number>): Buffer;
+  static from(data: ArrayBufferLike): Buffer;
+}
+
+declare module 'node:crypto' {
+  export function randomUUID(): string;
+}
+
 declare module 'node:http' {
   export interface IncomingMessage {
     method?: string;
@@ -13,7 +23,7 @@ declare module 'node:http' {
 
   export interface ServerResponse {
     writeHead(statusCode: number, headers?: Record<string, string>): ServerResponse;
-    end(data?: string): void;
+    end(data?: string | Buffer | Uint8Array | ArrayBufferLike): void;
   }
 
   export interface Server {
