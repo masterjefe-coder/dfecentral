@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { db } from '../db';
-import { documentos } from '../db/schema';
+import { db } from '../db/index.js';
+import { documentos } from '../db/schema.js';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { consultarNFeporChave } from '@dfecentral/sdk';
 import type { SdkConfig } from '@dfecentral/sdk';
-import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache';
+import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
 
 function getSdkConfig(): SdkConfig {
   return {

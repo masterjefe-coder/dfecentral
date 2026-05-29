@@ -1,5 +1,5 @@
-import { db } from './index';
-import { documentos } from './schema';
+import { db } from './index.js';
+import { documentos } from './schema.js';
 import { eq, and } from 'drizzle-orm';
 import type { DocumentoFiscal, StatusDocumento, TipoDocumento } from '@dfecentral/sdk';
 

@@ -4,14 +4,14 @@ import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { timingSafeEqual } from 'node:crypto';
-import { nfeRoutes } from './routes/nfe';
-import { cteRoutes } from './routes/cte';
-import { mdfeRoutes } from './routes/mdfe';
-import { nfseRoutes } from './routes/nfse';
-import { nfceRoutes } from './routes/nfce';
-import { dceRoutes } from './routes/dce';
-import { healthRoutes } from './routes/health';
-import { sefazRoutes } from './routes/sefaz';
+import { nfeRoutes } from './routes/nfe.js';
+import { cteRoutes } from './routes/cte.js';
+import { mdfeRoutes } from './routes/mdfe.js';
+import { nfseRoutes } from './routes/nfse.js';
+import { nfceRoutes } from './routes/nfce.js';
+import { dceRoutes } from './routes/dce.js';
+import { healthRoutes } from './routes/health.js';
+import { sefazRoutes } from './routes/sefaz.js';
 
 const app = Fastify({
   logger: {

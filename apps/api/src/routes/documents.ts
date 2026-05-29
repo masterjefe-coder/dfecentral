@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { db } from '../db';
-import { documentos } from '../db/schema';
+import { db } from '../db/index.js';
+import { documentos } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { consultarNFeporChave } from '@dfecentral/sdk';
 import type { SdkConfig, TipoDocumento } from '@dfecentral/sdk';
-import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache';
+import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
 
 interface DocumentRouteOptions {
   tipo: string;
