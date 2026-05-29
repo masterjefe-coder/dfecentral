@@ -3,8 +3,20 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Consulta Fiscal - DFeCentral',
-  description:
-    'Consulte documentos fiscais eletrônicos brasileiros. NF-e, NFS-e, CT-e, MDF-e, NFC-e e DC-e.',
+  description: 'Consulte documentos fiscais eletrônicos brasileiros. NF-e, NFS-e, CT-e, MDF-e, NFC-e e DC-e.',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'pt_BR',
+    url: 'https://consulta.dfecentral.com.br',
+    siteName: 'DFeCentral',
+    title: 'Consulta Fiscal - DFeCentral',
+    description: 'Consulte documentos fiscais eletrônicos brasileiros.',
+    images: [{ url: '/logo.png', width: 1185, height: 264 }],
+  },
 };
 
 export default function RootLayout({

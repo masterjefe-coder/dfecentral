@@ -23,6 +23,10 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: 'DFeCentral' }],
   creator: 'DFeCentral',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
   openGraph: {
     type: 'website',
     locale: 'pt_BR',
@@ -31,6 +35,7 @@ export const metadata: Metadata = {
     title: 'DFeCentral - Central de Documentos Fiscais do Brasil',
     description:
       'Consulte, baixe e gerencie todos os documentos fiscais eletrônicos do Brasil.',
+    images: [{ url: '/logo-light.png', width: 1185, height: 264 }],
   },
 };
 

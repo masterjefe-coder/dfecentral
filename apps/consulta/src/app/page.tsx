@@ -123,10 +123,7 @@ export default function ConsultaPage() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold tracking-tight">
-              <span className="text-blue-600">DFe</span>
-              <span>Central</span>
-            </span>
+            <img src="/logo.png" alt="DFeCentral" className="h-8 w-auto" />
           </Link>
           <div className="flex items-center gap-4 text-sm">
             <span className="text-gray-500 hidden sm:inline">Consulta Fiscal</span>

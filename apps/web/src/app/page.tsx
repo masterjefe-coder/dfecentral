@@ -77,22 +77,24 @@ export default function HomePage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-[var(--primary)]">DFe</span>
-            <span className="text-2xl font-bold">Central</span>
-          </div>
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link href="/" className="flex items-center">
+            <img src="/logo-dark.png" alt="DFeCentral" className="h-9 w-auto" />
+          </Link>
           <nav className="hidden md:flex items-center gap-6">
-            <Link href="#documentos" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
+            <Link href="#documentos" className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
               Documentos
             </Link>
-            <Link href="#funcionalidades" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
+            <Link href="#funcionalidades" className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
               Funcionalidades
             </Link>
-            <Link href="#precos" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
+            <Link href="#precos" className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
               Preços
             </Link>
-            <Link href="/documentacao" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
+            <Link href="https://consulta.dfecentral.com.br" className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
+              Consulta
+            </Link>
+            <Link href="/documentacao" className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
               API Docs
             </Link>
           </nav>
@@ -107,36 +109,44 @@ export default function HomePage() {
               href="/auth/cadastrar"
               className="px-4 py-2 text-sm font-medium bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg hover:opacity-90 transition-opacity"
             >
-              Começar Grátis
+              Criar Conta
             </Link>
           </div>
         </div>
       </header>
 
       {/* Hero */}
-      <section className="py-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+      <section className="relative py-24 md:py-32 px-4 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950" />
+        <div className="absolute inset-0 opacity-30 dark:opacity-10" style={{
+          backgroundImage: 'radial-gradient(circle at 25% 25%, var(--primary) 0%, transparent 50%), radial-gradient(circle at 75% 75%, var(--primary) 0%, transparent 50%)',
+        }} />
+        <div className="max-w-4xl mx-auto text-center relative">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full text-sm font-medium mb-8">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            Plataforma fiscal completa
+          </div>
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight tracking-tight">
             Central de Documentos
             <br />
             <span className="text-[var(--primary)]">Fiscais do Brasil</span>
           </h1>
-          <p className="text-xl text-[var(--muted-foreground)] mb-8 max-w-2xl mx-auto">
-            Consulte, baixe e gerencie NF-e, NFS-e, CT-e, MDF-e, NFC-e e DC-e.
-            Uma plataforma para todos os documentos fiscais eletrônicos.
+          <p className="text-lg md:text-xl text-[var(--muted-foreground)] mb-10 max-w-2xl mx-auto leading-relaxed">
+            Consulte, baixe e gerencie NF-e, NFC-e, NFS-e, CT-e, MDF-e e DC-e.
+            Uma plataforma para todos os documentos fiscais eletrônicos do Brasil.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/auth/cadastrar"
-              className="px-8 py-3 text-lg font-medium bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg hover:opacity-90 transition-opacity"
+              className="px-8 py-3.5 text-lg font-medium bg-[var(--primary)] text-[var(--primary-foreground)] rounded-xl hover:opacity-90 transition-all shadow-lg shadow-[var(--primary)]/25"
             >
               Criar Conta Grátis
             </Link>
             <Link
-              href="/documentacao"
-              className="px-8 py-3 text-lg font-medium border border-[var(--border)] rounded-lg hover:bg-[var(--secondary)] transition-colors"
+              href="https://consulta.dfecentral.com.br"
+              className="px-8 py-3.5 text-lg font-medium border-2 border-[var(--border)] rounded-xl hover:bg-[var(--secondary)] transition-colors"
             >
-              Ver Documentação da API
+              Consultar Documento
             </Link>
           </div>
         </div>
@@ -299,10 +309,7 @@ Authorization: Bearer sua_api_key
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-xl font-bold text-[var(--primary)]">DFe</span>
-                <span className="text-xl font-bold">Central</span>
-              </div>
+              <img src="/logo-dark.png" alt="DFeCentral" className="h-8 w-auto mb-4" />
               <p className="text-sm text-[var(--muted-foreground)]">
                 A central de documentos fiscais do Brasil.
               </p>
