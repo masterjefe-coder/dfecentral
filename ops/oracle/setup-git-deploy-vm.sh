@@ -39,6 +39,13 @@ fi
 mkdir -p "$REPO_DIR"
 git config --global --add safe.directory "$REPO_DIR" >/dev/null 2>&1 || true
 
+if [ -d "$REPO_DIR/.git" ]; then
+  echo "Sincronizando checkout local com o bare repo..."
+  git -C "$REPO_DIR" fetch "$REPO_GIT_DIR" "$BRANCH"
+  git -C "$REPO_DIR" reset --hard FETCH_HEAD
+  git -C "$REPO_DIR" clean -fd
+fi
+
 # Checkout do codigo
 if git --git-dir="$REPO_GIT_DIR" show-ref --verify --quiet "refs/heads/$BRANCH"; then
   echo "Fazendo checkout da branch $BRANCH"

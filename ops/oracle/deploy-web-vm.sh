@@ -3,6 +3,8 @@ set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-/opt/apps/dfecentral}"
 REPO_DIR="${REPO_DIR:-$APP_ROOT/repo}"
+REPO_GIT_DIR="${REPO_GIT_DIR:-$APP_ROOT/repo.git}"
+BRANCH="${BRANCH:-main}"
 ENV_FILE="${ENV_FILE:-$APP_ROOT/shared/app.env}"
 NORMALIZED_ENV_FILE="$APP_ROOT/runtime/app.normalized.env"
 
@@ -41,6 +43,11 @@ while IFS= read -r line || [ -n "$line" ]; do
 done < "$NORMALIZED_ENV_FILE"
 
 cd "$REPO_DIR"
+
+echo ">>> Sincronizando checkout com o bare repo..."
+git fetch "$REPO_GIT_DIR" "$BRANCH" 2>/dev/null || git fetch "$REPO_GIT_DIR" main 2>/dev/null || true
+git reset --hard FETCH_HEAD
+git clean -fd
 
 echo ">>> Instalando dependencias..."
 npm install --include=dev 2>&1 | tail -2
