@@ -117,7 +117,9 @@ export async function consultarNFeporChave(
           <tpAmb>${config.ambiente}</tpAmb>
           <cUFAutor>${info.uf}</cUFAutor>
           <CNPJ>${info.cnpjEmitente}</CNPJ>
-          <chNFe>${params.chaveAcesso}</chNFe>
+          <consChNFe>
+            <chNFe>${params.chaveAcesso}</chNFe>
+          </consChNFe>
         </distDFeInt>
       </nfeDadosMsg>
     </nfeDistDFeInteresse>`;
