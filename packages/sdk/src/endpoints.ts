@@ -87,6 +87,7 @@ export function montarEndpoints(ambiente: Ambiente): SefazEndpoint[] {
     const distDFe = amb === 1
       ? 'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'
       : 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+    const distDFeAction = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse';
 
     const nfceServ = amb === 1
       ? `https://nfce.sefazeletronica.gov.br/nfce-ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx`

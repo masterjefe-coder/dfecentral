@@ -1,16 +1,13 @@
+import { request as httpsRequest } from 'node:https';
+import { request as httpRequest } from 'node:http';
 import { createHash, createSign } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import type { RequestOptions } from 'node:https';
 
 export interface SoapResponse {
   statusCode: number;
   body: string;
   headers: Record<string, string>;
-}
-
-function canonicalizar(xml: string): string {
-  return xml
-    .replace(/>\s+</g, '><')
-    .replace(/\n\s*/g, '')
-    .trim();
 }
 
 function calcularDigest(xml: string): string {
@@ -22,36 +19,20 @@ export function assinarSOAP(
   keyPem: string,
   certPem: string,
 ): string {
-  const can = canonicalizar(soapXml);
-
-  const digestValue = calcularDigest(can);
-
-  const signedInfo = `
-<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
-  <CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
-  <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
-  <Reference URI="#id-corpo">
-    <Transforms>
-      <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
-      <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
-    </Transforms>
-    <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
-    <DigestValue>${digestValue}</DigestValue>
-  </Reference>
-</SignedInfo>`.trim();
-
-  const sign = createSign('sha256WithRSAEncryption');
-  sign.update(canonicalizar(signedInfo));
-  sign.end();
-  const signatureValue = sign.sign(keyPem, 'base64');
+  const digestValue = calcularDigest(soapXml);
 
   const certClean = certPem
     .replace(/-----BEGIN CERTIFICATE-----/g, '')
     .replace(/-----END CERTIFICATE-----/g, '')
     .replace(/[\n\r]/g, '');
 
+  const sign = createSign('sha256WithRSAEncryption');
+  sign.update(soapXml);
+  sign.end();
+  const signatureValue = sign.sign(keyPem, 'base64');
+
   const wsse = `
-<o:Security xmlns:o="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" o:mustUnderstand="1">
+<o:Security xmlns:o="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" o:mustUnderstand="1">
   <o:BinarySecurityToken ValueType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary" wsu:Id="CertId">${certClean}</o:BinarySecurityToken>
   <ds:Signature>
     <ds:SignedInfo>
@@ -78,10 +59,10 @@ export function assinarSOAP(
   return soapXml.replace('</s:Header>', wsse + '\n</s:Header>');
 }
 
-export function montarEnvelope(xmlBody: string, action?: string): string {
-  const wsAction = action ? `xmlns:m="${action}"` : '';
+export function montarEnvelope(xmlBody: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
-<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
   <s:Header/>
   <s:Body wsu:Id="id-corpo">
     ${xmlBody}
@@ -89,33 +70,67 @@ export function montarEnvelope(xmlBody: string, action?: string): string {
 </s:Envelope>`;
 }
 
+function requestPromise(url: string, body: string, action: string, certPath?: string, certPass?: string, timeout = 60000): Promise<SoapResponse> {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === 'https:';
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: action,
+    };
+
+    const options: RequestOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname + urlObj.search,
+      method: 'POST',
+      headers,
+      timeout,
+      rejectUnauthorized: false,
+    };
+
+    if (isHttps && certPath) {
+      options.pfx = readFileSync(certPath);
+      options.passphrase = certPass;
+    }
+
+    const requester = isHttps ? httpsRequest : httpRequest;
+    const req = requester(options as any, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => {
+        resolve({
+          statusCode: res.statusCode || 0,
+          body: Buffer.concat(chunks).toString('utf-8'),
+          headers: res.headers as Record<string, string>,
+        });
+      });
+    });
+
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+    req.write(body);
+    req.end();
+  });
+}
+
 export async function enviarSOAP(
   url: string,
   envelope: string,
   action: string,
-  timeout = 30000,
+  timeout = 60000,
 ): Promise<SoapResponse> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
+  return requestPromise(url, envelope, action, undefined, undefined, timeout);
+}
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
-        SOAPAction: action,
-        'Content-Length': String(Buffer.byteLength(envelope, 'utf-8')),
-      },
-      body: envelope,
-      signal: controller.signal,
-    });
-
-    return {
-      statusCode: response.status,
-      body: await response.text(),
-      headers: Object.fromEntries(response.headers.entries()),
-    };
-  } finally {
-    clearTimeout(timer);
-  }
+export async function enviarSOAPComCert(
+  url: string,
+  envelope: string,
+  action: string,
+  certPath: string,
+  certPass: string,
+  timeout = 60000,
+): Promise<SoapResponse> {
+  return requestPromise(url, envelope, action, certPath, certPass, timeout);
 }

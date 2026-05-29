@@ -1,5 +1,5 @@
 export { carregarCertificado, montarChavePrivada } from './certificate';
-export { enviarSOAP, montarEnvelope, assinarSOAP } from './soap';
+export { enviarSOAP, enviarSOAPComCert, montarEnvelope, assinarSOAP } from './soap';
 export { consultarNFeporChave } from './consulta';
 export { montarEndpoints, getServiceUrl } from './endpoints';
 export { parseChaveAcesso } from './types';

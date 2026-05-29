@@ -1,7 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { carregarCertificado } from './certificate';
 import { montarEndpoints, getServiceUrl } from './endpoints';
-import { enviarSOAP, montarEnvelope, assinarSOAP } from './soap';
+import { enviarSOAPComCert, montarEnvelope } from './soap';
 import { parseChaveAcesso } from './types';
 import type {
   SdkConfig,
@@ -21,17 +21,15 @@ const parser = new XMLParser({
 });
 
 function detectarStatus(xml: string): StatusDocumento {
-  if (xml.includes('cStat') && !xml.includes('cStat>100')) {
-    const match = xml.match(/<cStat>(\d+)<\/cStat>/);
-    if (match) {
-      const code = match[1];
-      if (['100', '101', '102', '110', '150', '301'].includes(code)) return 'autorizada';
-      if (['101', '151'].includes(code)) return 'cancelada';
-      if (['110', '301'].includes(code)) return 'denegada';
-      if (code === '135') return 'inutilizada';
-      if (['103', '104', '105', '106', '107', '108', '109'].includes(code)) return 'processando';
-      return 'pendente';
-    }
+  const match = xml.match(/<cStat>(\d+)<\/cStat>/);
+  if (match) {
+    const code = match[1];
+    if (['100', '101', '102', '110', '150', '301'].includes(code)) return 'autorizada';
+    if (['101', '151'].includes(code)) return 'cancelada';
+    if (['110', '301'].includes(code)) return 'denegada';
+    if (code === '135') return 'inutilizada';
+    if (['103', '104', '105', '106', '107', '108', '109'].includes(code)) return 'processando';
+    return 'pendente';
   }
   return 'pendente';
 }
@@ -44,16 +42,15 @@ function extrairValor(xml: string, path: string): string | undefined {
 function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | null {
   try {
     const parsed = parser.parse(xml);
-    const retEvento = parsed?.procEventoNFe?.retEvento;
-    const protNFe = parsed?.protNFe?.infProt;
     const nfeProc = parsed?.nfeProc?.NFe?.infNFe;
+    const protNFe = parsed?.protNFe?.infProt;
 
     if (nfeProc) {
       const total = nfeProc.total?.ICMSTot?.vNF || '0';
       const emitCNPJ = nfeProc.emit?.CNPJ || '';
       const destCNPJ = nfeProc.dest?.CNPJ || '';
       return {
-        chaveAcesso: nfeProc.Id?.replace('NFe', '') || '',
+        chaveAcesso: (nfeProc.Id || '').replace('NFe', '') || '',
         tipo: tipo as DocumentoFiscal['tipo'],
         numero: nfeProc.ide?.nNF || '',
         serie: nfeProc.ide?.serie || '',
@@ -114,36 +111,51 @@ export async function consultarNFeporChave(
       return { sucesso: false, erro: `Endpoint nao encontrado para UF ${uf}`, fonte: 'mock' };
     }
 
-    const body = `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe">
-      <tpAmb>${config.ambiente}</tpAmb>
-      <cUFAutor>${info.uf}</cUFAutor>
-      <CNPJ>${info.cnpjEmitente}</CNPJ>
-      <chNFe>${params.chaveAcesso}</chNFe>
+    const body = `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+      <nfeDadosMsg>
+        <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
+          <tpAmb>${config.ambiente}</tpAmb>
+          <cUFAutor>${info.uf}</cUFAutor>
+          <CNPJ>${info.cnpjEmitente}</CNPJ>
+          <chNFe>${params.chaveAcesso}</chNFe>
+        </distDFeInt>
+      </nfeDadosMsg>
     </nfeDistDFeInteresse>`;
 
-    const action = 'http://www.portalfiscal.inf.br/nfe/nfeDistDFeInteresse';
-    let envelope = montarEnvelope(body, action);
-    envelope = assinarSOAP(envelope, cert.keyPem, cert.pem);
+    const action = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse';
+    const envelope = montarEnvelope(body);
 
-    const response = await enviarSOAP(distDFeUrl, envelope, action, config.timeout || 30000);
+    const response = await enviarSOAPComCert(
+      distDFeUrl, envelope, action,
+      config.certificado.caminho, config.certificado.senha,
+      config.timeout || 60000,
+    );
 
     if (response.statusCode !== 200) {
-      return { sucesso: false, erro: `SEFAZ retornou HTTP ${response.statusCode}`, fonte: 'sefaz' };
+      const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/);
+      const msg = fault ? fault[1] : `HTTP ${response.statusCode}`;
+      return { sucesso: false, erro: `SEFAZ: ${msg}`, fonte: 'sefaz' };
     }
 
-    const parsed = parser.parse(response.body);
-    const ret = parsed['s:Envelope']?.['s:Body']?.nfeDistDFeInteresseResponse?.nfeDistDFeInteresseResult;
-    const xmlDoc = ret?.docZip?._text || ret?.docZip?.['#text'];
+    const resultMatch = response.body.match(/<nfeDistDFeInteresseResult[^>]*>([\s\S]*?)<\/nfeDistDFeInteresseResult>/);
+    if (!resultMatch) {
+      return { sucesso: false, erro: 'Resposta inesperada da SEFAZ', fonte: 'sefaz' };
+    }
 
-    if (!xmlDoc) {
-      const cStat = ret?.cStat || extrairValor(response.body, 'cStat');
-      const xMotivo = ret?.xMotivo || extrairValor(response.body, 'xMotivo');
+    const resultXml = resultMatch[1];
+
+    const docZipMatch = resultXml.match(/<docZip[^>]*>([^<]+)<\/docZip>/);
+    const docZipB64 = docZipMatch ? docZipMatch[1] : null;
+
+    const cStat = extrairValor(resultXml, 'cStat');
+    const xMotivo = extrairValor(resultXml, 'xMotivo');
+
+    if (!docZipB64) {
       return { sucesso: false, erro: xMotivo || `SEFAZ: status ${cStat}`, fonte: 'sefaz' };
     }
 
-    const xmlDecoded = Buffer.from(xmlDoc, 'base64').toString('utf-8');
+    const xmlDecoded = Buffer.from(docZipB64, 'base64').toString('utf-8');
 
-    const xMotivoOk = ret?.xMotivo || extrairValor(response.body, 'xMotivo') || '';
     const doc = parseDocumentoFromXML(xmlDecoded, tipo);
     if (!doc) {
       return {
