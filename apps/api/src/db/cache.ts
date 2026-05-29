@@ -44,7 +44,6 @@ export async function buscarNoCache(chaveAcesso: string): Promise<CacheEntry | n
       status: r.status as StatusDocumento,
       xml: r.xmlCompleto as string | null,
       protocolo: null,
-      fonte: 'cache',
     };
   } catch {
     return null;
