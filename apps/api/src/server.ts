@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import { nfeRoutes } from './routes/nfe';
 import { cteRoutes } from './routes/cte';
 import { mdfeRoutes } from './routes/mdfe';
@@ -29,6 +31,31 @@ await app.register(cors, {
 await app.register(rateLimit, {
   max: 100,
   timeWindow: '1 minute',
+});
+
+await app.register(swagger, {
+  openapi: {
+    info: {
+      title: 'DFeCentral API',
+      description: 'API REST para consulta de documentos fiscais eletrônicos brasileiros',
+      version: '0.1.0',
+      contact: { name: 'DFeCentral', url: 'https://www.dfecentral.com.br' },
+    },
+    servers: [
+      { url: 'https://api.dfecentral.com.br', description: 'Produção' },
+      { url: 'http://localhost:3004', description: 'Desenvolvimento' },
+    ],
+    components: {
+      securitySchemes: {
+        BearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'API Key' },
+      },
+    },
+  },
+});
+
+await app.register(swaggerUi, {
+  routePrefix: '/docs',
+  uiConfig: { docExpansion: 'list', deepLinking: true },
 });
 
 // Rotas
