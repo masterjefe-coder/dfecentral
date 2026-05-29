@@ -80,8 +80,7 @@ export default function ConsultaPage() {
     setResultado(null);
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.dfecentral.com.br';
-      const res = await fetch(`${baseUrl}/api/v1/${infoChave.tipo}/${chave}`);
+      const res = await fetch(`/api/consulta/${infoChave.tipo}/${chave}`);
       const data = await res.json();
       if (!data.sucesso) { setErro(data.erro || 'Documento não encontrado.'); return; }
       setResultado(data.dados);
@@ -225,7 +224,7 @@ export default function ConsultaPage() {
 
               <div className="mt-4 flex flex-col sm:flex-row gap-2">
                 <a
-                  href={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.dfecentral.com.br'}/api/v1/${resultado.tipo}/${resultado.chaveAcesso}/xml`}
+                  href={`/api/consulta/${resultado.tipo}/${resultado.chaveAcesso}/xml`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
@@ -233,7 +232,7 @@ export default function ConsultaPage() {
                   Download XML
                 </a>
                 <a
-                  href={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.dfecentral.com.br'}/api/v1/${resultado.tipo}/${resultado.chaveAcesso}/xml?format=danfe`}
+                  href={`/api/consulta/${resultado.tipo}/${resultado.chaveAcesso}/xml?format=danfe`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all text-center"

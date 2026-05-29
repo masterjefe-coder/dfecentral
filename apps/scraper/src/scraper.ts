@@ -53,7 +53,7 @@ export async function scrapeNFeporChave(
     await page.waitForSelector(chaveField, { timeout: 15000 });
     await page.fill(chaveField, chaveAcesso);
 
-    const hcaptchaKey = await page.getAttribute('.h-captcha', 'data-sitekey').catch(() => 'e72d2f82-9594-4448-a875-47ded9a1898a');
+    const hcaptchaKey = (await page.getAttribute('.h-captcha', 'data-sitekey').catch(() => null)) || 'e72d2f82-9594-4448-a875-47ded9a1898a';
 
     if (config.anticaptcha) {
       console.log(`[scraper] Resolvendo hCaptcha (sitekey: ${hcaptchaKey})...`);
@@ -120,7 +120,6 @@ export async function scrapeNFeporChave(
         });
       });
 
-      const allText = document.body.innerText;
       const strongs = Array.from(document.querySelectorAll('strong, b, label, span'));
       strongs.forEach((el) => {
         const txt = (el as HTMLElement).innerText?.trim();

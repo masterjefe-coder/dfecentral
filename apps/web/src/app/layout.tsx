@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.dfecentral.com.br'),
   title: {
     default: 'DFeCentral - Central de Documentos Fiscais do Brasil',
     template: '%s | DFeCentral',

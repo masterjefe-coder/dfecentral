@@ -2,11 +2,29 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"],
-      "@dfecentral/shared": ["../../packages/shared/src"],
-      "@dfecentral/shared/*": ["../../packages/shared/src/*"]
-    }
+      "@/*": [
+        "./src/*"
+      ],
+      "@dfecentral/shared": [
+        "../../packages/shared/src"
+      ],
+      "@dfecentral/shared/*": [
+        "../../packages/shared/src/*"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

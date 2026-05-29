@@ -10,7 +10,7 @@ WorkingDirectory=/opt/apps/dfecentral/repo/apps/scraper
 EnvironmentFile=/opt/apps/dfecentral/shared/app.env
 Environment=NODE_ENV=production
 Environment=SCRAPER_PORT=3100
-ExecStart=/usr/bin/env npx tsx src/index.ts
+ExecStart=/usr/bin/env node dist/index.js
 Restart=always
 RestartSec=10
 TimeoutStartSec=120

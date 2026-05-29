@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://consulta.dfecentral.com.br'),
   title: 'Consulta Fiscal - DFeCentral',
   description: 'Consulte documentos fiscais eletrônicos brasileiros. NF-e, NFS-e, CT-e, MDF-e, NFC-e e DC-e.',
   icons: {

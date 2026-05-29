@@ -11,7 +11,7 @@ EnvironmentFile=/opt/apps/dfecentral/shared/app.env
 Environment=NODE_ENV=production
 Environment=PORT=3005
 Environment=HOSTNAME=127.0.0.1
-ExecStart=/usr/bin/env npx next start -p 3005 -H 127.0.0.1
+ExecStart=/usr/bin/env node .next/standalone/server.js
 Restart=always
 RestartSec=5
 TimeoutStartSec=60

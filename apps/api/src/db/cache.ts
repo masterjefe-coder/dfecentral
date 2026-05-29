@@ -17,6 +17,7 @@ interface CacheEntry {
   status: StatusDocumento;
   xml?: string | null;
   protocolo?: string | null;
+  fonte?: string;
 }
                                                           
 export async function buscarNoCache(chaveAcesso: string): Promise<CacheEntry | null> {

@@ -1,4 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
+import { gunzipSync } from 'node:zlib';
 import { carregarCertificado } from './certificate';
 import { montarEndpoints, getServiceUrl } from './endpoints';
 import { enviarSOAPComCert, montarEnvelope } from './soap';
@@ -20,20 +21,6 @@ const parser = new XMLParser({
   trimValues: true,
 });
 
-function detectarStatus(xml: string): StatusDocumento {
-  const match = xml.match(/<cStat>(\d+)<\/cStat>/);
-  if (match) {
-    const code = match[1];
-    if (['100', '101', '102', '110', '150', '301'].includes(code)) return 'autorizada';
-    if (['101', '151'].includes(code)) return 'cancelada';
-    if (['110', '301'].includes(code)) return 'denegada';
-    if (code === '135') return 'inutilizada';
-    if (['103', '104', '105', '106', '107', '108', '109'].includes(code)) return 'processando';
-    return 'pendente';
-  }
-  return 'pendente';
-}
-
 function extrairValor(xml: string, path: string): string | undefined {
   const match = xml.match(new RegExp(`<${path}>([^<]+)</${path}>`));
   return match ? match[1] : undefined;
@@ -42,15 +29,15 @@ function extrairValor(xml: string, path: string): string | undefined {
 function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | null {
   try {
     const parsed = parser.parse(xml);
-    const nfeProc = parsed?.nfeProc?.NFe?.infNFe;
-    const protNFe = parsed?.protNFe?.infProt;
+    const nfeProc = parsed?.nfeProc?.NFe?.infNFe ?? parsed?.NFe?.infNFe;
+    const protNFe = parsed?.nfeProc?.protNFe?.infProt ?? parsed?.protNFe?.infProt;
 
     if (nfeProc) {
       const total = nfeProc.total?.ICMSTot?.vNF || '0';
       const emitCNPJ = nfeProc.emit?.CNPJ || '';
       const destCNPJ = nfeProc.dest?.CNPJ || '';
       return {
-        chaveAcesso: (nfeProc.Id || '').replace('NFe', '') || '',
+        chaveAcesso: (nfeProc.Id || '').replace(/^NFe/, '') || '',
         tipo: tipo as DocumentoFiscal['tipo'],
         numero: nfeProc.ide?.nNF || '',
         serie: nfeProc.ide?.serie || '',
@@ -82,7 +69,7 @@ function gerarRespostaDaChave(info: InfoChave): DocumentoFiscal {
   const mes = Number(info.anoMes.slice(4, 6)) - 1;
 
   return {
-    chaveAcesso: `${info.uf}${info.anoMes}${info.cnpjEmitente}${info.modelo}${info.serie}${info.numero}${info.dv}`,
+    chaveAcesso: `${info.uf}${info.anoMes}${info.cnpjEmitente}${info.modelo}${info.serie}${info.numero}${'00000000'}${'1'}${info.dv}`,
     tipo,
     numero: info.numero.replace(/^0+/, ''),
     serie: info.serie.replace(/^0+/, ''),
@@ -99,6 +86,15 @@ function deveTentarScraper(erro?: string): boolean {
   return msg.includes('cnpj-base') || msg.includes('difere') || msg.includes('certificado');
 }
 
+function decodificarDocZip(docZipB64: string): string {
+  const raw = Buffer.from(docZipB64, 'base64');
+  try {
+    return gunzipSync(raw).toString('utf-8');
+  } catch {
+    return raw.toString('utf-8');
+  }
+}
+
 async function chamarScraperService(
   chaveAcesso: string,
   scraperUrl: string,
@@ -113,7 +109,7 @@ async function chamarScraperService(
 
     const data = await res.json();
 
-    if (!data.sucesso) {
+    if (!data?.sucesso) {
       return { sucesso: false, erro: data.erro || 'Scraper falhou', fonte: 'scraper' };
     }
 
@@ -165,22 +161,22 @@ export async function consultarNFeporChave(
       if (scraperResult.sucesso) return scraperResult;
     }
     return {
-      sucesso: true,
-      documento: gerarRespostaDaChave(info),
+      sucesso: false,
+      erro: 'Certificado digital nao configurado e scraper indisponivel',
       fonte: 'mock',
     };
   }
 
   try {
-    const cert = carregarCertificado(config.certificado.caminho, config.certificado.senha);
+    carregarCertificado(config.certificado.caminho, config.certificado.senha);
     const endpoints = montarEndpoints(config.ambiente);
 
     const distDFeUrl = getServiceUrl(endpoints, uf, 'nfeDistDFeInteresse');
     if (!distDFeUrl) {
       return {
-        sucesso: true,
-        documento: gerarRespostaDaChave(info),
-        fonte: 'mock',
+        sucesso: false,
+        erro: `Endpoint SEFAZ indisponivel para UF ${uf}`,
+        fonte: 'sefaz',
       };
     }
 
@@ -216,8 +212,7 @@ export async function consultarNFeporChave(
       }
 
       return {
-        sucesso: true,
-        documento: gerarRespostaDaChave(info),
+        sucesso: false,
         erro: `SEFAZ: ${msg}`,
         fonte: 'sefaz',
       };
@@ -226,8 +221,8 @@ export async function consultarNFeporChave(
     const resultMatch = response.body.match(/<nfeDistDFeInteresseResult[^>]*>([\s\S]*?)<\/nfeDistDFeInteresseResult>/);
     if (!resultMatch) {
       return {
-        sucesso: true,
-        documento: gerarRespostaDaChave(info),
+        sucesso: false,
+        erro: 'Resposta SEFAZ sem bloco de resultado',
         fonte: 'sefaz',
       };
     }
@@ -245,32 +240,19 @@ export async function consultarNFeporChave(
         if (s.sucesso) return s;
       }
 
-      const base = gerarRespostaDaChave(info);
       return {
-        sucesso: true,
-        documento: base,
+        sucesso: false,
         erro: xMotivo || `SEFAZ: status ${cStat}`,
         fonte: 'sefaz',
       };
     }
-
-    const gzipBuf = Buffer.from(docZipB64, 'base64');
-
-    let xmlDecoded: string;
-    try {
-      xmlDecoded = gzipBuf.toString('utf-8');
-    } catch {
-      xmlDecoded = gzipBuf.toString('utf-8');
-    }
+    const xmlDecoded = decodificarDocZip(docZipB64);
 
     const doc = parseDocumentoFromXML(xmlDecoded, tipo);
     if (!doc) {
       return {
-        sucesso: true,
-        documento: {
-          ...gerarRespostaDaChave(info),
-          xml: xmlDecoded,
-        },
+        sucesso: false,
+        erro: 'Nao foi possivel interpretar o XML retornado pela SEFAZ',
         fonte: 'sefaz',
       };
     }
@@ -283,8 +265,7 @@ export async function consultarNFeporChave(
     }
 
     return {
-      sucesso: true,
-      documento: gerarRespostaDaChave(info),
+      sucesso: false,
       erro: error.message || 'Erro na consulta SEFAZ',
       fonte: 'sefaz',
     };

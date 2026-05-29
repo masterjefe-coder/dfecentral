@@ -9,9 +9,10 @@ import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache';
 function getSdkConfig(): SdkConfig {
   return {
     ambiente: (Number(process.env.SEFAZ_AMBIENTE) || 2) as 1 | 2,
-    certificado: process.env.SEFAZ_CERT_PATH && process.env.SEFAZ_CERT_PASS
-      ? { caminho: process.env.SEFAZ_CERT_PATH, senha: process.env.SEFAZ_CERT_PASS }
-      : undefined,
+    certificado:
+      process.env.SEFAZ_CERT_PATH && process.env.SEFAZ_CERT_PASS
+        ? { caminho: process.env.SEFAZ_CERT_PATH, senha: process.env.SEFAZ_CERT_PASS }
+        : undefined,
     scraperUrl: process.env.SCRAPER_URL || '',
     timeout: 45000,
   };
@@ -70,14 +71,14 @@ export async function nfeRoutes(app: FastifyInstance) {
   app.get('/:chave', { schema: consultaSchema }, async (request, reply) => {
     const { chave } = request.params as { chave: string };
     if (!/^\d{44}$/.test(chave)) {
-      return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
+      return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 digitos numericos' });
     }
 
     const config = getSdkConfig();
     const resultado = await consultarComCache(chave, config);
 
     if (!resultado.sucesso) {
-      return reply.status(404).send({ sucesso: false, erro: resultado.erro || 'NF-e não encontrada' });
+      return reply.status(404).send({ sucesso: false, erro: resultado.erro || 'NF-e nao encontrada' });
     }
 
     return { sucesso: true, dados: { ...resultado.documento, fonte: resultado.fonte } };
@@ -86,7 +87,7 @@ export async function nfeRoutes(app: FastifyInstance) {
   app.get('/:chave/xml', async (request, reply) => {
     const { chave } = request.params as { chave: string };
     if (!/^\d{44}$/.test(chave)) {
-      return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
+      return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 digitos numericos' });
     }
 
     const cache = await buscarNoCache(chave);
@@ -98,7 +99,7 @@ export async function nfeRoutes(app: FastifyInstance) {
     const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
 
     if (!resultado.sucesso || !resultado.documento?.xml) {
-      return reply.status(404).send({ sucesso: false, erro: 'XML não disponível para esta chave' });
+      return reply.status(404).send({ sucesso: false, erro: 'XML nao disponivel para esta chave' });
     }
 
     await salvarNoCache(resultado.documento);
@@ -107,9 +108,15 @@ export async function nfeRoutes(app: FastifyInstance) {
 
   app.get('/', async (request, reply) => {
     const { cnpj, tipo = 'todas', dataInicio, dataFim, pagina = 1, limite = 20 } = request.query as any;
+    const paginaNum = Math.max(1, Number(pagina) || 1);
+    const limiteNum = Math.min(100, Math.max(1, Number(limite) || 20));
 
     if (!cnpj || !/^\d{14}$/.test(cnpj)) {
-      return reply.status(400).send({ sucesso: false, erro: 'CNPJ deve ter 14 dígitos numéricos' });
+      return reply.status(400).send({ sucesso: false, erro: 'CNPJ deve ter 14 digitos numericos' });
+    }
+
+    if ((dataInicio && Number.isNaN(new Date(dataInicio).getTime())) || (dataFim && Number.isNaN(new Date(dataFim).getTime()))) {
+      return reply.status(400).send({ sucesso: false, erro: 'Datas devem estar em formato ISO valido' });
     }
 
     const conditions = [eq(documentos.tipo, 'nfe')];
@@ -125,13 +132,13 @@ export async function nfeRoutes(app: FastifyInstance) {
     if (dataInicio) conditions.push(gte(documentos.dataEmissao, new Date(dataInicio)));
     if (dataFim) conditions.push(lte(documentos.dataEmissao, new Date(dataFim)));
 
-    const offset = (pagina - 1) * limite;
+    const offset = (paginaNum - 1) * limiteNum;
     const resultados = await db
       .select()
       .from(documentos)
       .where(and(...conditions))
       .orderBy(desc(documentos.dataEmissao))
-      .limit(limite)
+      .limit(limiteNum)
       .offset(offset);
 
     const [{ count }] = await db
@@ -141,7 +148,13 @@ export async function nfeRoutes(app: FastifyInstance) {
 
     return {
       sucesso: true,
-      dados: { documentos: resultados, total: Number(count), pagina, limite, paginas: Math.ceil(Number(count) / limite) },
+      dados: {
+        documentos: resultados,
+        total: Number(count),
+        pagina: paginaNum,
+        limite: limiteNum,
+        paginas: Math.max(1, Math.ceil(Number(count) / limiteNum)),
+      },
     };
   });
 }

@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createPrivateKey, createSign, X509Certificate } from 'node:crypto';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { unlinkSync, writeFileSync } from 'node:fs';
 
 interface CertData {
   pem: string;
@@ -30,19 +30,28 @@ function extractCN(subject: string): string {
 }
 
 export function carregarCertificado(caminho: string, senha: string): CertData {
-  const tmpPem = join(tmpdir(), `dfecentral-cert-${Date.now()}.pem`);
-  const tmpKey = join(tmpdir(), `dfecentral-key-${Date.now()}.pem`);
+  const tmpDir = mkdtempSync(join(tmpdir(), 'dfecentral-cert-'));
+  const tmpPem = join(tmpDir, 'cert.pem');
+  const tmpKey = join(tmpDir, 'key.pem');
 
   try {
-    execSync(
-      `openssl pkcs12 -in "${caminho}" -passin pass:${senha} -nokeys -out "${tmpPem}" 2>nul`,
-      { stdio: 'pipe', timeout: 10000 },
-    );
+    const commonArgs = ['pkcs12', '-in', caminho, '-passin', `pass:${senha}`];
 
-    execSync(
-      `openssl pkcs12 -in "${caminho}" -passin pass:${senha} -nocerts -nodes -out "${tmpKey}" 2>nul`,
-      { stdio: 'pipe', timeout: 10000 },
-    );
+    const certResult = spawnSync('openssl', [...commonArgs, '-nokeys', '-out', tmpPem], {
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+    if (certResult.status !== 0) {
+      throw new Error(certResult.stderr || certResult.stdout || 'openssl falhou ao extrair certificado');
+    }
+
+    const keyResult = spawnSync('openssl', [...commonArgs, '-nocerts', '-nodes', '-out', tmpKey], {
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+    if (keyResult.status !== 0) {
+      throw new Error(keyResult.stderr || keyResult.stdout || 'openssl falhou ao extrair chave privada');
+    }
 
     const pem = readFileSync(tmpPem, 'utf-8');
     const keyPem = readFileSync(tmpKey, 'utf-8');
@@ -61,8 +70,7 @@ export function carregarCertificado(caminho: string, senha: string): CertData {
   } catch (err: any) {
     throw new Error(`Falha ao carregar certificado: ${err.message}`);
   } finally {
-    try { unlinkSync(tmpPem); } catch {}
-    try { unlinkSync(tmpKey); } catch {}
+    try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
 }
 

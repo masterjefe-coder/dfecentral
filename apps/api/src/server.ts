@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import { timingSafeEqual } from 'node:crypto';
 import { nfeRoutes } from './routes/nfe';
 import { cteRoutes } from './routes/cte';
 import { mdfeRoutes } from './routes/mdfe';
@@ -22,6 +23,54 @@ const app = Fastify({
   },
 });
 
+function getConfiguredApiKeys(): string[] {
+  const candidates = [process.env.API_KEY, process.env.API_KEYS].filter(Boolean) as string[];
+  return candidates
+    .flatMap((value) => value.split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function matchesKey(expected: string, provided: string): boolean {
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return timingSafeEqual(expectedBuf, providedBuf);
+}
+
+function extractAuthToken(authorization?: string, apiKey?: string): string | null {
+  const headerValue = authorization || apiKey || '';
+  if (!headerValue) return null;
+  const bearerMatch = headerValue.match(/^Bearer\s+(.+)$/i);
+  if (bearerMatch) return bearerMatch[1].trim();
+  return headerValue.trim();
+}
+
+app.addHook('onRequest', async (request, reply) => {
+  const pathname = new URL(request.url, 'http://localhost').pathname;
+  const isPublicRoute =
+    pathname === '/health' ||
+    pathname === '/api/v1/health' ||
+    pathname.startsWith('/docs');
+
+  if (isPublicRoute) return;
+
+  const configuredKeys = getConfiguredApiKeys();
+  if (configuredKeys.length === 0) return;
+
+  const token = extractAuthToken(
+    request.headers.authorization,
+    request.headers['x-api-key']?.toString(),
+  );
+
+  if (!token || !configuredKeys.some((key) => matchesKey(key, token))) {
+    return reply.status(401).send({
+      sucesso: false,
+      erro: 'Autenticacao requerida. Envie Authorization: Bearer <token> ou X-API-Key.',
+    });
+  }
+});
+
 // Plugins
 await app.register(cors, {
   origin: (process.env.API_CORS_ORIGIN || '').split(',').filter(Boolean),
@@ -37,12 +86,13 @@ await app.register(swagger, {
   openapi: {
     info: {
       title: 'DFeCentral API',
-      description: 'API REST para consulta de documentos fiscais eletrônicos brasileiros',
+      description: 'API REST para consulta de documentos fiscais eletrÃ´nicos brasileiros',
       version: '0.1.0',
       contact: { name: 'DFeCentral', url: 'https://www.dfecentral.com.br' },
     },
+    security: [{ BearerAuth: [] }],
     servers: [
-      { url: 'https://api.dfecentral.com.br', description: 'Produção' },
+      { url: 'https://api.dfecentral.com.br', description: 'ProduÃ§Ã£o' },
       { url: 'http://localhost:3004', description: 'Desenvolvimento' },
     ],
     components: {

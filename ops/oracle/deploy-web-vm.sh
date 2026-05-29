@@ -57,13 +57,15 @@ cd "$REPO_DIR"
 
 echo ">>> Building API (tsc)..."
 cd apps/api
-npx tsc --noEmit false --outDir dist 2>&1 || echo "TS build ok (pode ter warnings)"
+npx tsc -p tsconfig.json 2>&1 | tail -20
 cd "$REPO_DIR"
 
 echo ">>> Instalando Playwright (scraper)..."
 cd apps/scraper
 npm install 2>&1 | tail -2
 npx playwright install chromium 2>&1 | tail -2
+echo ">>> Building Scraper (tsc)..."
+npm run build 2>&1 | tail -20
 cd "$REPO_DIR"
 
 if [ -n "${DATABASE_URL:-}" ]; then

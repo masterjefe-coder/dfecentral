@@ -87,7 +87,7 @@ function requestPromise(url: string, body: string, action: string, certPath?: st
       method: 'POST',
       headers,
       timeout,
-      rejectUnauthorized: false,
+      rejectUnauthorized: process.env.NODE_ENV === 'production',
     };
 
     if (isHttps && certPath) {
