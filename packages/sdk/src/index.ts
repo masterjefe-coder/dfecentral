@@ -1,8 +1,8 @@
-export { carregarCertificado, montarChavePrivada } from './certificate';
-export { enviarSOAP, enviarSOAPComCert, montarEnvelope, assinarSOAP } from './soap';
-export { consultarNFeporChave } from './consulta';
-export { montarEndpoints, getServiceUrl } from './endpoints';
-export { parseChaveAcesso } from './types';
+export { carregarCertificado, montarChavePrivada } from './certificate.js';
+export { enviarSOAP, enviarSOAPComCert, montarEnvelope, assinarSOAP } from './soap.js';
+export { consultarNFeporChave } from './consulta.js';
+export { montarEndpoints, getServiceUrl } from './endpoints.js';
+export { parseChaveAcesso } from './types.js';
 export type {
   Ambiente,
   TipoDocumento,
@@ -18,4 +18,4 @@ export type {
   InfoChave,
   SefazEndpoint,
   Fonte,
-} from './types';
+} from './types.js';

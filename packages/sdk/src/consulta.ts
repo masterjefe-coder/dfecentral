@@ -1,9 +1,9 @@
 import { XMLParser } from 'fast-xml-parser';
 import { gunzipSync } from 'node:zlib';
-import { carregarCertificado } from './certificate';
-import { montarEndpoints, getServiceUrl } from './endpoints';
-import { enviarSOAPComCert, montarEnvelope } from './soap';
-import { parseChaveAcesso } from './types';
+import { carregarCertificado } from './certificate.js';
+import { montarEndpoints, getServiceUrl } from './endpoints.js';
+import { enviarSOAPComCert, montarEnvelope } from './soap.js';
+import { parseChaveAcesso } from './types.js';
 import type {
   SdkConfig,
   ConsultaChaveParams,
@@ -11,7 +11,7 @@ import type {
   DocumentoFiscal,
   StatusDocumento,
   InfoChave,
-} from './types';
+} from './types.js';
 
 const parser = new XMLParser({
   ignoreAttributes: false,

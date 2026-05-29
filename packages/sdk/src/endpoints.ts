@@ -1,4 +1,4 @@
-import type { SefazEndpoint, Ambiente } from './types';
+import type { SefazEndpoint, Ambiente } from './types.js';
 
 const AMBIENTE_SUFIXO: Record<Ambiente, string> = {
   1: '',
