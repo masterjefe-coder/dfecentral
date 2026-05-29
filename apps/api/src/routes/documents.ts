@@ -42,6 +42,7 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
           },
           response: {
             200: { type: 'object', properties: { sucesso: { type: 'boolean' }, dados: documentoSchema } },
+            400: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
             404: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
           },
         },
@@ -94,6 +95,7 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
                 },
               },
             },
+            400: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
           },
         },
       },

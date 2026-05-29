@@ -162,6 +162,7 @@ export async function nfeRoutes(app: FastifyInstance) {
         },
         response: {
           200: { type: 'object', properties: { sucesso: { type: 'boolean', example: true }, dados: { type: 'object' } } },
+          400: { type: 'object', properties: { sucesso: { type: 'boolean', example: false }, erro: { type: 'string' } } },
           404: { type: 'object', properties: { sucesso: { type: 'boolean', example: false }, erro: { type: 'string' } } },
         },
       },
