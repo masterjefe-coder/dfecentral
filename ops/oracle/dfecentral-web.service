@@ -6,12 +6,12 @@ After=network.target
 Type=simple
 User=ubuntu
 Group=ubuntu
-WorkingDirectory=/opt/apps/dfecentral/web
+WorkingDirectory=/opt/apps/dfecentral/repo/apps/web
 EnvironmentFile=/opt/apps/dfecentral/shared/app.env
 Environment=NODE_ENV=production
 Environment=PORT=3003
 Environment=HOSTNAME=127.0.0.1
-ExecStart=/usr/bin/env node server.js
+ExecStart=/usr/bin/env npx next start -p 3003 -H 127.0.0.1
 Restart=always
 RestartSec=5
 TimeoutStartSec=60
