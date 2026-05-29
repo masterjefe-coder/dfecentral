@@ -57,7 +57,7 @@ cd "$REPO_DIR"
 
 echo ">>> Building API (tsc)..."
 cd apps/api
-npx tsc -p tsconfig.json 2>&1 | tail -20
+npm run build 2>&1 | tail -20
 cd "$REPO_DIR"
 
 echo ">>> Instalando Playwright (scraper)..."

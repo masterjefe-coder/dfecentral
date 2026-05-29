@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "npm exec --package typescript@6.0.3 -- tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "eslint src/",
     "db:generate": "drizzle-kit generate",
