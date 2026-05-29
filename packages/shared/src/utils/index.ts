@@ -109,3 +109,42 @@ export function mascaraChaveAcesso(valor: string): string {
   const apenasNumeros = valor.replace(/\D/g, '').slice(0, 44);
   return apenasNumeros.replace(/(\d{4})(?=\d)/g, '$1 ');
 }
+
+/**
+ * Mapeamento de modelo (posições 21-22 da chave) para tipo de documento
+ */
+const MODELO_PARA_TIPO: Record<string, string> = {
+  '55': 'NF-e',
+  '65': 'NFC-e',
+  '57': 'CT-e',
+  '58': 'MDF-e',
+};
+
+/**
+ * Extrai informações da chave de acesso de 44 dígitos
+ */
+export function detectarDocumentoDaChave(chave: string): {
+  tipo: string;
+  modelo: string;
+  uf: string;
+  anoMes: string;
+  cnpjEmitente: string;
+  serie: string;
+  numero: string;
+} | null {
+  const numeros = chave.replace(/\D/g, '');
+  if (numeros.length !== 44) return null;
+
+  const modelo = numeros.slice(20, 22);
+  const tipo = MODELO_PARA_TIPO[modelo] || `Modelo ${modelo}`;
+
+  return {
+    tipo,
+    modelo,
+    uf: numeros.slice(0, 2),
+    anoMes: numeros.slice(2, 6),
+    cnpjEmitente: numeros.slice(6, 20),
+    serie: numeros.slice(22, 25),
+    numero: numeros.slice(25, 34),
+  };
+}
