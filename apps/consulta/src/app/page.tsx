@@ -10,8 +10,9 @@ interface DocumentoEncontrado {
   serie: string;
   dataEmissao: string;
   cnpjEmitente: string;
-  razaoSocialEmitente: string;
-  cnpjDestinatario: string;
+  razaoSocialEmitente?: string;
+  cnpjDestinatario?: string;
+  razaoSocialDestinatario?: string;
   valorTotal: string;
   status: string;
 }
