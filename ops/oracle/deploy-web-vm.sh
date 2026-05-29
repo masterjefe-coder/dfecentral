@@ -57,6 +57,7 @@ cd "$REPO_DIR"
 
 echo ">>> Building API (tsc)..."
 cd apps/api
+npm install 2>&1 | tail -2
 npm run build 2>&1 | tail -20
 cd "$REPO_DIR"
 
