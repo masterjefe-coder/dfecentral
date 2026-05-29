@@ -1,0 +1,21 @@
+[Unit]
+Description=DFeCentral Fastify API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/apps/dfecentral/repo/apps/api
+EnvironmentFile=/opt/apps/dfecentral/shared/app.env
+Environment=NODE_ENV=production
+Environment=PORT=3004
+ExecStart=/usr/bin/env node dist/server.js
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

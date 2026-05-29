@@ -1,0 +1,29 @@
+{
+  "name": "dfecentral",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DFeCentral - Central de Documentos Fiscais do Brasil",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "clean": "turbo clean",
+    "db:generate": "turbo db:generate",
+    "db:push": "turbo db:push",
+    "db:migrate": "turbo db:migrate",
+    "deploy": "powershell -ExecutionPolicy Bypass -File scripts/push-and-deploy-web.ps1",
+    "deploy:oracle": "powershell -ExecutionPolicy Bypass -File scripts/deploy-web-oracle.ps1"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "npm@11.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,22 @@
+[Unit]
+Description=DFeCentral Consulta (Portal Publico)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/apps/dfecentral/consulta
+EnvironmentFile=/opt/apps/dfecentral/shared/app.env
+Environment=NODE_ENV=production
+Environment=PORT=3005
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/usr/bin/env node server.js
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
