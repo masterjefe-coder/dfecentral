@@ -13,7 +13,7 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
-mkdir -p "$APP_ROOT/runtime"
+mkdir -p "$APP_ROOT/runtime" "$APP_ROOT/shared/certificados"
 
 sed -i 's/\r$//' "$ENV_FILE"
 rm -f "$NORMALIZED_ENV_FILE"

@@ -1,7 +1,19 @@
 import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { documentos } from '../db/schema';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
+import { consultarNFeporChave } from '@dfecentral/sdk';
+import type { SdkConfig } from '@dfecentral/sdk';
+
+function getSdkConfig(): SdkConfig {
+  return {
+    ambiente: (Number(process.env.SEFAZ_AMBIENTE) || 2) as 1 | 2,
+    certificado: process.env.SEFAZ_CERT_PATH && process.env.SEFAZ_CERT_PASS
+      ? { caminho: process.env.SEFAZ_CERT_PATH, senha: process.env.SEFAZ_CERT_PASS }
+      : undefined,
+    timeout: 30000,
+  };
+}
 
 const documentoSchema = {
   type: 'object',
@@ -17,6 +29,8 @@ const documentoSchema = {
     cnpjDestinatario: { type: 'string' },
     valorTotal: { type: 'string', example: '1500.00' },
     status: { type: 'string', enum: ['autorizada', 'cancelada', 'denegada', 'inutilizada', 'pendente', 'processando', 'erro'] },
+    protocolo: { type: 'string' },
+    fonte: { type: 'string' },
   },
 };
 
@@ -27,7 +41,7 @@ export async function nfeRoutes(app: FastifyInstance) {
       schema: {
         tags: ['NF-e'],
         summary: 'Consulta NF-e por chave de acesso',
-        description: 'Busca uma NF-e específica pela chave de acesso de 44 dígitos.',
+        description: 'Busca uma NF-e pela chave de acesso. Consulta SEFAZ em tempo real quando certificado configurado, ou retorna dados mock.',
         params: {
           type: 'object',
           required: ['chave'],
@@ -55,17 +69,20 @@ export async function nfeRoutes(app: FastifyInstance) {
         return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
       }
 
-      const resultado = await db
-        .select()
-        .from(documentos)
-        .where(and(eq(documentos.chaveAcesso, chave), eq(documentos.tipo, 'nfe')))
-        .limit(1);
+      const config = getSdkConfig();
+      const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
 
-      if (resultado.length === 0) {
-        return reply.status(404).send({ sucesso: false, erro: 'NF-e não encontrada' });
+      if (!resultado.sucesso) {
+        return reply.status(404).send({ sucesso: false, erro: resultado.erro || 'NF-e não encontrada' });
       }
 
-      return { sucesso: true, dados: resultado[0] };
+      return {
+        sucesso: true,
+        dados: {
+          ...resultado.documento,
+          fonte: resultado.fonte,
+        },
+      };
     }
   );
 
@@ -139,9 +156,20 @@ export async function nfeRoutes(app: FastifyInstance) {
         .limit(limite)
         .offset(offset);
 
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(documentos)
+        .where(and(...conditions));
+
       return {
         sucesso: true,
-        dados: { documentos: resultados, total: resultados.length, pagina, limite, paginas: Math.ceil(resultados.length / limite) },
+        dados: {
+          documentos: resultados,
+          total: Number(count),
+          pagina,
+          limite,
+          paginas: Math.ceil(Number(count) / limite),
+        },
       };
     }
   );

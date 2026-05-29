@@ -2,10 +2,30 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { documentos } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { consultarNFeporChave, parseChaveAcesso } from '@dfecentral/sdk';
+import type { SdkConfig, TipoDocumento } from '@dfecentral/sdk';
 
 interface DocumentRouteOptions {
   tipo: string;
   label: string;
+}
+
+const TIPO_PARA_SDK: Record<string, TipoDocumento> = {
+  nfce: 'nfce',
+  nfse: 'nfse',
+  cte: 'cte',
+  mdfe: 'mdfe',
+  dce: 'dce',
+};
+
+function getSdkConfig(): SdkConfig {
+  return {
+    ambiente: (Number(process.env.SEFAZ_AMBIENTE) || 2) as 1 | 2,
+    certificado: process.env.SEFAZ_CERT_PATH && process.env.SEFAZ_CERT_PASS
+      ? { caminho: process.env.SEFAZ_CERT_PATH, senha: process.env.SEFAZ_CERT_PASS }
+      : undefined,
+    timeout: 30000,
+  };
 }
 
 const documentoSchema = {
@@ -22,6 +42,8 @@ const documentoSchema = {
     cnpjDestinatario: { type: 'string' },
     valorTotal: { type: 'string' },
     status: { type: 'string' },
+    protocolo: { type: 'string' },
+    fonte: { type: 'string' },
   },
 };
 
@@ -52,15 +74,35 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
         if (!/^\d{44}$/.test(chave)) {
           return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
         }
-        const resultado = await db
-          .select()
-          .from(documentos)
-          .where(and(eq(documentos.chaveAcesso, chave), eq(documentos.tipo, options.tipo as any)))
-          .limit(1);
-        if (resultado.length === 0) {
-          return reply.status(404).send({ sucesso: false, erro: `${options.label} não encontrado` });
+
+        const tipoSDK = TIPO_PARA_SDK[options.tipo];
+        if (!tipoSDK) {
+          const resultado = await db
+            .select()
+            .from(documentos)
+            .where(and(eq(documentos.chaveAcesso, chave), eq(documentos.tipo, options.tipo as any)))
+            .limit(1);
+          if (resultado.length === 0) {
+            return reply.status(404).send({ sucesso: false, erro: `${options.label} não encontrado` });
+          }
+          return { sucesso: true, dados: resultado[0] };
         }
-        return { sucesso: true, dados: resultado[0] };
+
+        const config = getSdkConfig();
+        const resultado = await consultarNFeporChave({ chaveAcesso: chave, tipo: tipoSDK }, config);
+
+        if (!resultado.sucesso) {
+          return reply.status(404).send({ sucesso: false, erro: resultado.erro || `${options.label} não encontrado` });
+        }
+
+        return {
+          sucesso: true,
+          dados: {
+            ...resultado.documento,
+            tipo: options.tipo,
+            fonte: resultado.fonte,
+          },
+        };
       }
     );
 

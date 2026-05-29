@@ -3,7 +3,8 @@ param(
   [string]$User = "ubuntu",
   [string]$KeyPath = "C:\Projetos\oci_recuperacao",
   [string]$RemoteRoot = "/opt/apps/dfecentral",
-  [string]$Branch = "main"
+  [string]$Branch = "main",
+  [string]$CertPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,6 +52,17 @@ if ($null -ne $previousGitSshCommand) {
 }
 if ($pushExitCode -ne 0) {
   throw "Push do codigo para a VM falhou."
+}
+
+# 2.5. Sincronizar certificado digital (se fornecido)
+if ($CertPath -and (Test-Path $CertPath)) {
+  Write-Host ">> Enviando certificado digital para a VM..." -ForegroundColor Yellow
+  $remoteCertDir = "$RemoteRoot/shared/certificados"
+  & ssh -i $KeyPath -o StrictHostKeyChecking=accept-new "$User@$ServerHost" "mkdir -p '$remoteCertDir'"
+  & scp -i $KeyPath -o StrictHostKeyChecking=accept-new "$CertPath" "$User@$ServerHost`:$remoteCertDir/"
+  if ($LASTEXITCODE -ne 0) {
+    throw "Falha ao enviar certificado para a VM."
+  }
 }
 
 # 3. Checkout + setup + build + restart
