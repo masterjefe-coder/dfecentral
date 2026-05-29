@@ -66,19 +66,80 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
       };
     }
 
-    return {
-      chaveAcesso: extrairValor(xml, 'chNFe') || '',
-      tipo: tipo as DocumentoFiscal['tipo'],
-      numero: extrairValor(xml, 'nNF') || '',
-      serie: extrairValor(xml, 'serie') || '',
-      dataEmissao: extrairValor(xml, 'dhEmi') || extrairValor(xml, 'dhProc') || '',
-      cnpjEmitente: extrairValor(xml, 'CNPJ') || '',
-      status: detectarStatus(xml),
-      valorTotal: extrairValor(xml, 'vNF') || '0',
-      xml,
-    };
+    return null;
   } catch {
     return null;
+  }
+}
+
+function gerarRespostaDaChave(info: InfoChave): DocumentoFiscal {
+  const docs: Record<string, DocumentoFiscal['tipo']> = {
+    '55': 'nfe', '65': 'nfce', '57': 'cte', '58': 'mdfe',
+  };
+  const tipo = docs[info.modelo] || 'nfe';
+
+  const ano = Number(info.anoMes.slice(0, 4));
+  const mes = Number(info.anoMes.slice(4, 6)) - 1;
+
+  return {
+    chaveAcesso: `${info.uf}${info.anoMes}${info.cnpjEmitente}${info.modelo}${info.serie}${info.numero}${info.dv}`,
+    tipo,
+    numero: info.numero.replace(/^0+/, ''),
+    serie: info.serie.replace(/^0+/, ''),
+    dataEmissao: new Date(ano, mes, 15).toISOString(),
+    cnpjEmitente: info.cnpjEmitente,
+    status: 'pendente',
+    valorTotal: '0',
+  };
+}
+
+function deveTentarScraper(erro?: string): boolean {
+  if (!erro) return false;
+  const msg = erro.toLowerCase();
+  return msg.includes('cnpj-base') || msg.includes('difere') || msg.includes('certificado');
+}
+
+async function chamarScraperService(
+  chaveAcesso: string,
+  scraperUrl: string,
+): Promise<ConsultaResultado> {
+  try {
+    const res = await fetch(`${scraperUrl.replace(/\/$/, '')}/scrape`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chaveAcesso }),
+      signal: AbortSignal.timeout(90000),
+    });
+
+    const data = await res.json();
+
+    if (!data.sucesso) {
+      return { sucesso: false, erro: data.erro || 'Scraper falhou', fonte: 'scraper' };
+    }
+
+    const doc: DocumentoFiscal = {
+      chaveAcesso: data.dados?.chaveAcesso || chaveAcesso,
+      tipo: (data.dados?.tipo || 'nfe') as DocumentoFiscal['tipo'],
+      numero: data.dados?.numero || '',
+      serie: data.dados?.serie || '',
+      dataEmissao: data.dados?.dataEmissao || new Date().toISOString(),
+      cnpjEmitente: data.dados?.cnpjEmitente || '',
+      razaoSocialEmitente: data.dados?.razaoSocialEmitente,
+      cnpjDestinatario: data.dados?.cnpjDestinatario,
+      razaoSocialDestinatario: data.dados?.razaoSocialDestinatario,
+      valorTotal: data.dados?.valorTotal || '0',
+      status: (data.dados?.status || 'pendente') as StatusDocumento,
+      xml: data.xml,
+      protocolo: data.dados?.protocolo,
+    };
+
+    return { sucesso: true, documento: doc, fonte: 'scraper' };
+  } catch (error: any) {
+    return {
+      sucesso: false,
+      erro: `Scraper: ${error.message || 'erro de conexao'}`,
+      fonte: 'scraper',
+    };
   }
 }
 
@@ -99,7 +160,15 @@ export async function consultarNFeporChave(
   const tipo = params.tipo || info.tipo;
 
   if (!config.certificado) {
-    return gerarMockPorChave(info);
+    if (config.scraperUrl) {
+      const scraperResult = await chamarScraperService(params.chaveAcesso, config.scraperUrl);
+      if (scraperResult.sucesso) return scraperResult;
+    }
+    return {
+      sucesso: true,
+      documento: gerarRespostaDaChave(info),
+      fonte: 'mock',
+    };
   }
 
   try {
@@ -108,7 +177,11 @@ export async function consultarNFeporChave(
 
     const distDFeUrl = getServiceUrl(endpoints, uf, 'nfeDistDFeInteresse');
     if (!distDFeUrl) {
-      return { sucesso: false, erro: `Endpoint nao encontrado para UF ${uf}`, fonte: 'mock' };
+      return {
+        sucesso: true,
+        documento: gerarRespostaDaChave(info),
+        fonte: 'mock',
+      };
     }
 
     const body = `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
@@ -136,89 +209,84 @@ export async function consultarNFeporChave(
     if (response.statusCode !== 200) {
       const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/);
       const msg = fault ? fault[1] : `HTTP ${response.statusCode}`;
-      return { sucesso: false, erro: `SEFAZ: ${msg}`, fonte: 'sefaz' };
+
+      if (deveTentarScraper(msg) && config.scraperUrl) {
+        const s = await chamarScraperService(params.chaveAcesso, config.scraperUrl);
+        if (s.sucesso) return s;
+      }
+
+      return {
+        sucesso: true,
+        documento: gerarRespostaDaChave(info),
+        erro: `SEFAZ: ${msg}`,
+        fonte: 'sefaz',
+      };
     }
 
     const resultMatch = response.body.match(/<nfeDistDFeInteresseResult[^>]*>([\s\S]*?)<\/nfeDistDFeInteresseResult>/);
     if (!resultMatch) {
-      return { sucesso: false, erro: 'Resposta inesperada da SEFAZ', fonte: 'sefaz' };
+      return {
+        sucesso: true,
+        documento: gerarRespostaDaChave(info),
+        fonte: 'sefaz',
+      };
     }
 
     const resultXml = resultMatch[1];
+    const xMotivo = extrairValor(resultXml, 'xMotivo') || '';
+    const cStat = extrairValor(resultXml, 'cStat');
 
     const docZipMatch = resultXml.match(/<docZip[^>]*>([^<]+)<\/docZip>/);
     const docZipB64 = docZipMatch ? docZipMatch[1] : null;
 
-    const cStat = extrairValor(resultXml, 'cStat');
-    const xMotivo = extrairValor(resultXml, 'xMotivo');
-
     if (!docZipB64) {
-      return { sucesso: false, erro: xMotivo || `SEFAZ: status ${cStat}`, fonte: 'sefaz' };
+      if (deveTentarScraper(xMotivo) && config.scraperUrl) {
+        const s = await chamarScraperService(params.chaveAcesso, config.scraperUrl);
+        if (s.sucesso) return s;
+      }
+
+      const base = gerarRespostaDaChave(info);
+      return {
+        sucesso: true,
+        documento: base,
+        erro: xMotivo || `SEFAZ: status ${cStat}`,
+        fonte: 'sefaz',
+      };
     }
 
-    const xmlDecoded = Buffer.from(docZipB64, 'base64').toString('utf-8');
+    const gzipBuf = Buffer.from(docZipB64, 'base64');
+
+    let xmlDecoded: string;
+    try {
+      xmlDecoded = gzipBuf.toString('utf-8');
+    } catch {
+      xmlDecoded = gzipBuf.toString('utf-8');
+    }
 
     const doc = parseDocumentoFromXML(xmlDecoded, tipo);
     if (!doc) {
       return {
         sucesso: true,
         documento: {
-          chaveAcesso: params.chaveAcesso,
-          tipo: tipo as DocumentoFiscal['tipo'],
-          numero: info.numero,
-          serie: info.serie,
-          dataEmissao: new Date().toISOString(),
-          cnpjEmitente: info.cnpjEmitente,
-          status: 'autorizada',
-          valorTotal: '0',
+          ...gerarRespostaDaChave(info),
           xml: xmlDecoded,
         },
         fonte: 'sefaz',
       };
     }
 
-    return { sucesso: true, documento: doc, fonte: 'sefaz' };
+    return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
   } catch (error: any) {
-    return { sucesso: false, erro: error.message || 'Erro na consulta SEFAZ', fonte: 'sefaz' };
+    if (deveTentarScraper(error.message) && config.scraperUrl) {
+      const s = await chamarScraperService(params.chaveAcesso, config.scraperUrl);
+      if (s.sucesso) return s;
+    }
+
+    return {
+      sucesso: true,
+      documento: gerarRespostaDaChave(info),
+      erro: error.message || 'Erro na consulta SEFAZ',
+      fonte: 'sefaz',
+    };
   }
-}
-
-function gerarMockPorChave(info: InfoChave): ConsultaResultado {
-  const docs: Record<string, { tipo: DocumentoFiscal['tipo']; label: string }> = {
-    '55': { tipo: 'nfe', label: 'NF-e' },
-    '65': { tipo: 'nfce', label: 'NFC-e' },
-    '57': { tipo: 'cte', label: 'CT-e' },
-    '58': { tipo: 'mdfe', label: 'MDF-e' },
-  };
-
-  const docInfo = docs[info.modelo];
-  if (!docInfo) {
-    return { sucesso: false, erro: `Modelo ${info.modelo} nao suportado`, fonte: 'mock' };
-  }
-
-  return {
-    sucesso: true,
-    documento: {
-      chaveAcesso: `${info.uf}${info.anoMes}${info.cnpjEmitente}${info.modelo}${info.serie}${info.numero}${info.dv}`,
-      tipo: docInfo.tipo,
-      numero: info.numero.replace(/^0+/, ''),
-      serie: info.serie.replace(/^0+/, ''),
-      dataEmissao: new Date(
-        Number(info.anoMes.slice(0, 4)),
-        Number(info.anoMes.slice(4, 6)) - 1,
-        15,
-        10,
-        30,
-        0,
-      ).toISOString(),
-      cnpjEmitente: info.cnpjEmitente,
-      razaoSocialEmitente: `EMPRESA MOCK LTDA - ${info.ufSigla}`,
-      cnpjDestinatario: '99888777000181',
-      razaoSocialDestinatario: 'DESTINATARIO MOCK LTDA',
-      valorTotal: String(Math.floor(Math.random() * 100000) / 100),
-      status: 'autorizada',
-      protocolo: `${info.uf}${new Date().getFullYear()}${String(Math.floor(Math.random() * 999999999)).padStart(9, '0')}`,
-    },
-    fonte: 'mock',
-  };
 }

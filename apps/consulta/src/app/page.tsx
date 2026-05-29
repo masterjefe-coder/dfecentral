@@ -15,6 +15,7 @@ interface DocumentoEncontrado {
   razaoSocialDestinatario?: string;
   valorTotal: string;
   status: string;
+  fonte?: string;
 }
 
 const MODELOS: Record<string, { tipo: string; label: string; cor: string }> = {
@@ -223,16 +224,42 @@ export default function ConsultaPage() {
               </div>
 
               <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                <button className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all">
+                <a
+                  href={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.dfecentral.com.br'}/api/v1/${resultado.tipo}/${resultado.chaveAcesso}/xml`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
+                >
                   Download XML
-                </button>
-                <button className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all">
+                </a>
+                <a
+                  href={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.dfecentral.com.br'}/api/v1/${resultado.tipo}/${resultado.chaveAcesso}/xml?format=danfe`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
+                >
                   Visualizar DANFE
-                </button>
-                <button className="flex-1 py-2.5 px-4 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-all">
-                  Compartilhar
+                </a>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(resultado.chaveAcesso);
+                    alert('Chave copiada!');
+                  }}
+                  className="flex-1 py-2.5 px-4 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-all"
+                >
+                  Copiar Chave
                 </button>
               </div>
+              {resultado.fonte === 'scraper' && (
+                <div className="mt-3 p-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-xs text-center">
+                  Dados obtidos via consulta publica SEFAZ
+                </div>
+              )}
+              {resultado.fonte === 'mock' && (
+                <div className="mt-3 p-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs text-center">
+                  Dados simulados para demonstracao
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -4,6 +4,7 @@ import { documentos } from '../db/schema';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { consultarNFeporChave } from '@dfecentral/sdk';
 import type { SdkConfig } from '@dfecentral/sdk';
+import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache';
 
 function getSdkConfig(): SdkConfig {
   return {
@@ -11,7 +12,8 @@ function getSdkConfig(): SdkConfig {
     certificado: process.env.SEFAZ_CERT_PATH && process.env.SEFAZ_CERT_PASS
       ? { caminho: process.env.SEFAZ_CERT_PATH, senha: process.env.SEFAZ_CERT_PASS }
       : undefined,
-    timeout: 30000,
+    scraperUrl: process.env.SCRAPER_URL || '',
+    timeout: 45000,
   };
 }
 
@@ -34,185 +36,112 @@ const documentoSchema = {
   },
 };
 
+const consultaSchema = {
+  tags: ['NF-e'],
+  summary: 'Consulta NF-e por chave de acesso',
+  params: {
+    type: 'object',
+    required: ['chave'],
+    properties: {
+      chave: { type: 'string', minLength: 44, maxLength: 44 },
+    },
+  },
+  response: {
+    200: { type: 'object', properties: { sucesso: { type: 'boolean' }, dados: documentoSchema }, additionalProperties: true },
+    400: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
+    404: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
+  },
+};
+
+async function consultarComCache(chave: string, config: SdkConfig) {
+  const cache = await buscarNoCache(chave);
+  if (cache?.xml) {
+    return { sucesso: true, documento: docParaFiscal(cache), fonte: 'cache' as const };
+  }
+
+  const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
+  if (resultado.sucesso && resultado.documento) {
+    await salvarNoCache(resultado.documento);
+  }
+  return resultado;
+}
+
 export async function nfeRoutes(app: FastifyInstance) {
-  app.get(
-    '/:chave',
-    {
-      schema: {
-        tags: ['NF-e'],
-        summary: 'Consulta NF-e por chave de acesso',
-        description: 'Busca uma NF-e pela chave de acesso. Consulta SEFAZ em tempo real quando certificado configurado, ou retorna dados mock.',
-        params: {
-          type: 'object',
-          required: ['chave'],
-          properties: {
-            chave: { type: 'string', minLength: 44, maxLength: 44, description: 'Chave de acesso de 44 dígitos' },
-          },
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              sucesso: { type: 'boolean', example: true },
-              dados: documentoSchema,
-            },
-          },
-          400: { type: 'object', properties: { sucesso: { type: 'boolean', example: false }, erro: { type: 'string' } } },
-          404: { type: 'object', properties: { sucesso: { type: 'boolean', example: false }, erro: { type: 'string' } } },
-        },
-      },
-    },
-    async (request, reply) => {
-      const { chave } = request.params as { chave: string };
-
-      if (!/^\d{44}$/.test(chave)) {
-        return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
-      }
-
-      const config = getSdkConfig();
-      const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
-
-      if (!resultado.sucesso) {
-        return reply.status(404).send({ sucesso: false, erro: resultado.erro || 'NF-e não encontrada' });
-      }
-
-      return {
-        sucesso: true,
-        dados: {
-          ...resultado.documento,
-          fonte: resultado.fonte,
-        },
-      };
+  app.get('/:chave', { schema: consultaSchema }, async (request, reply) => {
+    const { chave } = request.params as { chave: string };
+    if (!/^\d{44}$/.test(chave)) {
+      return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
     }
-  );
 
-  app.get(
-    '/',
-    {
-      schema: {
-        tags: ['NF-e'],
-        summary: 'Lista NF-e por CNPJ',
-        description: 'Lista todas as NF-e associadas a um CNPJ (emitidas, recebidas ou todas).',
-        querystring: {
-          type: 'object',
-          required: ['cnpj'],
-          properties: {
-            cnpj: { type: 'string', minLength: 14, maxLength: 14, description: 'CNPJ do emitente ou destinatário' },
-            tipo: { type: 'string', enum: ['emitidas', 'recebidas', 'todas'], default: 'todas' },
-            dataInicio: { type: 'string', format: 'date', description: 'Data início (AAAA-MM-DD)' },
-            dataFim: { type: 'string', format: 'date', description: 'Data fim (AAAA-MM-DD)' },
-            pagina: { type: 'integer', default: 1, minimum: 1 },
-            limite: { type: 'integer', default: 20, minimum: 1, maximum: 100 },
-          },
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              sucesso: { type: 'boolean', example: true },
-              dados: {
-                type: 'object',
-                properties: {
-                  documentos: { type: 'array', items: documentoSchema },
-                  total: { type: 'integer' },
-                  pagina: { type: 'integer' },
-                  limite: { type: 'integer' },
-                  paginas: { type: 'integer' },
-                },
-              },
-            },
-          },
-          400: { type: 'object', properties: { sucesso: { type: 'boolean', example: false }, erro: { type: 'string' } } },
-        },
-      },
-    },
-    async (request, reply) => {
-      const { cnpj, tipo = 'todas', dataInicio, dataFim, pagina = 1, limite = 20 } = request.query as any;
+    const config = getSdkConfig();
+    const resultado = await consultarComCache(chave, config);
 
-      if (!cnpj || !/^\d{14}$/.test(cnpj)) {
-        return reply.status(400).send({ sucesso: false, erro: 'CNPJ deve ter 14 dígitos numéricos' });
-      }
-
-      const conditions = [eq(documentos.tipo, 'nfe')];
-
-      if (tipo === 'emitidas') {
-        conditions.push(eq(documentos.cnpjEmitente, cnpj));
-      } else if (tipo === 'recebidas') {
-        conditions.push(eq(documentos.cnpjDestinatario, cnpj));
-      } else {
-        conditions.push(eq(documentos.cnpjEmitente, cnpj));
-      }
-
-      if (dataInicio) conditions.push(gte(documentos.dataEmissao, new Date(dataInicio)));
-      if (dataFim) conditions.push(lte(documentos.dataEmissao, new Date(dataFim)));
-
-      const offset = (pagina - 1) * limite;
-
-      const resultados = await db
-        .select()
-        .from(documentos)
-        .where(and(...conditions))
-        .orderBy(desc(documentos.dataEmissao))
-        .limit(limite)
-        .offset(offset);
-
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(documentos)
-        .where(and(...conditions));
-
-      return {
-        sucesso: true,
-        dados: {
-          documentos: resultados,
-          total: Number(count),
-          pagina,
-          limite,
-          paginas: Math.ceil(Number(count) / limite),
-        },
-      };
+    if (!resultado.sucesso) {
+      return reply.status(404).send({ sucesso: false, erro: resultado.erro || 'NF-e não encontrada' });
     }
-  );
 
-  app.get(
-    '/:chave/xml',
-    {
-      schema: {
-        tags: ['NF-e'],
-        summary: 'Download XML da NF-e',
-        description: 'Retorna o XML completo de uma NF-e autorizada.',
-        params: {
-          type: 'object',
-          required: ['chave'],
-          properties: {
-            chave: { type: 'string', minLength: 44, maxLength: 44 },
-          },
-        },
-        response: {
-          200: { type: 'object', properties: { sucesso: { type: 'boolean', example: true }, dados: { type: 'object' } } },
-          400: { type: 'object', properties: { sucesso: { type: 'boolean', example: false }, erro: { type: 'string' } } },
-          404: { type: 'object', properties: { sucesso: { type: 'boolean', example: false }, erro: { type: 'string' } } },
-        },
-      },
-    },
-    async (request, reply) => {
-      const { chave } = request.params as { chave: string };
+    return { sucesso: true, dados: { ...resultado.documento, fonte: resultado.fonte } };
+  });
 
-      if (!/^\d{44}$/.test(chave)) {
-        return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
-      }
-
-      const resultado = await db
-        .select({ xmlCompleto: documentos.xmlCompleto })
-        .from(documentos)
-        .where(and(eq(documentos.chaveAcesso, chave), eq(documentos.tipo, 'nfe')))
-        .limit(1);
-
-      if (resultado.length === 0) {
-        return reply.status(404).send({ sucesso: false, erro: 'NF-e não encontrada' });
-      }
-
-      return { sucesso: true, dados: resultado[0].xmlCompleto };
+  app.get('/:chave/xml', async (request, reply) => {
+    const { chave } = request.params as { chave: string };
+    if (!/^\d{44}$/.test(chave)) {
+      return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
     }
-  );
+
+    const cache = await buscarNoCache(chave);
+    if (cache?.xml) {
+      return reply.type('application/xml').send(cache.xml);
+    }
+
+    const config = getSdkConfig();
+    const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
+
+    if (!resultado.sucesso || !resultado.documento?.xml) {
+      return reply.status(404).send({ sucesso: false, erro: 'XML não disponível para esta chave' });
+    }
+
+    await salvarNoCache(resultado.documento);
+    return reply.type('application/xml').send(resultado.documento.xml);
+  });
+
+  app.get('/', async (request, reply) => {
+    const { cnpj, tipo = 'todas', dataInicio, dataFim, pagina = 1, limite = 20 } = request.query as any;
+
+    if (!cnpj || !/^\d{14}$/.test(cnpj)) {
+      return reply.status(400).send({ sucesso: false, erro: 'CNPJ deve ter 14 dígitos numéricos' });
+    }
+
+    const conditions = [eq(documentos.tipo, 'nfe')];
+
+    if (tipo === 'emitidas') {
+      conditions.push(eq(documentos.cnpjEmitente, cnpj));
+    } else if (tipo === 'recebidas') {
+      conditions.push(eq(documentos.cnpjDestinatario, cnpj));
+    } else {
+      conditions.push(eq(documentos.cnpjEmitente, cnpj));
+    }
+
+    if (dataInicio) conditions.push(gte(documentos.dataEmissao, new Date(dataInicio)));
+    if (dataFim) conditions.push(lte(documentos.dataEmissao, new Date(dataFim)));
+
+    const offset = (pagina - 1) * limite;
+    const resultados = await db
+      .select()
+      .from(documentos)
+      .where(and(...conditions))
+      .orderBy(desc(documentos.dataEmissao))
+      .limit(limite)
+      .offset(offset);
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(documentos)
+      .where(and(...conditions));
+
+    return {
+      sucesso: true,
+      dados: { documentos: resultados, total: Number(count), pagina, limite, paginas: Math.ceil(Number(count) / limite) },
+    };
+  });
 }

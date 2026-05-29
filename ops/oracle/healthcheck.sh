@@ -19,9 +19,10 @@ check() {
 }
 
 FAIL=0
-check "web"    "http://127.0.0.1:3003/"          || FAIL=$((FAIL + 1))
-check "api"    "http://127.0.0.1:3004/api/v1/health" || FAIL=$((FAIL + 1))
-check "caddy"  "http://127.0.0.1:80/"             || FAIL=$((FAIL + 1))
+check "web"     "http://127.0.0.1:3003/"             || FAIL=$((FAIL + 1))
+check "api"     "http://127.0.0.1:3004/api/v1/health"  || FAIL=$((FAIL + 1))
+check "scraper" "http://127.0.0.1:3100/health"         || FAIL=$((FAIL + 1))
+check "caddy"   "http://127.0.0.1:80/"                 || FAIL=$((FAIL + 1))
 
 LINES=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
 if [ "$LINES" -gt "$MAX_LOG_LINES" ]; then

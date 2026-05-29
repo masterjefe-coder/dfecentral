@@ -4,6 +4,7 @@ import { documentos } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { consultarNFeporChave, parseChaveAcesso } from '@dfecentral/sdk';
 import type { SdkConfig, TipoDocumento } from '@dfecentral/sdk';
+import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache';
 
 interface DocumentRouteOptions {
   tipo: string;
@@ -24,14 +25,14 @@ function getSdkConfig(): SdkConfig {
     certificado: process.env.SEFAZ_CERT_PATH && process.env.SEFAZ_CERT_PASS
       ? { caminho: process.env.SEFAZ_CERT_PATH, senha: process.env.SEFAZ_CERT_PASS }
       : undefined,
-    timeout: 30000,
+    scraperUrl: process.env.SCRAPER_URL || '',
+    timeout: 45000,
   };
 }
 
 const documentoSchema = {
   type: 'object',
   properties: {
-    id: { type: 'string', format: 'uuid' },
     chaveAcesso: { type: 'string' },
     tipo: { type: 'string' },
     numero: { type: 'string' },
@@ -47,117 +48,103 @@ const documentoSchema = {
   },
 };
 
+async function consultarComCache(chave: string, config: SdkConfig) {
+  const cache = await buscarNoCache(chave);
+  if (cache?.xml) {
+    return { sucesso: true, documento: docParaFiscal(cache), fonte: 'cache' as const };
+  }
+
+  const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
+  if (resultado.sucesso && resultado.documento) {
+    await salvarNoCache(resultado.documento);
+  }
+  return resultado;
+}
+
 export function createDocumentRoutes(options: DocumentRouteOptions) {
   return async function (app: FastifyInstance) {
-    app.get(
-      '/:chave',
-      {
-        schema: {
-          tags: [options.label],
-          summary: `Consulta ${options.label} por chave de acesso`,
-          params: {
-            type: 'object',
-            required: ['chave'],
-            properties: {
-              chave: { type: 'string', minLength: 44, maxLength: 44 },
-            },
-          },
-          response: {
-            200: { type: 'object', properties: { sucesso: { type: 'boolean' }, dados: documentoSchema } },
-            400: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
-            404: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
-          },
+    app.get('/:chave', {
+      schema: {
+        tags: [options.label],
+        summary: `Consulta ${options.label} por chave de acesso`,
+        params: {
+          type: 'object',
+          required: ['chave'],
+          properties: { chave: { type: 'string', minLength: 44, maxLength: 44 } },
+        },
+        response: {
+          200: { type: 'object', properties: { sucesso: { type: 'boolean' }, dados: documentoSchema }, additionalProperties: true },
+          400: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
+          404: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
         },
       },
-      async (request, reply) => {
-        const { chave } = request.params as { chave: string };
-        if (!/^\d{44}$/.test(chave)) {
-          return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
-        }
-
-        const tipoSDK = TIPO_PARA_SDK[options.tipo];
-        if (!tipoSDK) {
-          const resultado = await db
-            .select()
-            .from(documentos)
-            .where(and(eq(documentos.chaveAcesso, chave), eq(documentos.tipo, options.tipo as any)))
-            .limit(1);
-          if (resultado.length === 0) {
-            return reply.status(404).send({ sucesso: false, erro: `${options.label} não encontrado` });
-          }
-          return { sucesso: true, dados: resultado[0] };
-        }
-
-        const config = getSdkConfig();
-        const resultado = await consultarNFeporChave({ chaveAcesso: chave, tipo: tipoSDK }, config);
-
-        if (!resultado.sucesso) {
-          return reply.status(404).send({ sucesso: false, erro: resultado.erro || `${options.label} não encontrado` });
-        }
-
-        return {
-          sucesso: true,
-          dados: {
-            ...resultado.documento,
-            tipo: options.tipo,
-            fonte: resultado.fonte,
-          },
-        };
+    }, async (request, reply) => {
+      const { chave } = request.params as { chave: string };
+      if (!/^\d{44}$/.test(chave)) {
+        return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
       }
-    );
 
-    app.get(
-      '/',
-      {
-        schema: {
-          tags: [options.label],
-          summary: `Lista ${options.label} por CNPJ`,
-          querystring: {
-            type: 'object',
-            required: ['cnpj'],
-            properties: {
-              cnpj: { type: 'string', minLength: 14, maxLength: 14 },
-              pagina: { type: 'integer', default: 1 },
-              limite: { type: 'integer', default: 20 },
-            },
-          },
-          response: {
-            200: {
-              type: 'object',
-              properties: {
-                sucesso: { type: 'boolean' },
-                dados: {
-                  type: 'object',
-                  properties: {
-                    documentos: { type: 'array', items: documentoSchema },
-                    total: { type: 'integer' },
-                    pagina: { type: 'integer' },
-                    limite: { type: 'integer' },
-                  },
-                },
-              },
-            },
-            400: { type: 'object', properties: { sucesso: { type: 'boolean' }, erro: { type: 'string' } } },
-          },
-        },
-      },
-      async (request, reply) => {
-        const { cnpj, pagina = 1, limite = 20 } = request.query as any;
-        if (!cnpj || !/^\d{14}$/.test(cnpj)) {
-          return reply.status(400).send({ sucesso: false, erro: 'CNPJ deve ter 14 dígitos numéricos' });
-        }
-        const offset = (pagina - 1) * limite;
-        const resultados = await db
+      const tipoSDK = TIPO_PARA_SDK[options.tipo];
+      if (!tipoSDK) {
+        const resultado = await db
           .select()
           .from(documentos)
-          .where(and(eq(documentos.tipo, options.tipo as any), eq(documentos.cnpjEmitente, cnpj)))
-          .limit(limite)
-          .offset(offset);
-        return {
-          sucesso: true,
-          dados: { documentos: resultados, total: resultados.length, pagina, limite },
-        };
+          .where(and(eq(documentos.chaveAcesso, chave), eq(documentos.tipo, options.tipo as any)))
+          .limit(1);
+        if (resultado.length === 0) {
+          return reply.status(404).send({ sucesso: false, erro: `${options.label} não encontrado` });
+        }
+        return { sucesso: true, dados: resultado[0] };
       }
-    );
+
+      const config = getSdkConfig();
+      const resultado = await consultarComCache(chave, config);
+
+      if (!resultado.sucesso) {
+        return reply.status(404).send({ sucesso: false, erro: resultado.erro || `${options.label} não encontrado` });
+      }
+
+      return {
+        sucesso: true,
+        dados: { ...resultado.documento, tipo: options.tipo, fonte: resultado.fonte },
+      };
+    });
+
+    app.get('/:chave/xml', async (request, reply) => {
+      const { chave } = request.params as { chave: string };
+      if (!/^\d{44}$/.test(chave)) {
+        return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 dígitos numéricos' });
+      }
+
+      const cache = await buscarNoCache(chave);
+      if (cache?.xml) {
+        return reply.type('application/xml').send(cache.xml);
+      }
+
+      const config = getSdkConfig();
+      const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
+
+      if (!resultado.sucesso || !resultado.documento?.xml) {
+        return reply.status(404).send({ sucesso: false, erro: 'XML não disponível' });
+      }
+
+      await salvarNoCache(resultado.documento);
+      return reply.type('application/xml').send(resultado.documento.xml);
+    });
+
+    app.get('/', async (request, reply) => {
+      const { cnpj, pagina = 1, limite = 20 } = request.query as any;
+      if (!cnpj || !/^\d{14}$/.test(cnpj)) {
+        return reply.status(400).send({ sucesso: false, erro: 'CNPJ deve ter 14 dígitos numéricos' });
+      }
+      const offset = (pagina - 1) * limite;
+      const resultados = await db
+        .select()
+        .from(documentos)
+        .where(and(eq(documentos.tipo, options.tipo as any), eq(documentos.cnpjEmitente, cnpj)))
+        .limit(limite)
+        .offset(offset);
+      return { sucesso: true, dados: { documentos: resultados, total: resultados.length, pagina, limite } };
+    });
   };
 }

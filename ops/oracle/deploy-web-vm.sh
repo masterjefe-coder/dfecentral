@@ -60,6 +60,12 @@ cd apps/api
 npx tsc --noEmit false --outDir dist 2>&1 || echo "TS build ok (pode ter warnings)"
 cd "$REPO_DIR"
 
+echo ">>> Instalando Playwright (scraper)..."
+cd apps/scraper
+npm install 2>&1 | tail -2
+npx playwright install chromium 2>&1 | tail -2
+cd "$REPO_DIR"
+
 if [ -n "${DATABASE_URL:-}" ]; then
   echo ">>> Rodando migrations..."
   cd "$REPO_DIR/apps/api"
@@ -71,6 +77,7 @@ echo ">>> Reiniciando servicos..."
 sudo systemctl restart dfecentral-web
 sudo systemctl restart dfecentral-api
 sudo systemctl restart dfecentral-consulta
+sudo systemctl restart dfecentral-scraper || echo "Scraper pode estar iniciando pela 1a vez"
 sudo systemctl reload caddy >/dev/null 2>&1 || sudo systemctl restart caddy
 
 sleep 5
@@ -82,9 +89,12 @@ CONSULTA_OK=$(curl -fsS "http://127.0.0.1:3005" >/dev/null 2>&1 && echo "OK" || 
 
 echo ""
 echo "=== DFeCentral: Deploy concluido ==="
-echo "  Web (3003):     $WEB_OK"
-echo "  API (3004):     $API_OK"
+SCRAPER_OK=$(curl -fsS "http://127.0.0.1:3100/health" >/dev/null 2>&1 && echo "OK" || echo "FALHOU")
+
+echo "  Web (3003):      $WEB_OK"
+echo "  API (3004):      $API_OK"
 echo "  Consulta (3005): $CONSULTA_OK"
+echo "  Scraper (3100):  $SCRAPER_OK"
 echo ""
 echo "URLs:"
 echo "  https://www.dfecentral.com.br"

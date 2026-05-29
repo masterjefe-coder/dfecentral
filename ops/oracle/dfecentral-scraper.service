@@ -1,0 +1,21 @@
+[Unit]
+Description=DFeCentral Scraper (Playwright)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/apps/dfecentral/repo/apps/scraper
+EnvironmentFile=/opt/apps/dfecentral/shared/app.env
+Environment=NODE_ENV=production
+Environment=SCRAPER_PORT=3100
+ExecStart=/usr/bin/env npx tsx src/index.ts
+Restart=always
+RestartSec=10
+TimeoutStartSec=120
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

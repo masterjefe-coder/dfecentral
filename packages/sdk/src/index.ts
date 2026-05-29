@@ -12,8 +12,10 @@ export type {
   ConsultaChaveParams,
   ConsultaCNPJParams,
   ConsultaResultado,
+  ConsultaComCache,
   DistribuicaoResultado,
   DocumentoFiscal,
   InfoChave,
   SefazEndpoint,
+  Fonte,
 } from './types';
