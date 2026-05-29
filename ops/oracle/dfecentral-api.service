@@ -10,7 +10,7 @@ WorkingDirectory=/opt/apps/dfecentral/repo/apps/api
 EnvironmentFile=/opt/apps/dfecentral/shared/app.env
 Environment=NODE_ENV=production
 Environment=PORT=3004
-ExecStart=/usr/bin/env node dist/server.js
+ExecStart=/usr/bin/env npx tsx src/server.ts
 Restart=always
 RestartSec=5
 TimeoutStartSec=60
