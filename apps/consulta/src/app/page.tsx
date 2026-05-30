@@ -113,6 +113,8 @@ export default function ConsultaPage() {
     ? `/api/assistido/${assistido.id}/frame?ts=${assistidoFrameTick}`
     : '';
 
+  const urlAbsoluta = (path: string) => new URL(path, window.location.origin).toString();
+
   const abrirPopupAssistido = (id?: string) => {
     const popup = window.open('', 'dfecentral-assistido', 'popup=yes,width=1280,height=860');
     if (!popup) return false;
@@ -121,7 +123,7 @@ export default function ConsultaPage() {
     popup.document.body.innerHTML = '<p style="font-family:Arial,sans-serif;padding:16px">Abrindo consulta assistida...</p>';
     popupAssistidoRef.current = popup;
     if (id) {
-      popup.location.href = `/assistido/${id}`;
+      popup.location.replace(urlAbsoluta(`/assistido/${id}`));
       popup.focus();
     }
     return true;
@@ -205,7 +207,7 @@ export default function ConsultaPage() {
       if (popupAberto) {
         const popup = popupAssistidoRef.current;
         if (popup) {
-          popup.location.href = `/assistido/${data.job.id}`;
+          popup.location.replace(urlAbsoluta(`/assistido/${data.job.id}`));
           popup.focus();
         }
       } else if (!popupPreliminar) {
