@@ -55,11 +55,17 @@ npm install --include=dev 2>&1 | tail -2
 echo ">>> Building Web..."
 cd apps/web
 npx next build 2>&1 | tail -3
+mkdir -p .next/standalone/apps/web/.next
+cp -R .next/static .next/standalone/apps/web/.next/
+if [ -d public ]; then cp -R public .next/standalone/apps/web/; fi
 cd "$REPO_DIR"
 
 echo ">>> Building Consulta..."
 cd apps/consulta
 npx next build 2>&1 | tail -3
+mkdir -p .next/standalone/apps/consulta/.next
+cp -R .next/static .next/standalone/apps/consulta/.next/
+if [ -d public ]; then cp -R public .next/standalone/apps/consulta/; fi
 cd "$REPO_DIR"
 
 echo ">>> Building API (tsc)..."
