@@ -5,6 +5,16 @@ import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { consultarNFeporChave } from '@dfecentral/sdk';
 import type { SdkConfig } from '@dfecentral/sdk';
 import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
+import { gerarPdfDanfe } from '../utils/danfe.js';
+
+function tipoDaChave(chave: string) {
+  const modelo = chave.slice(20, 22);
+  if (modelo === '55') return 'nfe' as const;
+  if (modelo === '65') return 'nfce' as const;
+  if (modelo === '57') return 'cte' as const;
+  if (modelo === '58') return 'mdfe' as const;
+  return null;
+}
 
 function getSdkConfig(): SdkConfig {
   return {
@@ -74,6 +84,14 @@ export async function nfeRoutes(app: FastifyInstance) {
       return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 digitos numericos' });
     }
 
+    const tipoEsperado = tipoDaChave(chave);
+    if (!tipoEsperado) {
+      return reply.status(400).send({ sucesso: false, erro: 'Nao foi possivel identificar o tipo pela chave' });
+    }
+    if (tipoEsperado !== 'nfe') {
+      return reply.status(400).send({ sucesso: false, erro: `A chave informada corresponde a ${tipoEsperado.toUpperCase()}` });
+    }
+
     const config = getSdkConfig();
     const resultado = await consultarComCache(chave, config);
 
@@ -86,11 +104,28 @@ export async function nfeRoutes(app: FastifyInstance) {
 
   app.get('/:chave/xml', async (request, reply) => {
     const { chave } = request.params as { chave: string };
+    const formato = String((request.query as { format?: string })?.format || '').toLowerCase();
     if (!/^\d{44}$/.test(chave)) {
       return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 digitos numericos' });
     }
 
+    const tipoEsperado = tipoDaChave(chave);
+    if (!tipoEsperado) {
+      return reply.status(400).send({ sucesso: false, erro: 'Nao foi possivel identificar o tipo pela chave' });
+    }
+    if (tipoEsperado !== 'nfe') {
+      return reply.status(400).send({ sucesso: false, erro: `A chave informada corresponde a ${tipoEsperado.toUpperCase()}` });
+    }
+
     const cache = await buscarNoCache(chave);
+    if ((formato === 'danfe' || formato === 'pdf') && cache?.xml) {
+      const pdf = await gerarPdfDanfe(docParaFiscal(cache));
+      return reply
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `inline; filename="danfe-${chave}.pdf"`)
+        .send(pdf);
+    }
+
     if (cache?.xml) {
       return reply.type('application/xml').send(cache.xml);
     }
@@ -103,6 +138,14 @@ export async function nfeRoutes(app: FastifyInstance) {
     }
 
     await salvarNoCache(resultado.documento);
+    if (formato === 'danfe' || formato === 'pdf') {
+      const pdf = await gerarPdfDanfe(resultado.documento);
+      return reply
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `inline; filename="danfe-${chave}.pdf"`)
+        .send(pdf);
+    }
+
     return reply.type('application/xml').send(resultado.documento.xml);
   });
 

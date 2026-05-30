@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import Link from 'next/link';
 
@@ -95,12 +95,11 @@ export default function ConsultaPage() {
   const [chaveAcesso, setChaveAcesso] = useState('');
   const [resultado, setResultado] = useState<DocumentoEncontrado | null>(null);
   const [erro, setErro] = useState('');
-  const [carregando, setCarregando] = useState(false);
   const [assistido, setAssistido] = useState<AssistJobState | null>(null);
   const [assistidoCarregando, setAssistidoCarregando] = useState(false);
   const [assistidoTexto, setAssistidoTexto] = useState('');
   const [assistidoFrameTick, setAssistidoFrameTick] = useState(0);
-  const [mostrarAssistido, setMostrarAssistido] = useState(false);
+  const popupAssistidoRef = useRef<Window | null>(null);
 
   const infoChave = useMemo(() => detectarTipo(chaveAcesso), [chaveAcesso]);
 
@@ -113,6 +112,20 @@ export default function ConsultaPage() {
   const assistidoFrameUrl = assistido?.id
     ? `/api/assistido/${assistido.id}/frame?ts=${assistidoFrameTick}`
     : '';
+
+  const abrirPopupAssistido = (id?: string) => {
+    const popup = window.open('', 'dfecentral-assistido', 'popup=yes,width=1280,height=860');
+    if (!popup) return false;
+
+    popup.document.title = 'DFeCentral - Consulta assistida';
+    popup.document.body.innerHTML = '<p style="font-family:Arial,sans-serif;padding:16px">Abrindo consulta assistida...</p>';
+    popupAssistidoRef.current = popup;
+    if (id) {
+      popup.location.href = `/assistido/${id}`;
+      popup.focus();
+    }
+    return true;
+  };
 
   const atualizarAssistido = async (id: string) => {
     const res = await fetch(`/api/assistido/${id}/state`, { cache: 'no-store' });
@@ -142,7 +155,21 @@ export default function ConsultaPage() {
     return () => window.clearInterval(timer);
   }, [assistido?.id, assistido?.status]);
 
-  const handleBuscar = async () => {
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { tipo?: string; id?: string } | undefined;
+      if (!data || data.tipo !== 'assistido:atualizar' || !data.id) return;
+      if (assistido?.id === data.id) {
+        void atualizarAssistido(data.id);
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [assistido?.id]);
+
+  const iniciarAssistido = async () => {
     if (chaveLimpa.length !== 44) {
       setErro('A chave de acesso deve ter exatamente 44 digitos.');
       return;
@@ -153,38 +180,15 @@ export default function ConsultaPage() {
       return;
     }
 
-    setCarregando(true);
-    setErro('');
-    setResultado(null);
-    setMostrarAssistido(false);
-
-    try {
-      const res = await fetch(`/api/consulta/${infoChave.tipo}/${chaveLimpa}`);
-      const data = await res.json();
-      if (!data.sucesso) {
-        const mensagem = data.erro || 'Documento nao encontrado.';
-        setErro(mensagem);
-        setMostrarAssistido(/captcha|hcaptcha|interacao|assistid/i.test(mensagem));
-        return;
-      }
-      setResultado(data.dados);
-    } catch {
-      setErro('Erro ao consultar. Verifique sua conexao e tente novamente.');
-      setMostrarAssistido(true);
-    } finally {
-      setCarregando(false);
+    if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
+      popupAssistidoRef.current.close();
     }
-  };
 
-  const iniciarAssistido = async () => {
-    if (chaveLimpa.length !== 44) {
-      setErro('A chave de acesso deve ter exatamente 44 digitos.');
-      return;
-    }
+    const popupPreliminar = abrirPopupAssistido();
 
     setAssistidoCarregando(true);
     setErro('');
-    setMostrarAssistido(false);
+    setResultado(null);
 
     try {
       const res = await fetch('/api/assistido/start', {
@@ -195,9 +199,23 @@ export default function ConsultaPage() {
       const data = await res.json();
       if (!data.sucesso || !data.job) {
         setErro(data.erro || 'Nao foi possivel iniciar a consulta assistida.');
+        if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
+          popupAssistidoRef.current.close();
+        }
+        popupAssistidoRef.current = null;
         return;
       }
 
+      const popupAberto = popupAssistidoRef.current && !popupAssistidoRef.current.closed;
+      if (popupAberto) {
+        const popup = popupAssistidoRef.current;
+        if (popup) {
+          popup.location.href = `/assistido/${data.job.id}`;
+          popup.focus();
+        }
+      } else if (!popupPreliminar) {
+        setErro('Nao foi possivel abrir a janela de consulta. Permita popups e tente novamente.');
+      }
       setAssistido(data.job);
       setAssistidoFrameTick(0);
       if (data.job.result?.sucesso && data.job.result.dados) {
@@ -208,6 +226,19 @@ export default function ConsultaPage() {
     } finally {
       setAssistidoCarregando(false);
     }
+  };
+
+  const limparChave = () => {
+    if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
+      popupAssistidoRef.current.close();
+    }
+    popupAssistidoRef.current = null;
+    setChaveAcesso('');
+    setResultado(null);
+    setErro('');
+    setAssistido(null);
+    setAssistidoTexto('');
+    setAssistidoFrameTick(0);
   };
 
   const enviarAcaoAssistida = async (action: Record<string, unknown>) => {
@@ -268,6 +299,10 @@ export default function ConsultaPage() {
     try {
       await fetch(`/api/assistido/${assistido.id}`, { method: 'DELETE' });
     } finally {
+      if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
+        popupAssistidoRef.current.close();
+      }
+      popupAssistidoRef.current = null;
       setAssistido(null);
       setAssistidoTexto('');
     }
@@ -304,96 +339,134 @@ export default function ConsultaPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-10 sm:py-16">
-        <div className="text-center mb-8 animate-fade-in">
-          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-2">
-            Consultar Documento Fiscal
-          </h1>
-          <p className="text-sm sm:text-base text-slate-500">
-            Insira a chave de acesso de 44 digitos para consultar NF-e, NFC-e, CT-e ou MDF-e.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-sm animate-slide-up">
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
-            Chave de Acesso
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              value={chaveAcesso}
-              onChange={(e) => {
-                setChaveAcesso(formatarChave(e.target.value));
-                setErro('');
-                setMostrarAssistido(false);
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
-              placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000"
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg font-mono text-base sm:text-lg tracking-wider focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white placeholder:text-slate-300 transition-shadow"
-              maxLength={59}
-              autoFocus
-            />
-            {infoChave && chaveLimpa.length === 44 && (
-              <div className={`absolute right-2.5 top-1/2 -translate-y-1/2 px-2.5 py-0.5 rounded-md text-xs font-bold ${infoChave.cor}`}>
-                {infoChave.label}
+      <main className="max-w-6xl mx-auto px-4 py-10 sm:py-16">
+        <div className="relative overflow-hidden rounded-[2rem] border border-slate-800/60 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.25),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.16),transparent_26%),linear-gradient(180deg,#020617_0%,#0f172a_100%)] px-5 py-6 sm:px-8 sm:py-10 shadow-[0_20px_80px_rgba(2,6,23,0.45)] animate-fade-in text-white">
+          <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(120deg,rgba(255,255,255,0.08),transparent_30%,rgba(255,255,255,0.02)_70%,transparent_100%)]" />
+          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+            <section className="space-y-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200 shadow-sm backdrop-blur">
+                Consulta fiscal assistida
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               </div>
-            )}
-          </div>
 
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              onClick={handleBuscar}
-              disabled={carregando || chaveLimpa.length !== 44}
-              className="w-full py-3 px-6 bg-slate-900 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {carregando ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Consultando...
-                </span>
-              ) : 'Consultar'}
-            </button>
+              <div>
+                <h1 className="max-w-2xl text-3xl sm:text-5xl font-bold tracking-tight text-white">
+                  Consultar Documento Fiscal
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm sm:text-base text-slate-300 leading-6">
+                  Digite a chave de acesso de 44 digitos e abra a sessao assistida para resolver o captcha na janela dedicada.
+                </p>
+              </div>
 
-            <button
-              onClick={iniciarAssistido}
-              disabled={assistidoCarregando || chaveLimpa.length !== 44}
-              className="w-full py-3 px-6 border border-slate-300 text-slate-700 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {assistidoCarregando ? 'Abrindo sessao...' : 'Abrir consulta assistida'}
-            </button>
-          </div>
-
-          {(erro || mostrarAssistido) && (
-            <div className="mt-3 space-y-2">
-              {erro && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-start gap-2.5">
-                  <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>{erro}</span>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Entrada</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Chave de acesso</p>
                 </div>
-              )}
-              {mostrarAssistido && (
-                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm flex items-start gap-2.5">
-                  <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86l-7 12A1 1 0 004.16 17h15.68a1 1 0 00.86-1.5l-7-12a1 1 0 00-1.72 0z" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="font-medium">Se aparecer captcha, abra a consulta assistida para continuar na mesma sessao da VM.</p>
-                    <button
-                      onClick={iniciarAssistido}
-                      className="mt-2 inline-flex items-center rounded-md bg-amber-600 px-3 py-1.5 text-white text-xs font-semibold hover:bg-amber-500 transition-colors"
-                    >
-                      Abrir sessao assistida
-                    </button>
+                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Modo</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Assistido no popup</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Saida</p>
+                  <p className="mt-1 text-sm font-semibold text-white">XML e PDF</p>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white p-5 sm:p-6 shadow-2xl shadow-black/20 text-slate-900">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                  Chave de Acesso
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={chaveAcesso}
+                    onChange={(e) => {
+                      setChaveAcesso(formatarChave(e.target.value));
+                      setErro('');
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && iniciarAssistido()}
+                    placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl font-mono text-base sm:text-lg tracking-wider focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white placeholder:text-slate-300 transition-shadow"
+                    maxLength={59}
+                    autoFocus
+                  />
+                  {infoChave && chaveLimpa.length === 44 && (
+                    <div className={`absolute right-2.5 top-1/2 -translate-y-1/2 px-2.5 py-0.5 rounded-md text-xs font-bold ${infoChave.cor}`}>
+                      {infoChave.label}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    onClick={iniciarAssistido}
+                    disabled={assistidoCarregando || chaveLimpa.length !== 44}
+                    className="w-full py-3.5 px-6 bg-slate-950 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-slate-950/10"
+                  >
+                    {assistidoCarregando ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Abrindo sessao...
+                      </span>
+                    ) : 'Consultar'}
+                  </button>
+
+                  <button
+                    onClick={limparChave}
+                    className="w-full py-3.5 px-6 border border-slate-300 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-colors"
+                  >
+                    Limpar chave
+                  </button>
+                </div>
+
+                {erro && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-start gap-2.5">
+                    <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{erro}</span>
                   </div>
+                )}
+              </div>
+            </section>
+
+            <aside className="space-y-4">
+              <div className="rounded-3xl border border-slate-200 bg-slate-950 text-white p-5 shadow-xl shadow-slate-950/10">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Fluxo</p>
+                <ol className="mt-4 space-y-3 text-sm text-slate-200">
+                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">1</span><span>Digite a chave com 44 digitos.</span></li>
+                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span><span>O popup abre a consulta remota.</span></li>
+                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span><span>Resolva o captcha e baixe XML/PDF.</span></li>
+                </ol>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white p-5 shadow-sm text-slate-900">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Dica</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Se o popup nao abrir, permita janelas pop-up para este site e tente novamente.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white p-5 shadow-sm text-slate-900">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Documento</p>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{infoChave?.label || 'Aguardando chave'}</p>
+                    <p className="text-xs text-slate-500">Tipo detectado pela chave</p>
+                  </div>
+                  {infoChave && chaveLimpa.length === 44 ? (
+                    <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold ${infoChave.cor}`}>{infoChave.label}</span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-500">incompleta</span>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            </aside>
+          </div>
         </div>
 
         {assistido && (
@@ -568,7 +641,7 @@ export default function ConsultaPage() {
                   rel="noopener noreferrer"
                   className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
                 >
-                  Visualizar DANFE
+                  Abrir PDF
                 </a>
                 <button
                   onClick={() => {

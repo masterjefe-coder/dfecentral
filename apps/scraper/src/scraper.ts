@@ -5,6 +5,14 @@ import type { DadosExtraidos } from './reconstruct-xml.js';
 
 const BASE_URL = 'https://www.nfe.fazenda.gov.br/portal';
 
+function tipoDaChave(chaveAcesso: string): DadosExtraidos['tipo'] {
+  const modelo = chaveAcesso.slice(20, 22);
+  if (modelo === '65') return 'nfce';
+  if (modelo === '57') return 'cte';
+  if (modelo === '58') return 'mdfe';
+  return 'nfe';
+}
+
 export interface ScraperConfig {
   anticaptcha?: AntiCaptchaConfig;
   timeout?: number;
@@ -101,7 +109,7 @@ export async function scrapeNFeporChave(
       serie: String(parseInt(chaveAcesso.slice(22, 25), 10)),
       numero: String(parseInt(chaveAcesso.slice(25, 34), 10)),
       dv: chaveAcesso.slice(43, 44),
-      tipo: 'nfe',
+      tipo: tipoDaChave(chaveAcesso),
       status: 'pendente',
       dataEmissao: new Date().toISOString(),
     };

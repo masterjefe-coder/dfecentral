@@ -5,6 +5,16 @@ import { eq, and } from 'drizzle-orm';
 import { consultarNFeporChave } from '@dfecentral/sdk';
 import type { SdkConfig, TipoDocumento } from '@dfecentral/sdk';
 import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
+import { gerarPdfDanfe } from '../utils/danfe.js';
+
+function tipoDaChave(chave: string): TipoDocumento | null {
+  const modelo = chave.slice(20, 22);
+  if (modelo === '55') return 'nfe';
+  if (modelo === '65') return 'nfce';
+  if (modelo === '57') return 'cte';
+  if (modelo === '58') return 'mdfe';
+  return null;
+}
 
 interface DocumentRouteOptions {
   tipo: string;
@@ -89,6 +99,14 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
         }
 
         const tipoSDK = TIPO_PARA_SDK[options.tipo];
+
+        const tipoEsperado = tipoDaChave(chave);
+        if (tipoEsperado && tipoEsperado !== options.tipo) {
+          return reply.status(400).send({ sucesso: false, erro: `A chave informada corresponde a ${tipoEsperado.toUpperCase()}` });
+        }
+        if (!tipoEsperado && tipoSDK) {
+          return reply.status(400).send({ sucesso: false, erro: 'Nao foi possivel identificar o tipo pela chave' });
+        }
         if (!tipoSDK) {
           const resultado = await db
             .select()
@@ -117,11 +135,28 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
 
     app.get('/:chave/xml', async (request, reply) => {
       const { chave } = request.params as { chave: string };
+      const formato = String((request.query as { format?: string })?.format || '').toLowerCase();
       if (!/^\d{44}$/.test(chave)) {
         return reply.status(400).send({ sucesso: false, erro: 'Chave de acesso deve ter 44 digitos numericos' });
       }
 
+      const tipoEsperado = tipoDaChave(chave);
+      if (tipoEsperado && tipoEsperado !== options.tipo) {
+        return reply.status(400).send({ sucesso: false, erro: `A chave informada corresponde a ${tipoEsperado.toUpperCase()}` });
+      }
+      if (!tipoEsperado && TIPO_PARA_SDK[options.tipo]) {
+        return reply.status(400).send({ sucesso: false, erro: 'Nao foi possivel identificar o tipo pela chave' });
+      }
+
       const cache = await buscarNoCache(chave);
+      if ((formato === 'danfe' || formato === 'pdf') && cache?.xml) {
+        const pdf = await gerarPdfDanfe(docParaFiscal(cache));
+        return reply
+          .header('Content-Type', 'application/pdf')
+          .header('Content-Disposition', `inline; filename="danfe-${chave}.pdf"`)
+          .send(pdf);
+      }
+
       if (cache?.xml) {
         return reply.type('application/xml').send(cache.xml);
       }
@@ -134,6 +169,14 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
       }
 
       await salvarNoCache(resultado.documento);
+      if (formato === 'danfe' || formato === 'pdf') {
+        const pdf = await gerarPdfDanfe(resultado.documento);
+        return reply
+          .header('Content-Type', 'application/pdf')
+          .header('Content-Disposition', `inline; filename="danfe-${chave}.pdf"`)
+          .send(pdf);
+      }
+
       return reply.type('application/xml').send(resultado.documento.xml);
     });
 

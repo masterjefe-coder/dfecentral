@@ -2,6 +2,13 @@ import type { NextRequest } from 'next/server';
 
 const ALLOWED_TYPES = new Set(['nfe', 'nfce', 'nfse', 'cte', 'mdfe', 'dce']);
 
+const MODELO_PARA_TIPO: Record<string, string> = {
+  '55': 'nfe',
+  '65': 'nfce',
+  '57': 'cte',
+  '58': 'mdfe',
+};
+
 function getApiBaseUrl(): string {
   return process.env.API_BASE_URL || 'http://127.0.0.1:3004';
 }
@@ -33,10 +40,23 @@ async function proxyJson(tipo: string, chave: string) {
   });
 }
 
+function tipoDaChave(chave: string): string | null {
+  return MODELO_PARA_TIPO[chave.slice(20, 22)] || null;
+}
+
 export async function GET(_request: NextRequest, context: { params: Promise<{ tipo: string; chave: string }> }) {
   const { tipo, chave } = await context.params;
   if (!ALLOWED_TYPES.has(tipo)) {
     return Response.json({ sucesso: false, erro: 'Tipo de documento invalido' }, { status: 400 });
+  }
+
+  const tipoEsperado = tipoDaChave(chave);
+  if (!tipoEsperado) {
+    return Response.json({ sucesso: false, erro: 'Nao foi possivel identificar o tipo pela chave' }, { status: 400 });
+  }
+
+  if (tipoEsperado !== tipo) {
+    return Response.json({ sucesso: false, erro: `A chave informada corresponde a ${tipoEsperado.toUpperCase()}` }, { status: 400 });
   }
 
   return proxyJson(tipo, chave);
