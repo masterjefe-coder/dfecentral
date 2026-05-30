@@ -175,11 +175,6 @@ export default function ConsultaPage() {
       return;
     }
 
-    if (!infoChave) {
-      setErro('Tipo de documento nao reconhecido nesta chave.');
-      return;
-    }
-
     if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
       popupAssistidoRef.current.close();
     }
