@@ -227,6 +227,12 @@ export default function HomePage() {
                 Consulta
               </Link>
               <Link
+                href="/dashboard"
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Dashboard
+              </Link>
+              <Link
                 href="/documentacao"
                 className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
               >

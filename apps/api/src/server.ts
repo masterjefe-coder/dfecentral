@@ -13,6 +13,7 @@ import { dceRoutes } from './routes/dce.js';
 import { healthRoutes } from './routes/health.js';
 import { sefazRoutes } from './routes/sefaz.js';
 import { assistidoRoutes } from './routes/assistido.js';
+import { importacoesRoutes } from './routes/importacoes.js';
 
 const app = Fastify({
   logger: {
@@ -119,6 +120,7 @@ await app.register(mdfeRoutes, { prefix: '/api/v1/mdfe' });
 await app.register(dceRoutes, { prefix: '/api/v1/dce' });
 await app.register(sefazRoutes, { prefix: '/api/v1/sefaz' });
 await app.register(assistidoRoutes, { prefix: '/api/v1/assistido' });
+await app.register(importacoesRoutes, { prefix: '/api/v1/importacoes' });
 
 // Start
 const port = Number(process.env.API_PORT || 3004);

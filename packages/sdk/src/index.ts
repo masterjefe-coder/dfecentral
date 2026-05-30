@@ -1,6 +1,7 @@
 export { carregarCertificado, montarChavePrivada } from './certificate.js';
 export { enviarSOAP, enviarSOAPComCert, montarEnvelope, assinarSOAP } from './soap.js';
 export { consultarNFeporChave } from './consulta.js';
+export { parseDocumentoFiscalXml, decodificarDocZip } from './consulta.js';
 export { montarEndpoints, getServiceUrl } from './endpoints.js';
 export { parseChaveAcesso } from './types.js';
 export type {

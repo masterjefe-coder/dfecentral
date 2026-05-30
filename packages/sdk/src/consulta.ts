@@ -53,6 +53,31 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
       };
     }
 
+    const resNFe = parsed?.resNFe || parsed?.resNFCe || parsed?.resCTe || parsed?.resMDFe;
+    if (resNFe) {
+      const chave = String(resNFe.chNFe || resNFe.chaveAcesso || resNFe.chCTe || resNFe.chMDFe || '').replace(/\D/g, '');
+      if (!chave) return null;
+
+      const total = resNFe.vNF || resNFe.vTPrest || resNFe.vCarga || '0';
+      const emitCNPJ = resNFe.CNPJ || resNFe.cnpj || '';
+      const destCNPJ = resNFe.CNPJDest || resNFe.cnpjDest || '';
+      return {
+        chaveAcesso: chave,
+        tipo: tipo as DocumentoFiscal['tipo'],
+        numero: chave.slice(25, 34).replace(/^0+/, '') || chave.slice(25, 34),
+        serie: chave.slice(22, 25).replace(/^0+/, '') || chave.slice(22, 25),
+        dataEmissao: resNFe.dhEmi || resNFe.dEmi || new Date().toISOString(),
+        cnpjEmitente: emitCNPJ,
+        razaoSocialEmitente: resNFe.xNome || '',
+        cnpjDestinatario: destCNPJ || undefined,
+        razaoSocialDestinatario: resNFe.xNomeDest || undefined,
+        valorTotal: String(total),
+        status: 'autorizada',
+        xml,
+        protocolo: resNFe.nProt || resNFe.nProtCte || undefined,
+      };
+    }
+
     return null;
   } catch {
     return null;
@@ -86,13 +111,17 @@ function deveTentarScraper(erro?: string): boolean {
   return msg.includes('cnpj-base') || msg.includes('difere') || msg.includes('certificado');
 }
 
-function decodificarDocZip(docZipB64: string): string {
+export function decodificarDocZip(docZipB64: string): string {
   const raw = Buffer.from(docZipB64, 'base64');
   try {
     return gunzipSync(raw).toString('utf-8');
   } catch {
     return raw.toString('utf-8');
   }
+}
+
+export function parseDocumentoFiscalXml(xml: string, tipo: DocumentoFiscal['tipo']): DocumentoFiscal | null {
+  return parseDocumentoFromXML(xml, tipo);
 }
 
 async function chamarScraperService(
