@@ -182,11 +182,7 @@ async function openAssistPage(page: Page, chaveAcesso: string) {
   const chaveField = '#ctl00_ContentPlaceHolder1_txtChaveAcessoResumo';
   await page.waitForSelector(chaveField, { timeout: 15000 });
   await page.fill(chaveField, chaveAcesso);
-  const btnSubmit = await page.$('input[type="submit"], button[type="submit"]');
-  if (btnSubmit) {
-    await btnSubmit.click();
-  }
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(1000);
 }
 
 async function createJob(chaveAcesso: string): Promise<AssistJob> {
