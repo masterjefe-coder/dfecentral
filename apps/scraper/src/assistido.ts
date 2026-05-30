@@ -178,7 +178,7 @@ async function extractResultFromPage(page: Page, chaveAcesso: string): Promise<A
 
 async function openAssistPage(page: Page, chaveAcesso: string) {
   const consultUrl = `${BASE_URL}/consultaRecaptcha.aspx?tipoConsulta=resumo&tipoConteudo=7PhJ+gAVw2g=`;
-  await page.goto(consultUrl, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.goto(consultUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
   const chaveField = '#ctl00_ContentPlaceHolder1_txtChaveAcessoResumo';
   await page.waitForSelector(chaveField, { timeout: 15000 });
   await page.fill(chaveField, chaveAcesso);
