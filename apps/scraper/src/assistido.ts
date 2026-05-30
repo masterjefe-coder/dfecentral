@@ -28,6 +28,7 @@ export interface AssistJobPublicState {
     fonte: string;
   };
   viewport: { width: number; height: number };
+  frameBox?: { x: number; y: number; width: number; height: number };
 }
 
 type AssistResult = NonNullable<AssistJobPublicState['result']>;
@@ -53,6 +54,7 @@ interface AssistJob {
   mensagem?: string;
   result?: AssistResult;
   viewport: { width: number; height: number };
+  frameBox?: { x: number; y: number; width: number; height: number };
   updatedAt: number;
 }
 
@@ -96,6 +98,32 @@ async function detectCaptcha(page: Page): Promise<boolean> {
   if (iframeCount > 0) return true;
   const body = await page.evaluate(() => document.body.innerText).catch(() => '');
   return /captcha|hcaptcha|verifica/i.test(body);
+}
+
+async function getCaptchaLocator(page: Page) {
+  const candidates = page.locator('iframe[src*="hcaptcha"], iframe[src*="captcha"], .h-captcha');
+  const count = await candidates.count().catch(() => 0);
+  if (!count) return null;
+
+  for (let i = 0; i < count; i++) {
+    const candidate = candidates.nth(i);
+    if (await candidate.isVisible().catch(() => false)) {
+      return candidate;
+    }
+  }
+
+  return candidates.first();
+}
+
+async function updateFrameBox(job: AssistJob) {
+  const captcha = await getCaptchaLocator(job.page);
+  if (!captcha) {
+    job.frameBox = undefined;
+    return;
+  }
+
+  const box = await captcha.boundingBox().catch(() => null);
+  job.frameBox = box ? { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) } : undefined;
 }
 
 async function extractResultFromPage(page: Page, chaveAcesso: string): Promise<AssistResult> {
@@ -223,9 +251,11 @@ async function refreshJob(job: AssistJob) {
   if (captcha && job.status !== 'concluido') {
     job.status = 'aguardando_interacao';
     job.mensagem = 'Resolvendo captcha / interagindo com a pagina';
+    await updateFrameBox(job);
     return;
   }
 
+  job.frameBox = undefined;
   const result = await extractResultFromPage(job.page, job.chaveAcesso);
   if (result.sucesso) {
     job.status = 'concluido';
@@ -247,12 +277,26 @@ export async function startAssistJob(chaveAcesso: string) {
 export async function getAssistJobState(id: string) {
   const job = jobs.get(id);
   if (!job) return null;
+  if (job.status !== 'concluido' && job.status !== 'erro') {
+    await updateFrameBox(job);
+  }
   return toPublicState(job);
 }
 
 export async function getAssistJobFrame(id: string): Promise<Buffer | null> {
   const job = jobs.get(id);
   if (!job) return null;
+
+  const captcha = await getCaptchaLocator(job.page);
+  if (captcha) {
+    const box = await captcha.boundingBox().catch(() => null);
+    if (box) {
+      job.frameBox = { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) };
+      return await captcha.screenshot({ type: 'png' }).catch(() => null);
+    }
+  }
+
+  job.frameBox = undefined;
   return await job.page.screenshot({ type: 'png' }).catch(() => null);
 }
 
@@ -336,6 +380,7 @@ function toPublicState(job: AssistJob): AssistJobPublicState {
     mensagem: job.mensagem,
     result: job.result,
     viewport: job.viewport,
+    frameBox: job.frameBox,
   };
 }
 

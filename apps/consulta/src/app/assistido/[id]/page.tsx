@@ -35,6 +35,7 @@ interface AssistJobState {
   mensagem?: string;
   result?: AssistResult;
   viewport: { width: number; height: number };
+  frameBox?: { x: number; y: number; width: number; height: number };
 }
 
 function formatarCNPJ(valor: string) {
@@ -178,8 +179,11 @@ export default function AssistidoPopupPage() {
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
 
-    const x = Math.max(0, Math.round(((event.clientX - rect.left) / rect.width) * assistido.viewport.width));
-    const y = Math.max(0, Math.round(((event.clientY - rect.top) / rect.height) * assistido.viewport.height));
+    const relX = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const relY = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+    const box = assistido.frameBox;
+    const x = box ? Math.max(0, Math.round(box.x + relX * box.width)) : Math.max(0, Math.round(relX * assistido.viewport.width));
+    const y = box ? Math.max(0, Math.round(box.y + relY * box.height)) : Math.max(0, Math.round(relY * assistido.viewport.height));
 
     void enviarAcaoAssistida({ tipo: 'click', x, y });
   };
@@ -285,7 +289,7 @@ export default function AssistidoPopupPage() {
             ) : (
               <div className="rounded-3xl border border-slate-200 overflow-hidden bg-slate-50 shadow-lg">
                 <div
-                  className="relative cursor-crosshair select-none"
+                  className="relative cursor-pointer select-none"
                   onClick={handleAssistidoFrameClick}
                   title="Clique na tela para interagir com a sessao"
                 >
