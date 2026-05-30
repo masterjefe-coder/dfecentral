@@ -1,9 +1,26 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
 type TipoImport = 'nfe' | 'nfce' | 'cte' | 'mdfe';
+
+type DocumentoResumo = {
+  chaveAcesso: string;
+  tipo: string;
+  numero: string;
+  serie: string;
+  dataEmissao: string;
+  cnpjEmitente: string;
+  valorTotal: string;
+  status: string;
+  fonte?: string;
+};
+
+type ResumoTipo = {
+  total: number;
+  documentos: DocumentoResumo[];
+};
 
 const TIPOS: Array<{ tipo: TipoImport; nome: string; cor: string; descricao: string }> = [
   { tipo: 'nfe', nome: 'NF-e', cor: 'from-blue-500 to-indigo-600', descricao: 'Saídas e entradas da nota fiscal eletrônica.' },
@@ -26,19 +43,63 @@ export default function DashboardPage() {
   const [uf, setUf] = useState('SP');
   const [ultNSU, setUltNSU] = useState('000000000000000');
   const [carregando, setCarregando] = useState<TipoImport | 'all' | null>(null);
+  const [carregandoResumo, setCarregandoResumo] = useState(false);
   const [resultado, setResultado] = useState<{ tipo: string; importados: number; ultNSU?: string; erro?: string } | null>(null);
-  const [erro, setErro] = useState('');
+  const [resumo, setResumo] = useState<Record<TipoImport, ResumoTipo> | null>(null);
+  const [erroImportacao, setErroImportacao] = useState('');
+  const [erroResumo, setErroResumo] = useState('');
 
   const cnpjLimpo = useMemo(() => cnpj.replace(/\D/g, '').slice(0, 14), [cnpj]);
 
+  const carregarResumo = useCallback(async () => {
+    if (cnpjLimpo.length !== 14) {
+      setResumo(null);
+      return;
+    }
+
+    setCarregandoResumo(true);
+    setErroResumo('');
+
+    try {
+      const respostas = await Promise.all(
+        TIPOS.map(async (item) => {
+          const res = await fetch(`/api/documentos/${item.tipo}?cnpj=${cnpjLimpo}&limite=5`, { cache: 'no-store' });
+          const data = await res.json();
+          if (!data.sucesso) throw new Error(data.erro || `Falha ao carregar ${item.nome}`);
+          return [item.tipo, { total: Number(data.dados?.total || 0), documentos: data.dados?.documentos || [] }] as const;
+        }),
+      );
+
+      setResumo(Object.fromEntries(respostas) as Record<TipoImport, ResumoTipo>);
+    } catch (error: any) {
+      setErroResumo(error?.message || 'Nao foi possivel carregar o resumo.');
+    } finally {
+      setCarregandoResumo(false);
+    }
+  }, [cnpjLimpo]);
+
+  useEffect(() => {
+    if (cnpjLimpo.length !== 14) {
+      setResumo(null);
+      setErroResumo('');
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void carregarResumo();
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [carregarResumo]);
+
   const importarTipo = async (tipo: TipoImport) => {
     if (cnpjLimpo.length !== 14) {
-      setErro('Informe um CNPJ valido com 14 digitos.');
+      setErroImportacao('Informe um CNPJ valido com 14 digitos.');
       return;
     }
 
     setCarregando(tipo);
-    setErro('');
+    setErroImportacao('');
     setResultado(null);
 
     try {
@@ -49,13 +110,13 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       if (!data.sucesso) {
-        setErro(data.erro || 'Falha ao importar documentos.');
+        setErroImportacao(data.erro || 'Falha ao importar documentos.');
         return;
       }
 
       setResultado({ tipo: data.tipo, importados: data.importados || 0, ultNSU: data.ultNSU });
     } catch {
-      setErro('Nao foi possivel importar os documentos.');
+      setErroImportacao('Nao foi possivel importar os documentos.');
     } finally {
       setCarregando(null);
     }
@@ -63,12 +124,12 @@ export default function DashboardPage() {
 
   const importarTudo = async () => {
     if (cnpjLimpo.length !== 14) {
-      setErro('Informe um CNPJ valido com 14 digitos.');
+      setErroImportacao('Informe um CNPJ valido com 14 digitos.');
       return;
     }
 
     setCarregando('all');
-    setErro('');
+    setErroImportacao('');
     setResultado(null);
 
     try {
@@ -82,8 +143,9 @@ export default function DashboardPage() {
         if (!data.sucesso) throw new Error(data.erro || `Falha ao importar ${tipo.nome}`);
         setResultado((prev) => ({ tipo: prev ? `${prev.tipo}, ${tipo.tipo.toUpperCase()}` : tipo.tipo.toUpperCase(), importados: (prev?.importados || 0) + (data.importados || 0), ultNSU: data.ultNSU }));
       }
+      await carregarResumo();
     } catch (error: any) {
-      setErro(error?.message || 'Nao foi possivel importar todos os documentos.');
+      setErroImportacao(error?.message || 'Nao foi possivel importar todos os documentos.');
     } finally {
       setCarregando(null);
     }
@@ -164,13 +226,51 @@ export default function DashboardPage() {
               </label>
             </div>
 
-            {erro && (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button onClick={() => void carregarResumo()} disabled={carregandoResumo || cnpjLimpo.length !== 14} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-40">
+                {carregandoResumo ? 'Carregando resumo...' : 'Atualizar resumo'}
+              </button>
+              <p className="text-sm text-slate-500">Resumo por tipo e documentos mais recentes do CNPJ informado.</p>
+            </div>
+
+            {(erroImportacao || erroResumo) && (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erroImportacao || erroResumo}</div>
             )}
 
             {resultado && (
               <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                 <strong>{resultado.importados}</strong> documentos importados ({resultado.tipo}). Ult. NSU: {resultado.ultNSU || '-'}
+              </div>
+            )}
+
+            {resumo && (
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {TIPOS.map((item) => {
+                  const dados = resumo[item.tipo];
+                  return (
+                    <div key={item.tipo} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{item.nome}</p>
+                          <p className="mt-2 text-2xl font-bold text-slate-950">{dados?.total || 0}</p>
+                        </div>
+                        <span className={`rounded-full bg-gradient-to-r ${item.cor} px-2.5 py-1 text-xs font-semibold text-white`}>{item.tipo.toUpperCase()}</span>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        {(dados?.documentos || []).slice(0, 3).map((doc) => (
+                          <div key={doc.chaveAcesso} className="rounded-2xl bg-white px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-slate-900">{doc.numero || doc.chaveAcesso.slice(25, 34)}</span>
+                              <span>{new Date(doc.dataEmissao).toLocaleDateString('pt-BR')}</span>
+                            </div>
+                            <p className="mt-1 truncate">{doc.chaveAcesso}</p>
+                          </div>
+                        ))}
+                        {(dados?.documentos || []).length === 0 && <p className="text-sm text-slate-500">Sem documentos recentes.</p>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
