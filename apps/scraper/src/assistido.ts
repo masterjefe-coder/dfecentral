@@ -115,6 +115,24 @@ async function getCaptchaLocator(page: Page) {
   return candidates.first();
 }
 
+function expandBox(
+  box: { x: number; y: number; width: number; height: number },
+  viewport: { width: number; height: number },
+  paddingX = 180,
+  paddingY = 130,
+) {
+  const x = Math.max(0, Math.floor(box.x - paddingX));
+  const y = Math.max(0, Math.floor(box.y - paddingY));
+  const right = Math.min(viewport.width, Math.ceil(box.x + box.width + paddingX));
+  const bottom = Math.min(viewport.height, Math.ceil(box.y + box.height + paddingY));
+  return {
+    x,
+    y,
+    width: Math.max(1, right - x),
+    height: Math.max(1, bottom - y),
+  };
+}
+
 async function updateFrameBox(job: AssistJob) {
   const captcha = await getCaptchaLocator(job.page);
   if (!captcha) {
@@ -123,7 +141,7 @@ async function updateFrameBox(job: AssistJob) {
   }
 
   const box = await captcha.boundingBox().catch(() => null);
-  job.frameBox = box ? { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) } : undefined;
+  job.frameBox = box ? expandBox(box, job.viewport) : undefined;
 }
 
 async function extractResultFromPage(page: Page, chaveAcesso: string): Promise<AssistResult> {
@@ -291,8 +309,9 @@ export async function getAssistJobFrame(id: string): Promise<Buffer | null> {
   if (captcha) {
     const box = await captcha.boundingBox().catch(() => null);
     if (box) {
-      job.frameBox = { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) };
-      return await captcha.screenshot({ type: 'png' }).catch(() => null);
+      const clip = expandBox(box, job.viewport);
+      job.frameBox = clip;
+      return await job.page.screenshot({ type: 'png', clip }).catch(() => null);
     }
   }
 
