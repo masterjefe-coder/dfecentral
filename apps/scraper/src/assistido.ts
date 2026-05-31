@@ -118,8 +118,8 @@ async function getCaptchaLocator(page: Page) {
 function expandBox(
   box: { x: number; y: number; width: number; height: number },
   viewport: { width: number; height: number },
-  paddingX = 380,
-  paddingY = 280,
+  paddingX = 460,
+  paddingY = 360,
 ) {
   const x = Math.max(0, Math.floor(box.x - paddingX));
   const y = Math.max(0, Math.floor(box.y - paddingY));

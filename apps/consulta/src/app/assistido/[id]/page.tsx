@@ -190,77 +190,26 @@ export default function AssistidoPopupPage() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.15),transparent_30%),linear-gradient(180deg,#020617_0%,#0f172a_100%)] text-white">
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:py-6">
-        <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 shadow-2xl shadow-black/20 backdrop-blur">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Captcha da consulta</h1>
-              <p className="mt-1 text-sm text-slate-300">Resolva o captcha diretamente na imagem abaixo.</p>
-            </div>
-            <div className="flex items-center gap-2 self-start">
-              <button
-                onClick={fecharPopup}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 transition-colors"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
+      <div className="mx-auto max-w-5xl px-3 py-3 sm:px-4 sm:py-4">
+        <div className="relative rounded-3xl border border-white/10 bg-white p-2 shadow-2xl shadow-black/20">
+          <button
+            onClick={fecharPopup}
+            aria-label="Fechar"
+            className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow hover:bg-slate-50"
+          >
+            ×
+          </button>
 
-          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200">
-            {assistido?.status || 'carregando'}
-          </div>
-        </div>
-
-        {(erro || assistido?.mensagem) && (
-          <div className="mt-4 space-y-2">
-            {erro && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                {erro}
-              </div>
-            )}
-            {assistido?.mensagem && !erro && (
-              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                {assistido.mensagem}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="mt-4 grid gap-5">
-          <div className="rounded-3xl border border-white/10 bg-white p-4 text-slate-900 shadow-2xl shadow-black/20">
-            <div
-              className="relative cursor-pointer select-none overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
-              onClick={handleAssistidoFrameClick}
-              title="Clique na imagem para interagir com o captcha"
-            >
-              {assistidoFrameUrl ? (
-                <img src={assistidoFrameUrl} alt="Captcha da consulta assistida" className="block w-full h-auto" />
-              ) : (
-                <div className="flex h-[620px] items-center justify-center text-sm text-slate-500">
-                  Abrindo captcha...
-                </div>
-              )}
-            </div>
-
-            {assistido?.status === 'concluido' && assistido?.result?.sucesso && assistido.result.dados && (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <a
-                  href={`/api/consulta/${assistido.result.dados.tipo}/${assistido.result.dados.chaveAcesso}/xml`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Download XML
-                </a>
-                <a
-                  href={`/api/consulta/${assistido.result.dados.tipo}/${assistido.result.dados.chaveAcesso}/xml?format=danfe`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Abrir PDF
-                </a>
+          <div
+            className="relative cursor-pointer select-none overflow-hidden rounded-2xl bg-slate-50"
+            onClick={handleAssistidoFrameClick}
+            title="Clique na imagem para interagir com o captcha"
+          >
+            {assistidoFrameUrl ? (
+              <img src={assistidoFrameUrl} alt="Captcha da consulta assistida" className="block w-full h-auto" />
+            ) : (
+              <div className="flex h-[760px] items-center justify-center text-sm text-slate-500">
+                Abrindo captcha...
               </div>
             )}
           </div>
