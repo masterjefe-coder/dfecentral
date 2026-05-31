@@ -55,6 +55,7 @@ interface AssistJob {
   result?: AssistResult;
   viewport: { width: number; height: number };
   frameBox?: { x: number; y: number; width: number; height: number };
+  consultaEnviada: boolean;
   updatedAt: number;
 }
 
@@ -118,8 +119,8 @@ async function getCaptchaLocator(page: Page) {
 function expandBox(
   box: { x: number; y: number; width: number; height: number },
   viewport: { width: number; height: number },
-  paddingX = 460,
-  paddingY = 360,
+  paddingX = 520,
+  paddingY = 420,
 ) {
   const x = Math.max(0, Math.floor(box.x - paddingX));
   const y = Math.max(0, Math.floor(box.y - paddingY));
@@ -231,6 +232,32 @@ async function openAssistPage(page: Page, chaveAcesso: string) {
   await page.waitForTimeout(1000);
 }
 
+async function submitConsulta(page: Page) {
+  await page.evaluate(() => {
+    const form = document.querySelector('form') as HTMLFormElement | null;
+    if (!form) return;
+    if (typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+      return;
+    }
+    form.submit();
+  }).catch(() => null);
+
+  const buttons = page.locator('input[type="submit"], button[type="submit"]');
+  const count = await buttons.count().catch(() => 0);
+  for (let i = 0; i < count; i++) {
+    const candidate = buttons.nth(i);
+    const text = `${(await candidate.textContent().catch(() => '')) || ''} ${(await candidate.getAttribute('value').catch(() => '')) || ''}`;
+    if (/consultar|continuar|enviar|pesquisar|buscar/i.test(text)) {
+      await candidate.click({ force: true }).catch(() => null);
+      break;
+    }
+  }
+
+  await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => null);
+  await page.waitForTimeout(1200);
+}
+
 async function createJob(chaveAcesso: string): Promise<AssistJob> {
   const browser = await chromium.launch({
     headless: true,
@@ -256,6 +283,7 @@ async function createJob(chaveAcesso: string): Promise<AssistJob> {
     page,
     status: 'running',
     viewport,
+    consultaEnviada: false,
     updatedAt: now(),
   };
   jobs.set(id, job);
@@ -271,6 +299,11 @@ async function refreshJob(job: AssistJob) {
     job.mensagem = 'Resolvendo captcha / interagindo com a pagina';
     await updateFrameBox(job);
     return;
+  }
+
+  if (!job.consultaEnviada) {
+    await submitConsulta(job.page);
+    job.consultaEnviada = true;
   }
 
   job.frameBox = undefined;
@@ -344,6 +377,7 @@ export async function performAssistAction(id: string, action: AssistAction) {
       break;
   }
 
+  job.consultaEnviada = false;
   await refreshJob(job);
   return toPublicState(job);
 }
