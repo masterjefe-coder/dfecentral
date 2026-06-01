@@ -137,7 +137,7 @@ export async function enviarSOAP(
 ): Promise<SoapResponse> {
   const headers: Record<string, string> = {};
   if (soapVersion === '1.2') {
-    headers['Content-Type'] = `application/soap+xml; charset=utf-8; action="${action}"`;
+    headers['Content-Type'] = 'application/soap+xml; charset=utf-8';
   } else {
     headers['Content-Type'] = 'text/xml; charset=utf-8';
     headers.SOAPAction = action;
@@ -163,7 +163,7 @@ export async function enviarSOAPComCert(
 ): Promise<SoapResponse> {
   const headers: Record<string, string> = {};
   if (soapVersion === '1.2') {
-    headers['Content-Type'] = `application/soap+xml; charset=utf-8; action="${action}"`;
+    headers['Content-Type'] = 'application/soap+xml; charset=utf-8';
   } else {
     headers['Content-Type'] = 'text/xml; charset=utf-8';
     headers.SOAPAction = action;
