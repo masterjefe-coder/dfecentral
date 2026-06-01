@@ -94,7 +94,9 @@ export function requestComCert(options: HttpRequestComCertOptions): Promise<Soap
       method: options.method,
       headers,
       timeout: options.timeout || 60000,
-      rejectUnauthorized: process.env.NODE_ENV === 'production',
+      // Alguns endpoints oficiais da SEFAZ retornam cadeia incompleta.
+      // Mantemos o TLS permissivo por padr3o e permitimos endurecer via env.
+      rejectUnauthorized: process.env.SEFAZ_TLS_STRICT === '1',
     };
 
     if (isHttps && options.certPath) {
