@@ -89,8 +89,8 @@ if ($CertPath -and (Test-Path $CertPath)) {
   Write-Host ">> Enviando certificado digital para a VM..." -ForegroundColor Yellow
   $remoteCertDir = "$RemoteRoot/shared/certificados"
   & ssh -i $KeyPath -o StrictHostKeyChecking=accept-new "$User@$ServerHost" "mkdir -p '$remoteCertDir'"
-  & scp -i $KeyPath -o StrictHostKeyChecking=accept-new "$CertPath" "$User@$ServerHost`:$remoteCertDir/"
-  & ssh -i $KeyPath -o StrictHostKeyChecking=accept-new "$User@$ServerHost" "for f in '$remoteCertDir'/*.pfx; do [ -f \"\$f\" ] && sudo cp -f \"\$f\" '$remoteCertDir/certificado.pfx'; break; done; sudo chown ubuntu:ubuntu '$remoteCertDir/certificado.pfx' 2>/dev/null"
+  & scp -i $KeyPath -o StrictHostKeyChecking=accept-new "$CertPath" "$User@$ServerHost`:$remoteCertDir/certificado.pfx"
+  & ssh -i $KeyPath -o StrictHostKeyChecking=accept-new "$User@$ServerHost" "sudo chown ubuntu:ubuntu '$remoteCertDir/certificado.pfx'"
   if ($LASTEXITCODE -ne 0) {
     throw "Falha ao enviar certificado para a VM."
   }
