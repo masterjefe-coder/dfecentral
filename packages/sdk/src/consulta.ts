@@ -310,7 +310,7 @@ function extrairMensagemNfse(body: string): string {
 
 async function consultarNfseOficial(chave: string, config: SdkConfig): Promise<ConsultaResultado> {
   if (!config.certificado) {
-    const fallback = await consultarComScraper(chave, tipo, config);
+    const fallback = await consultarComScraper(chave, 'nfse', config);
     if (fallback.sucesso) return fallback;
 
     return {
@@ -367,7 +367,7 @@ async function consultarNfseOficial(chave: string, config: SdkConfig): Promise<C
     return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
   } catch (error: any) {
     if (deveTentarScraper(error?.message)) {
-      const fallback = await consultarComScraper(chave, tipo, config);
+      const fallback = await consultarComScraper(chave, 'nfse', config);
       if (fallback.sucesso) return fallback;
     }
 
