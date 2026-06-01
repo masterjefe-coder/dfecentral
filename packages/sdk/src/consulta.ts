@@ -281,18 +281,25 @@ async function consultarDocumentoOficialPorChave(
         '1.2',
       );
 
-      if (response.statusCode === 200) {
-        const parsed = parser.parse(response.body);
-        const inner = encontrarXmlAninhado(parsed) || response.body;
-        const result = inner.match(/<cteDistDFeInteresseResult[^>]*>([\s\S]*?)<\/cteDistDFeInteresseResult>/)?.[1] || inner;
-        const docZip = result.match(/<docZip[^>]*>([^<]+)<\/docZip>/)?.[1] || null;
+      if (response.statusCode !== 200) {
+        const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/);
+        return {
+          sucesso: false,
+          erro: fault ? fault[1] : `HTTP ${response.statusCode}: ${response.body.slice(0, 200)}`,
+          fonte: 'sefaz',
+        };
+      }
 
-        if (docZip) {
-          const xmlDecoded = decodificarDocZip(docZip);
-          const doc = parseDocumentoFromXML(xmlDecoded, tipo);
-          if (doc) {
-            return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
-          }
+      const parsed = parser.parse(response.body);
+      const inner = encontrarXmlAninhado(parsed) || response.body;
+      const result = inner.match(/<cteDistDFeInteresseResult[^>]*>([\s\S]*?)<\/cteDistDFeInteresseResult>/)?.[1] || inner;
+      const docZip = result.match(/<docZip[^>]*>([^<]+)<\/docZip>/)?.[1] || null;
+
+      if (docZip) {
+        const xmlDecoded = decodificarDocZip(docZip);
+        const doc = parseDocumentoFromXML(xmlDecoded, tipo);
+        if (doc) {
+          return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
         }
       }
     } catch {
