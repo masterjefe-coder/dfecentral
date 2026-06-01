@@ -302,8 +302,12 @@ async function consultarDocumentoOficialPorChave(
           return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
         }
       }
-    } catch {
-      // cai para a consulta direta abaixo
+    } catch (error: any) {
+      return {
+        sucesso: false,
+        erro: error?.message || 'Erro na distribuicao CT-e',
+        fonte: 'sefaz',
+      };
     }
   }
 
