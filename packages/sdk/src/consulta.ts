@@ -575,6 +575,11 @@ export async function consultarNFeporChave(
 
     const resultMatch = response.body.match(/<nfeDistDFeInteresseResult[^>]*>([\s\S]*?)<\/nfeDistDFeInteresseResult>/);
     if (!resultMatch) {
+      if (deveTentarScraper(response.body)) {
+        const fallback = await consultarComScraper(chave, tipo, config);
+        if (fallback.sucesso) return fallback;
+      }
+
       return {
         sucesso: false,
         erro: 'Resposta SEFAZ sem bloco de resultado',
@@ -590,6 +595,11 @@ export async function consultarNFeporChave(
     const docZipB64 = docZipMatch ? docZipMatch[1] : null;
 
     if (!docZipB64) {
+      if (deveTentarScraper(xMotivo || cStat || response.body)) {
+        const fallback = await consultarComScraper(chave, tipo, config);
+        if (fallback.sucesso) return fallback;
+      }
+
       return {
         sucesso: false,
         erro: xMotivo || `SEFAZ: status ${cStat}`,
@@ -600,6 +610,11 @@ export async function consultarNFeporChave(
 
     const doc = parseDocumentoFromXML(xmlDecoded, tipo);
     if (!doc) {
+      if (deveTentarScraper(response.body)) {
+        const fallback = await consultarComScraper(chave, tipo, config);
+        if (fallback.sucesso) return fallback;
+      }
+
       return {
         sucesso: false,
         erro: 'Nao foi possivel interpretar o XML retornado pela SEFAZ',
