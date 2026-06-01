@@ -15,7 +15,7 @@ function getSdkConfig(): SdkConfig {
   };
 }
 
-type Importavel = Exclude<TipoDocumento, 'nfse' | 'dce'>;
+type Importavel = 'nfe' | 'nfce' | 'cte' | 'mdfe';
 
 const SUPORTADOS = new Set<Importavel>(['nfe', 'nfce', 'cte', 'mdfe']);
 

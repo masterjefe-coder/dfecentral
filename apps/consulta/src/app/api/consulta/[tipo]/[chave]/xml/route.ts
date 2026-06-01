@@ -1,12 +1,14 @@
 import type { NextRequest } from 'next/server';
 
-const ALLOWED_TYPES = new Set(['nfe', 'nfce', 'nfse', 'cte', 'mdfe', 'dce']);
+const ALLOWED_TYPES = new Set(['nfe', 'nfce', 'nfse', 'cte', 'mdfe', 'bpe', 'cteos', 'dce']);
 
 const MODELO_PARA_TIPO: Record<string, string> = {
   '55': 'nfe',
   '65': 'nfce',
   '57': 'cte',
   '58': 'mdfe',
+  '63': 'bpe',
+  '67': 'cteos',
 };
 
 const TIPOS_SEM_CHAVE_44 = new Set(['nfse', 'dce']);

@@ -43,6 +43,20 @@ const SVC_PRODUCAO = 'https://www.svc.fazenda.gov.br';
 const SVC_HOMOLOGACAO = 'https://homologacao.svc.fazenda.gov.br';
 const NFCE_PRODUCAO = 'https://nfce.sefazeletronica.gov.br';
 const NFCE_HOMOLOGACAO = 'https://nfce.sefazeletronica.gov.br';
+const BPE_PR_PRODUCAO = 'https://bpe.fazenda.pr.gov.br/bpe';
+const BPE_PR_HOMOLOGACAO = 'https://homologacao.bpe.fazenda.pr.gov.br/bpe';
+const BPE_SVRS_PRODUCAO = 'https://bpe.svrs.rs.gov.br/ws';
+const BPE_SVRS_HOMOLOGACAO = 'https://bpe-homologacao.svrs.rs.gov.br/ws';
+const BPE_SP_PRODUCAO = 'https://bpe.fazenda.sp.gov.br/BPeWeb/services';
+const BPE_SP_HOMOLOGACAO = 'https://homologacao.bpe.fazenda.sp.gov.br/BPeWeb/services';
+const BPE_MG_PRODUCAO = 'https://bpe.fazenda.mg.gov.br/bpe/services';
+const BPE_MG_HOMOLOGACAO = 'https://hbpe.fazenda.mg.gov.br/bpe/services';
+const BPE_MS_PRODUCAO = 'https://bpe.fazenda.ms.gov.br/ws';
+const BPE_MS_HOMOLOGACAO = 'https://homologacao.bpe.ms.gov.br/ws';
+const BPE_MT_PRODUCAO = 'https://www.sefaz.mt.gov.br/bpe-ws/services';
+const BPE_MT_HOMOLOGACAO = 'https://homologacao.sefaz.mt.gov.br/bpe-ws/services';
+const DCE_PR_PRODUCAO = 'https://dce.fazenda.pr.gov.br/dce';
+const DCE_PR_HOMOLOGACAO = 'https://homologacao.dce.fazenda.pr.gov.br/dce';
 
 const SUVs = [
   'AM', 'BA', 'CE', 'GO', 'MG', 'MS', 'MT', 'PE', 'PR', 'RS', 'SP',
@@ -72,6 +86,34 @@ function svc(amb: Ambiente): string {
   return amb === 1 ? SVC_PRODUCAO : SVC_HOMOLOGACAO;
 }
 
+function bpeBase(sigla: string, amb: Ambiente): string {
+  if (sigla === 'PR') return amb === 1 ? BPE_PR_PRODUCAO : BPE_PR_HOMOLOGACAO;
+  if (sigla === 'SP') return amb === 1 ? BPE_SP_PRODUCAO : BPE_SP_HOMOLOGACAO;
+  if (sigla === 'MG') return amb === 1 ? BPE_MG_PRODUCAO : BPE_MG_HOMOLOGACAO;
+  if (sigla === 'MS') return amb === 1 ? BPE_MS_PRODUCAO : BPE_MS_HOMOLOGACAO;
+  if (sigla === 'MT') return amb === 1 ? BPE_MT_PRODUCAO : BPE_MT_HOMOLOGACAO;
+  return amb === 1 ? BPE_SVRS_PRODUCAO : BPE_SVRS_HOMOLOGACAO;
+}
+
+function dceBase(amb: Ambiente): string {
+  return amb === 1 ? DCE_PR_PRODUCAO : DCE_PR_HOMOLOGACAO;
+}
+
+function mdfeConsultaBase(amb: Ambiente): string {
+  return amb === 1
+    ? 'https://mdfe.svrs.rs.gov.br/ws/MDFeConsulta/MDFeConsulta.asmx'
+    : 'https://mdfe-homologacao.svrs.rs.gov.br/ws/MDFeConsulta/MDFeConsulta.asmx';
+}
+
+function cteConsultaBase(sigla: string, amb: Ambiente): string {
+  if (sigla === 'PR') return 'https://cte.fazenda.pr.gov.br/cte4/CTeConsultaV4';
+  if (sigla === 'SP') return amb === 1 ? 'https://nfe.fazenda.sp.gov.br/CTeWS/WS/CTeConsultaV4.asmx' : 'https://nfe.fazenda.sp.gov.br/CTeWS/WS/CTeConsultaV4.asmx';
+  if (sigla === 'MG') return amb === 1 ? 'https://cte.fazenda.mg.gov.br/cte/services/CTeConsultaV4' : 'https://cte.fazenda.mg.gov.br/cte/services/CTeConsultaV4';
+  if (sigla === 'MS') return amb === 1 ? 'https://producao.cte.ms.gov.br/ws/CTeConsultaV4' : 'https://homologacao.cte.ms.gov.br/ws/CTeConsultaV4';
+  if (sigla === 'MT') return amb === 1 ? 'https://cte.sefaz.mt.gov.br/ctews2/services/CTeConsultaV4' : 'https://cte.sefaz.mt.gov.br/ctews2/services/CTeConsultaV4';
+  return amb === 1 ? 'https://cte.svrs.rs.gov.br/ws/CTeConsultaV4/CTeConsultaV4.asmx' : 'https://cte-homologacao.svrs.rs.gov.br/ws/CTeConsultaV4/CTeConsultaV4.asmx';
+}
+
 export function montarEndpoints(ambiente: Ambiente): SefazEndpoint[] {
   return ENDPOINTS_PADRAO.map((ep) => {
     const sigla = ep.sigla;
@@ -93,6 +135,9 @@ export function montarEndpoints(ambiente: Ambiente): SefazEndpoint[] {
       ? `https://nfce.sefazeletronica.gov.br/nfce-ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx`
       : `https://nfce.sefazeletronica.gov.br/nfce-ws/hom/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx`;
 
+    const bpeServ = bpeBase(sigla, amb);
+    const dceServ = dceBase(amb);
+
     return {
       ...ep,
       servicos: {
@@ -102,8 +147,21 @@ export function montarEndpoints(ambiente: Ambiente): SefazEndpoint[] {
         nfceDistDFeInteresse: nfceServ,
         cteConsultaProtocolo: `${svrs(amb)}/CTeWS/ConsultaProtocolo.asmx`,
         cteDistDFeInteresse: `${svrs(amb)}/CTeWS/DistribuicaoDFe.asmx`,
+        cteConsulta: cteConsultaBase(sigla, amb),
+        cteRecepcaoOS: `${svrs(amb)}/CTeWS/RecepcaoOS.asmx`,
+        cteStatusServico: `${svrs(amb)}/CTeWS/StatusServico.asmx`,
         mdfeConsultaProtocolo: `${svrs(amb)}/MDFeWS/ConsultaProtocolo.asmx`,
         mdfeDistDFeInteresse: `${svrs(amb)}/MDFeWS/DistribuicaoDFe.asmx`,
+        mdfeConsulta: mdfeConsultaBase(amb),
+        bpeConsulta: `${bpeServ}/BPeConsulta`,
+        bpeStatusServico: `${bpeServ}/BPeStatusServico`,
+        bpeRecepcaoEvento: `${bpeServ}/BPeRecepcaoEvento`,
+        cteosConsulta: cteConsultaBase(sigla, amb),
+        cteosRecepcaoOS: `${svrs(amb)}/CTeWS/RecepcaoOS.asmx`,
+        cteosStatusServico: `${svrs(amb)}/CTeWS/StatusServico.asmx`,
+        dceConsulta: `${dceServ}/DCeConsulta`,
+        dceStatusServico: `${dceServ}/DCeStatusServico`,
+        dceRecepcaoEvento: `${dceServ}/DCeRecepcaoEvento`,
       },
     };
   });

@@ -25,6 +25,8 @@ export const tipoDocumentoEnum = pgEnum('tipo_documento', [
   'nfse',
   'cte',
   'mdfe',
+  'bpe',
+  'cteos',
   'dce',
 ]);
 

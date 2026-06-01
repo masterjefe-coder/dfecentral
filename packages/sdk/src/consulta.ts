@@ -26,6 +26,35 @@ function extrairValor(xml: string, path: string): string | undefined {
   return match ? match[1] : undefined;
 }
 
+function encontrarXmlAninhado(valor: unknown, visitados = new Set<unknown>()): string | null {
+  if (!valor || typeof valor !== 'object' && typeof valor !== 'string') return null;
+  if (visitados.has(valor)) return null;
+  visitados.add(valor);
+
+  if (typeof valor === 'string') {
+    const texto = valor.trim();
+    if (texto.startsWith('<') && texto.includes('>') && texto.length > 80) {
+      return texto;
+    }
+    return null;
+  }
+
+  if (Array.isArray(valor)) {
+    for (const item of valor) {
+      const xml = encontrarXmlAninhado(item, visitados);
+      if (xml) return xml;
+    }
+    return null;
+  }
+
+  for (const entry of Object.values(valor as Record<string, unknown>)) {
+    const xml = encontrarXmlAninhado(entry, visitados);
+    if (xml) return xml;
+  }
+
+  return null;
+}
+
 function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | null {
   try {
     const parsed = parser.parse(xml);
@@ -53,12 +82,71 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
       };
     }
 
-    const resNFe = parsed?.resNFe || parsed?.resNFCe || parsed?.resCTe || parsed?.resMDFe;
+    const procBPe = parsed?.procBPe?.BPe?.infBPe ?? parsed?.BPe?.infBPe;
+    if (procBPe) {
+      return {
+        chaveAcesso: String(procBPe.Id || '').replace(/^BPe/i, '') || '',
+        tipo: tipo as DocumentoFiscal['tipo'],
+        numero: String(procBPe.ide?.nBP || procBPe.ide?.nDoc || '').replace(/^0+/, ''),
+        serie: String(procBPe.ide?.serie || '').replace(/^0+/, ''),
+        dataEmissao: procBPe.ide?.dhEmi || new Date().toISOString(),
+        cnpjEmitente: procBPe.emit?.CNPJ || '',
+        razaoSocialEmitente: procBPe.emit?.xNome || '',
+        cnpjDestinatario: procBPe.dest?.CNPJ || undefined,
+        razaoSocialDestinatario: procBPe.dest?.xNome || undefined,
+        valorTotal: String(procBPe.total?.vBPe || procBPe.total?.vTtRec || procBPe.total?.vPago || '0'),
+        status: 'autorizada',
+        xml,
+        protocolo: parsed?.procBPe?.protBPe?.infProt?.nProt || parsed?.protBPe?.infProt?.nProt || undefined,
+      };
+    }
+
+    const procCTeOS = parsed?.procCTeOS?.CTeOS?.infCTeOS ?? parsed?.CTeOS?.infCTeOS ?? parsed?.procCTeOS?.CTe?.infCte;
+    if (procCTeOS) {
+      return {
+        chaveAcesso: String(procCTeOS.Id || '').replace(/^CTeOS/i, '').replace(/^CTe/i, '') || '',
+        tipo: tipo as DocumentoFiscal['tipo'],
+        numero: String(procCTeOS.ide?.nCT || procCTeOS.ide?.nDoc || '').replace(/^0+/, ''),
+        serie: String(procCTeOS.ide?.serie || '').replace(/^0+/, ''),
+        dataEmissao: procCTeOS.ide?.dhEmi || new Date().toISOString(),
+        cnpjEmitente: procCTeOS.emit?.CNPJ || '',
+        razaoSocialEmitente: procCTeOS.emit?.xNome || '',
+        cnpjDestinatario: procCTeOS.tomador?.CNPJ || procCTeOS.dest?.CNPJ || undefined,
+        razaoSocialDestinatario: procCTeOS.tomador?.xNome || procCTeOS.dest?.xNome || undefined,
+        valorTotal: String(procCTeOS.vPrest?.vTPrest || procCTeOS.total?.vTPrest || '0'),
+        status: 'autorizada',
+        xml,
+        protocolo: parsed?.procCTeOS?.protCTeOS?.infProt?.nProt || parsed?.protCTe?.infProt?.nProt || undefined,
+      };
+    }
+
+    const procDCe = parsed?.procDCe?.DCe?.infDCe ?? parsed?.DCe?.infDCe;
+    if (procDCe) {
+      return {
+        chaveAcesso: String(procDCe.Id || '').replace(/^DCe/i, '') || '',
+        tipo: tipo as DocumentoFiscal['tipo'],
+        numero: String(procDCe.ide?.nDce || procDCe.ide?.nDoc || '').replace(/^0+/, ''),
+        serie: String(procDCe.ide?.serie || '').replace(/^0+/, ''),
+        dataEmissao: procDCe.ide?.dhEmi || new Date().toISOString(),
+        cnpjEmitente: procDCe.emit?.CNPJ || '',
+        razaoSocialEmitente: procDCe.emit?.xNome || '',
+        cnpjDestinatario: procDCe.dest?.CNPJ || undefined,
+        razaoSocialDestinatario: procDCe.dest?.xNome || undefined,
+        valorTotal: String(procDCe.total?.vDce || procDCe.total?.vNF || '0'),
+        status: 'autorizada',
+        xml,
+        protocolo: parsed?.procDCe?.protDCe?.infProt?.nProt || parsed?.protDCe?.infProt?.nProt || undefined,
+      };
+    }
+
+    const resNFe = parsed?.resNFe || parsed?.resNFCe || parsed?.resCTe || parsed?.resMDFe || parsed?.resBPe || parsed?.resCTeOS || parsed?.resDCe;
     if (resNFe) {
-      const chave = String(resNFe.chNFe || resNFe.chaveAcesso || resNFe.chCTe || resNFe.chMDFe || '').replace(/\D/g, '');
+      const chave = String(
+        resNFe.chNFe || resNFe.chaveAcesso || resNFe.chCTe || resNFe.chMDFe || resNFe.chBPe || resNFe.chCTeOS || resNFe.chDCe || '',
+      ).replace(/\D/g, '');
       if (!chave) return null;
 
-      const total = resNFe.vNF || resNFe.vTPrest || resNFe.vCarga || '0';
+      const total = resNFe.vNF || resNFe.vTPrest || resNFe.vCarga || resNFe.vBPe || resNFe.vDce || '0';
       const emitCNPJ = resNFe.CNPJ || resNFe.cnpj || '';
       const destCNPJ = resNFe.CNPJDest || resNFe.cnpjDest || '';
       return {
@@ -84,9 +172,103 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
   }
 }
 
+function montarConsultaPorChaveSoap(tipo: DocumentoFiscal['tipo'], chave: string, ambiente: 1 | 2): {
+  urlServico: string;
+  action: string;
+  envelope: string;
+  resultadoRegex: RegExp;
+} | null {
+  if (tipo === 'bpe') {
+    return {
+      urlServico: '',
+      action: 'http://www.portalfiscal.inf.br/bpe/wsdl/BPeConsulta/BPeConsulta',
+      envelope: `<BPeConsulta xmlns="http://www.portalfiscal.inf.br/bpe/wsdl/BPeConsulta"><bPeDadosMsg><consSitBPe xmlns="http://www.portalfiscal.inf.br/bpe" versao="1.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chBPe>${chave}</chBPe></consSitBPe></bPeDadosMsg></BPeConsulta>`,
+      resultadoRegex: /<BPeConsultaResult[^>]*>([\s\S]*?)<\/BPeConsultaResult>/,
+    };
+  }
+
+  if (tipo === 'cteos') {
+    return {
+      urlServico: '',
+      action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeConsulta/CTeConsulta',
+      envelope: `<CTeConsulta xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsulta"><cteDadosMsg><consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe></cteDadosMsg></CTeConsulta>`,
+      resultadoRegex: /<CTeConsultaResult[^>]*>([\s\S]*?)<\/CTeConsultaResult>/,
+    };
+  }
+
+  if (tipo === 'dce') {
+    return {
+      urlServico: '',
+      action: 'http://www.portalfiscal.inf.br/dce/wsdl/DCeConsulta/DCeConsulta',
+      envelope: `<DCeConsulta xmlns="http://www.portalfiscal.inf.br/dce/wsdl/DCeConsulta"><dceDadosMsg><consSitDCe xmlns="http://www.portalfiscal.inf.br/dce" versao="1.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chDCe>${chave}</chDCe></consSitDCe></dceDadosMsg></DCeConsulta>`,
+      resultadoRegex: /<DCeConsultaResult[^>]*>([\s\S]*?)<\/DCeConsultaResult>/,
+    };
+  }
+
+  return null;
+}
+
+async function consultarDocumentoOficialPorChave(
+  chave: string,
+  tipo: DocumentoFiscal['tipo'],
+  config: SdkConfig,
+): Promise<ConsultaResultado> {
+  if (!config.certificado) {
+    return { sucesso: false, erro: 'Certificado digital nao configurado', fonte: 'mock' };
+  }
+
+  const info = parseChaveAcesso(chave);
+  const uf = info?.ufSigla || config.ufPadrao || 'PR';
+  const endpoints = montarEndpoints(config.ambiente);
+  const serviceMap: Record<string, string> = {
+    bpe: 'bpeConsulta',
+    cteos: 'cteosConsulta',
+    dce: 'dceConsulta',
+  };
+  const serviceName = serviceMap[tipo];
+  const serviceUrl = getServiceUrl(endpoints, uf, serviceName);
+  if (!serviceUrl) {
+    return { sucesso: false, erro: `Endpoint oficial indisponivel para ${tipo.toUpperCase()}/${uf}`, fonte: 'sefaz' };
+  }
+
+  const consulta = montarConsultaPorChaveSoap(tipo, chave, config.ambiente);
+  if (!consulta) {
+    return { sucesso: false, erro: `Consulta oficial nao configurada para ${tipo}`, fonte: 'mock' };
+  }
+
+  try {
+    carregarCertificado(config.certificado.caminho, config.certificado.senha);
+    const response = await enviarSOAPComCert(
+      serviceUrl,
+      montarEnvelope(consulta.envelope),
+      consulta.action,
+      config.certificado.caminho,
+      config.certificado.senha,
+      config.timeout || 60000,
+    );
+
+    if (response.statusCode !== 200) {
+      const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/);
+      return { sucesso: false, erro: fault ? fault[1] : `HTTP ${response.statusCode}`, fonte: 'sefaz' };
+    }
+
+    const parsed = parser.parse(response.body);
+    const inner = encontrarXmlAninhado(parsed) || response.body;
+    const result = inner.match(consulta.resultadoRegex)?.[1] || inner;
+    const doc = parseDocumentoFromXML(result, tipo);
+    if (!doc) {
+      return { sucesso: false, erro: `Nao foi possivel interpretar o XML retornado pela ${tipo.toUpperCase()}`, fonte: 'sefaz' };
+    }
+
+    return { sucesso: true, documento: { ...doc, xml: result }, fonte: 'sefaz' };
+  } catch (error: any) {
+    return { sucesso: false, erro: error.message || `Erro na consulta ${tipo.toUpperCase()}`, fonte: 'sefaz' };
+  }
+}
+
 function gerarRespostaDaChave(info: InfoChave): DocumentoFiscal {
   const docs: Record<string, DocumentoFiscal['tipo']> = {
-    '55': 'nfe', '65': 'nfce', '57': 'cte', '58': 'mdfe',
+    '55': 'nfe', '65': 'nfce', '57': 'cte', '58': 'mdfe', '63': 'bpe', '67': 'cteos',
   };
   const tipo = docs[info.modelo] || 'nfe';
 
@@ -149,11 +331,6 @@ async function consultarNfseOficial(chave: string, config: SdkConfig): Promise<C
 
     if (response.statusCode !== 200) {
       const msg = extrairMensagemNfse(response.body) || `HTTP ${response.statusCode}`;
-      if (deveTentarScraper(msg) && config.scraperUrl) {
-        const s = await chamarScraperService(chave, config.scraperUrl, 'nfse');
-        if (s.sucesso) return s;
-      }
-
       return {
         sucesso: false,
         erro: `NFS-e: ${msg}`,
@@ -186,11 +363,6 @@ async function consultarNfseOficial(chave: string, config: SdkConfig): Promise<C
 
     return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
   } catch (error: any) {
-    if (deveTentarScraper(error.message) && config.scraperUrl) {
-      const s = await chamarScraperService(chave, config.scraperUrl, 'nfse');
-      if (s.sucesso) return s;
-    }
-
     return {
       sucesso: false,
       erro: error.message || 'Erro na consulta NFS-e',
@@ -282,14 +454,22 @@ export async function consultarNFeporChave(
       if (oficial.sucesso) return oficial;
     }
 
-    if (config.scraperUrl) {
-      return chamarScraperService(chave, config.scraperUrl, tipoDetectado);
+    if (tipoDetectado === 'dce') {
+      const oficial = await consultarDocumentoOficialPorChave(chave, 'dce', config);
+      if (oficial.sucesso) return oficial;
     }
+
+    return { sucesso: false, erro: 'Consulta oficial indisponivel para este documento', fonte: 'sefaz' };
+  }
+
+  if (tipoDetectado === 'bpe' || tipoDetectado === 'cteos') {
+    const oficial = await consultarDocumentoOficialPorChave(chave, tipoDetectado, config);
+    if (oficial.sucesso) return oficial;
 
     return {
       sucesso: false,
-      erro: 'Scraper indisponivel para consulta de NFS-e/DC-e',
-      fonte: 'mock',
+      erro: `Consulta oficial indisponivel para ${tipoDetectado.toUpperCase()}`,
+      fonte: 'sefaz',
     };
   }
 
@@ -306,13 +486,9 @@ export async function consultarNFeporChave(
   const tipo = params.tipo || info.tipo;
 
   if (!config.certificado) {
-    if (config.scraperUrl) {
-      const scraperResult = await chamarScraperService(chave, config.scraperUrl, tipo);
-      if (scraperResult.sucesso) return scraperResult;
-    }
     return {
       sucesso: false,
-      erro: 'Certificado digital nao configurado e scraper indisponivel',
+      erro: 'Certificado digital nao configurado',
       fonte: 'mock',
     };
   }
@@ -356,11 +532,6 @@ export async function consultarNFeporChave(
       const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/);
       const msg = fault ? fault[1] : `HTTP ${response.statusCode}`;
 
-      if (deveTentarScraper(msg) && config.scraperUrl) {
-        const s = await chamarScraperService(chave, config.scraperUrl, tipo);
-        if (s.sucesso) return s;
-      }
-
       return {
         sucesso: false,
         erro: `SEFAZ: ${msg}`,
@@ -385,11 +556,6 @@ export async function consultarNFeporChave(
     const docZipB64 = docZipMatch ? docZipMatch[1] : null;
 
     if (!docZipB64) {
-      if (deveTentarScraper(xMotivo) && config.scraperUrl) {
-        const s = await chamarScraperService(params.chaveAcesso, config.scraperUrl);
-        if (s.sucesso) return s;
-      }
-
       return {
         sucesso: false,
         erro: xMotivo || `SEFAZ: status ${cStat}`,
@@ -409,11 +575,6 @@ export async function consultarNFeporChave(
 
     return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
   } catch (error: any) {
-    if (deveTentarScraper(error.message) && config.scraperUrl) {
-      const s = await chamarScraperService(chave, config.scraperUrl, tipo);
-      if (s.sucesso) return s;
-    }
-
     return {
       sucesso: false,
       erro: error.message || 'Erro na consulta SEFAZ',

@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { MouseEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Badge, EmptyState, GlassCard } from '../components/ui';
 
@@ -21,37 +20,15 @@ interface DocumentoEncontrado {
   xml?: string;
 }
 
-interface AssistResult {
-  sucesso: boolean;
-  dados?: DocumentoEncontrado;
-  xml?: string;
-  erro?: string;
-  fonte: string;
-}
-
-interface AssistJobState {
-  id: string;
-  chaveAcesso: string;
-  status: 'running' | 'aguardando_interacao' | 'concluido' | 'erro';
-  erro?: string;
-  mensagem?: string;
-  result?: AssistResult;
-  viewport: { width: number; height: number };
-}
-
-interface AssistActionResponse {
-  sucesso: boolean;
-  job?: AssistJobState;
-  erro?: string;
-}
-
-type TipoConsulta = 'auto' | 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'nfse' | 'dce';
+type TipoConsulta = 'auto' | 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'bpe' | 'cteos' | 'nfse' | 'dce';
 
 const MODELOS: Record<string, { tipo: string; label: string; cor: string }> = {
   '55': { tipo: 'nfe', label: 'NF-e', cor: 'bg-blue-100 text-blue-700' },
   '65': { tipo: 'nfce', label: 'NFC-e', cor: 'bg-emerald-100 text-emerald-700' },
   '57': { tipo: 'cte', label: 'CT-e', cor: 'bg-violet-100 text-violet-700' },
   '58': { tipo: 'mdfe', label: 'MDF-e', cor: 'bg-orange-100 text-orange-700' },
+  '63': { tipo: 'bpe', label: 'BP-e', cor: 'bg-fuchsia-100 text-fuchsia-700' },
+  '67': { tipo: 'cteos', label: 'CT-e OS', cor: 'bg-amber-100 text-amber-700' },
   nfse: { tipo: 'nfse', label: 'NFS-e', cor: 'bg-slate-100 text-slate-700' },
   dce: { tipo: 'dce', label: 'DC-e', cor: 'bg-cyan-100 text-cyan-700' },
 };
@@ -62,6 +39,8 @@ const TIPOS_CONSULTA: Array<{ value: TipoConsulta; label: string; ajuda: string 
   { value: 'nfce', label: 'NFC-e', ajuda: '44 dígitos' },
   { value: 'cte', label: 'CT-e', ajuda: '44 dígitos' },
   { value: 'mdfe', label: 'MDF-e', ajuda: '44 dígitos' },
+  { value: 'bpe', label: 'BP-e', ajuda: '44 dígitos' },
+  { value: 'cteos', label: 'CT-e OS', ajuda: '44 dígitos' },
   { value: 'nfse', label: 'NFS-e', ajuda: '50 caracteres' },
   { value: 'dce', label: 'DC-e', ajuda: '56 caracteres' },
 ];
@@ -72,7 +51,7 @@ const NFSE_DOCS = [
   { label: 'Documentação atual', href: 'https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual' },
 ];
 
-const TIPOS_SEFAZ = new Set(['nfe', 'nfce', 'cte', 'mdfe']);
+const TIPOS_SEFAZ = new Set(['nfe', 'nfce', 'cte', 'mdfe', 'bpe', 'cteos']);
 
 function formatarChaveDocumento(valor: string, tipo: TipoConsulta) {
   const limite = tipo === 'nfse' ? 50 : tipo === 'dce' ? 56 : tipo === 'auto' ? 56 : 44;
@@ -121,11 +100,7 @@ export default function ConsultaPage() {
   const [chaveAcesso, setChaveAcesso] = useState('');
   const [resultado, setResultado] = useState<DocumentoEncontrado | null>(null);
   const [erro, setErro] = useState('');
-  const [assistido, setAssistido] = useState<AssistJobState | null>(null);
-  const [assistidoCarregando, setAssistidoCarregando] = useState(false);
-  const [assistidoTexto, setAssistidoTexto] = useState('');
-  const [assistidoFrameTick, setAssistidoFrameTick] = useState(0);
-  const popupAssistidoRef = useRef<Window | null>(null);
+  const [carregandoConsulta, setCarregandoConsulta] = useState(false);
 
   const infoChaveDetectada = useMemo(() => detectarTipo(chaveAcesso), [chaveAcesso]);
   const infoChave = useMemo(() => {
@@ -149,41 +124,12 @@ export default function ConsultaPage() {
     return infoChaveDetectada?.tipo === tipoEfetivo;
   }, [tipoEfetivo, chaveLimpa, tipoConsulta, infoChaveDetectada]);
 
-  const consultaDireta = tipoEfetivo === 'nfse' || tipoEfetivo === 'dce';
-
   useEffect(() => {
     setChaveAcesso((valor) => formatarChaveDocumento(valor, tipoConsulta));
   }, [tipoConsulta]);
 
-  const assistidoFrameUrl = assistido?.id
-    ? `/api/assistido/${assistido.id}/frame?ts=${assistidoFrameTick}`
-    : '';
-
-  const urlAbsoluta = (path: string) => new URL(path, window.location.origin).toString();
-
-  const abrirPopupAssistido = (id?: string) => {
-    const popup = window.open('', 'dfecentral-assistido', 'popup=yes,width=1280,height=860');
-    if (!popup) return false;
-
-    popup.document.title = 'DFeCentral - Consulta assistida';
-    popup.document.body.innerHTML = '<p style="font-family:Arial,sans-serif;padding:16px">Abrindo consulta assistida...</p>';
-    popupAssistidoRef.current = popup;
-    if (id) {
-      popup.location.replace(urlAbsoluta(`/assistido/${id}`));
-      popup.focus();
-    }
-    return true;
-  };
-
   const consultarDireto = async (tipo: Exclude<TipoConsulta, 'auto'>) => {
-    if (!['nfse', 'dce'].includes(tipo)) return false;
-
-    if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
-      popupAssistidoRef.current.close();
-    }
-    popupAssistidoRef.current = null;
-
-    setAssistidoCarregando(true);
+    setCarregandoConsulta(true);
     setErro('');
     setResultado(null);
 
@@ -196,59 +142,16 @@ export default function ConsultaPage() {
       }
 
       setResultado(data.dados);
-      setAssistido(null);
       return true;
     } catch {
       setErro('Nao foi possivel consultar o documento.');
       return false;
     } finally {
-      setAssistidoCarregando(false);
+      setCarregandoConsulta(false);
     }
   };
 
-  const atualizarAssistido = async (id: string) => {
-    const res = await fetch(`/api/assistido/${id}/state`, { cache: 'no-store' });
-    const data = await res.json();
-    if (!data.sucesso || !data.job) return null;
-    setAssistido(data.job);
-    if (data.job.status === 'concluido' && data.job.result?.sucesso && data.job.result.dados) {
-      setResultado({ ...data.job.result.dados, xml: data.job.result.xml });
-      setErro('');
-    }
-    if (data.job.status === 'erro') {
-      setErro(data.job.erro || data.job.result?.erro || 'Consulta assistida falhou.');
-    }
-    return data.job as AssistJobState;
-  };
-
-  useEffect(() => {
-    if (!assistido?.id) return;
-    if (assistido.status === 'concluido' || assistido.status === 'erro') return;
-
-    const timer = window.setInterval(() => {
-      void atualizarAssistido(assistido.id).then((job) => {
-        if (job) setAssistidoFrameTick((value) => value + 1);
-      });
-    }, 2000);
-
-    return () => window.clearInterval(timer);
-  }, [assistido?.id, assistido?.status]);
-
-  useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data as { tipo?: string; id?: string } | undefined;
-      if (!data || data.tipo !== 'assistido:atualizar' || !data.id) return;
-      if (assistido?.id === data.id) {
-        void atualizarAssistido(data.id);
-      }
-    };
-
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
-  }, [assistido?.id]);
-
-  const iniciarAssistido = async () => {
+  const iniciarConsulta = async () => {
     if (!tipoEfetivo) {
       setErro('Escolha um tipo ou informe uma chave valida.');
       return;
@@ -259,150 +162,14 @@ export default function ConsultaPage() {
       return;
     }
 
-    if (consultaDireta) {
-      await consultarDireto(tipoEfetivo as Exclude<TipoConsulta, 'auto'>);
-      return;
-    }
-
-    if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
-      popupAssistidoRef.current.close();
-    }
-
-    const popupPreliminar = abrirPopupAssistido();
-
-    setAssistidoCarregando(true);
-    setErro('');
-    setResultado(null);
-
-    try {
-      const res = await fetch('/api/assistido/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chaveAcesso: chaveLimpa }),
-      });
-      const data = await res.json();
-      if (!data.sucesso || !data.job) {
-        setErro(data.erro || 'Nao foi possivel iniciar a consulta assistida.');
-        if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
-          popupAssistidoRef.current.close();
-        }
-        popupAssistidoRef.current = null;
-        return;
-      }
-
-      const popupAberto = popupAssistidoRef.current && !popupAssistidoRef.current.closed;
-      if (popupAberto) {
-        const popup = popupAssistidoRef.current;
-        if (popup) {
-          popup.location.replace(urlAbsoluta(`/assistido/${data.job.id}`));
-          popup.focus();
-        }
-      } else if (!popupPreliminar) {
-        setErro('Nao foi possivel abrir a janela de consulta. Permita popups e tente novamente.');
-      }
-      setAssistido(data.job);
-      setAssistidoFrameTick(0);
-      if (data.job.result?.sucesso && data.job.result.dados) {
-        setResultado(data.job.result.dados);
-      }
-    } catch {
-      setErro('Nao foi possivel abrir a consulta assistida.');
-    } finally {
-      setAssistidoCarregando(false);
-    }
+    await consultarDireto(tipoEfetivo as Exclude<TipoConsulta, 'auto'>);
   };
 
   const limparChave = () => {
-    if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
-      popupAssistidoRef.current.close();
-    }
-    popupAssistidoRef.current = null;
     setChaveAcesso('');
     setResultado(null);
     setErro('');
-    setAssistido(null);
-    setAssistidoTexto('');
-    setAssistidoFrameTick(0);
     setTipoConsulta('auto');
-  };
-
-  const enviarAcaoAssistida = async (action: Record<string, unknown>) => {
-    if (!assistido?.id) return;
-
-    try {
-      const res = await fetch(`/api/assistido/${assistido.id}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(action),
-      });
-      const data: AssistActionResponse = await res.json();
-      if (!data.sucesso || !data.job) {
-        setErro(data.erro || 'Falha ao executar acao assistida.');
-        return;
-      }
-
-      setAssistido(data.job);
-      setAssistidoFrameTick((value) => value + 1);
-      if (data.job.status === 'concluido' && data.job.result?.sucesso && data.job.result.dados) {
-        setResultado({ ...data.job.result.dados, xml: data.job.result.xml });
-        setErro('');
-      }
-      if (data.job.status === 'erro') {
-        setErro(data.job.erro || data.job.result?.erro || 'Consulta assistida falhou.');
-      }
-    } catch {
-      setErro('Nao foi possivel enviar a acao para a sessao assistida.');
-    }
-  };
-
-  const finalizarAssistido = async () => {
-    if (!assistido?.id) return;
-
-    try {
-      const res = await fetch(`/api/assistido/${assistido.id}/finalizar`, { method: 'POST' });
-      const data: AssistActionResponse = await res.json();
-      if (!data.sucesso || !data.job) {
-        setErro(data.erro || 'Nao foi possivel finalizar a consulta assistida.');
-        return;
-      }
-
-      setAssistido(data.job);
-      if (data.job.status === 'concluido' && data.job.result?.sucesso && data.job.result.dados) {
-        setResultado({ ...data.job.result.dados, xml: data.job.result.xml });
-        setErro('');
-      }
-      if (data.job.status === 'erro') {
-        setErro(data.job.erro || data.job.result?.erro || 'Consulta assistida falhou.');
-      }
-    } catch {
-      setErro('Nao foi possivel finalizar a consulta assistida.');
-    }
-  };
-
-  const encerrarAssistido = async () => {
-    if (!assistido?.id) return;
-    try {
-      await fetch(`/api/assistido/${assistido.id}`, { method: 'DELETE' });
-    } finally {
-      if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
-        popupAssistidoRef.current.close();
-      }
-      popupAssistidoRef.current = null;
-      setAssistido(null);
-      setAssistidoTexto('');
-    }
-  };
-
-  const handleAssistidoFrameClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (!assistido) return;
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
-
-    const x = Math.max(0, Math.round(((event.clientX - rect.left) / rect.width) * assistido.viewport.width));
-    const y = Math.max(0, Math.round(((event.clientY - rect.top) / rect.height) * assistido.viewport.height));
-
-    void enviarAcaoAssistida({ tipo: 'click', x, y });
   };
 
   return (
@@ -430,7 +197,7 @@ export default function ConsultaPage() {
           <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
             <section className="space-y-5">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200 shadow-sm backdrop-blur">
-                Consulta fiscal assistida
+                Consulta fiscal oficial
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               </div>
 
@@ -439,13 +206,13 @@ export default function ConsultaPage() {
                   Consultar Documento Fiscal
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm sm:text-base text-slate-300 leading-6">
-                  Selecione o tipo, informe a chave e use a consulta assistida para os documentos SEFAZ ou a consulta oficial para NFS-e.
+                  Selecione o tipo, informe a chave e use a consulta oficial no backend para os documentos SEFAZ ou a consulta oficial para NFS-e.
                 </p>
                 {tipoConsulta === 'nfse' && (
                   <GlassCard className="mt-4 rounded-2xl border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-50">
                     <p className="font-semibold text-white">NFS-e Nacional</p>
                     <p className="mt-1 leading-6 text-cyan-50/90">
-                      A consulta nesta tela usa a API oficial de contribuintes do portal nacional com certificado digital.
+                      A consulta nesta tela usa a API oficial de contribuintes do portal nacional com certificado digital no backend.
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {NFSE_DOCS.map((doc) => (
@@ -471,7 +238,7 @@ export default function ConsultaPage() {
                 </GlassCard>
                 <GlassCard className="rounded-2xl bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Modo</p>
-                  <p className="mt-1 text-sm font-semibold text-white">Assistido no popup</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Consulta direta</p>
                 </GlassCard>
                 <GlassCard className="rounded-2xl bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Saida</p>
@@ -506,7 +273,7 @@ export default function ConsultaPage() {
                       setChaveAcesso(formatarChaveDocumento(e.target.value, tipoConsulta));
                       setErro('');
                     }}
-                    onKeyDown={(e) => e.key === 'Enter' && iniciarAssistido()}
+                    onKeyDown={(e) => e.key === 'Enter' && iniciarConsulta()}
                     placeholder={
                       tipoConsulta === 'nfse'
                         ? '0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 00'
@@ -532,11 +299,11 @@ export default function ConsultaPage() {
 
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
-                    onClick={iniciarAssistido}
-                    disabled={assistidoCarregando || !chaveValida || !tipoEfetivo}
+                    onClick={iniciarConsulta}
+                    disabled={carregandoConsulta || !chaveValida || !tipoEfetivo}
                     className="w-full py-3.5 px-6 bg-slate-950 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-slate-950/10"
                   >
-                    {assistidoCarregando ? (
+                    {carregandoConsulta ? (
                       <span className="flex items-center justify-center gap-2">
                         <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -544,7 +311,7 @@ export default function ConsultaPage() {
                         </svg>
                         Consultando...
                       </span>
-                    ) : consultaDireta ? 'Consultar direto' : 'Consultar assistida'}
+                    ) : 'Consultar direto'}
                   </button>
 
                   <button
@@ -567,9 +334,7 @@ export default function ConsultaPage() {
                 {!resultado && !erro && (
                   <EmptyState
                     title="Pronto para consultar"
-                    description={consultaDireta
-                      ? 'NFS-e usa a API oficial com certificado; DC-e continua no portal público e pode nao devolver XML/PDF em todos os casos.'
-                      : 'Os documentos SEFAZ usam a consulta assistida e podem gerar XML/PDF quando disponíveis.'}
+                    description={'Os documentos usam consulta oficial no backend e podem gerar XML/PDF quando disponíveis.'}
                   />
                 )}
               </div>
@@ -580,15 +345,15 @@ export default function ConsultaPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Fluxo</p>
                 <ol className="mt-4 space-y-3 text-sm text-slate-200">
                   <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">1</span><span>Digite a chave no formato correto do documento.</span></li>
-                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span><span>Documentos SEFAZ abrem em popup assistido.</span></li>
-                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span><span>NFS-e consulta na API oficial; DC-e segue no portal público.</span></li>
+                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span><span>Documentos SEFAZ consultam direto na API oficial do backend.</span></li>
+                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span><span>NFS-e consulta na API oficial; DC-e segue no serviço oficial.</span></li>
                 </ol>
               </GlassCard>
 
               <GlassCard className="rounded-3xl bg-white p-5 shadow-sm text-slate-900">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Dica</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Se o popup nao abrir, permita janelas pop-up para este site e tente novamente.
+                  A consulta usa somente os servicos oficiais do backend.
                 </p>
               </GlassCard>
 
@@ -609,109 +374,6 @@ export default function ConsultaPage() {
             </aside>
           </div>
         </div>
-
-        {assistido && (
-          <div className="mt-5 surface-card-strong rounded-[1.5rem] overflow-hidden animate-slide-up">
-            <div className="bg-slate-900 px-5 py-4 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-sm font-semibold text-white">Consulta assistida</h2>
-                <p className="text-xs text-slate-400">
-                  {assistido.mensagem || 'Sessao remota em execucao'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge tone={assistido.result?.dados?.status === 'autorizada' ? 'emerald' : assistido.result?.dados?.status === 'erro' ? 'red' : 'amber'}>
-                  {assistido.status}
-                </Badge>
-                <button
-                  onClick={encerrarAssistido}
-                  className="rounded-md border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 transition-colors"
-                >
-                  Encerrar
-                </button>
-              </div>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.6fr)] p-5">
-              <div>
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
-                  {assistido.status === 'concluido' || assistido.status === 'erro' ? (
-                    <div className="p-4 text-sm text-slate-600">
-                      {assistido.status === 'concluido'
-                        ? 'A consulta foi concluida. Se o resultado ainda nao apareceu acima, clique em consultar novamente ou atualize a sessao.'
-                        : assistido.erro || 'A sessao assistida foi encerrada com erro.'}
-                    </div>
-                  ) : (
-                    <div
-                      className="relative cursor-crosshair select-none"
-                      onClick={handleAssistidoFrameClick}
-                      title="Clique na tela para interagir com a sessao"
-                    >
-                      <img
-                        src={assistidoFrameUrl}
-                        alt="Tela da consulta assistida"
-                        className="block w-full h-auto"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <button onClick={() => void enviarAcaoAssistida({ tipo: 'press', key: 'Tab' })} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Tab</button>
-                  <button onClick={() => void enviarAcaoAssistida({ tipo: 'press', key: 'Enter' })} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Enter</button>
-                  <button onClick={() => void enviarAcaoAssistida({ tipo: 'press', key: 'Space' })} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Espaco</button>
-                  <button onClick={() => void enviarAcaoAssistida({ tipo: 'press', key: 'Escape' })} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Esc</button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sessao</h3>
-                  <dl className="mt-3 space-y-2 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-slate-500">ID</dt>
-                      <dd className="font-mono text-xs text-slate-700 break-all text-right">{assistido.id}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-slate-500">Status</dt>
-                      <dd className="font-semibold text-slate-900">{assistido.status}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-slate-500">Viewport</dt>
-                      <dd className="font-semibold text-slate-900">{assistido.viewport.width} x {assistido.viewport.height}</dd>
-                    </div>
-                  </dl>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Texto</h3>
-                  <textarea
-                    value={assistidoTexto}
-                    onChange={(e) => setAssistidoTexto(e.target.value)}
-                    rows={4}
-                    className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                    placeholder="Digite texto para enviar para a sessao"
-                  />
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      onClick={() => void enviarAcaoAssistida({ tipo: 'type', text: assistidoTexto, delay: 10 })}
-                      disabled={!assistidoTexto.trim()}
-                      className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      Enviar texto
-                    </button>
-                    <button
-                      onClick={() => void finalizarAssistido()}
-                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      Finalizar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {resultado && (
           <div className="mt-5 surface-card-strong rounded-[1.5rem] overflow-hidden animate-slide-up">
@@ -771,7 +433,7 @@ export default function ConsultaPage() {
                 {resultado.xml ? (
                   <>
                     <a
-                      href={['nfe', 'nfce', 'cte', 'mdfe'].includes(resultado.tipo)
+                      href={['nfe', 'nfce', 'cte', 'mdfe', 'bpe', 'cteos'].includes(resultado.tipo)
                         ? `/api/consulta/${resultado.tipo}/${resultado.chaveAcesso}/xml`
                         : `data:text/xml;charset=utf-8,${encodeURIComponent(resultado.xml)}`}
                       download={`${resultado.chaveAcesso}.xml`}
@@ -779,7 +441,7 @@ export default function ConsultaPage() {
                     >
                       Download XML
                     </a>
-                    {['nfe', 'nfce', 'cte', 'mdfe'].includes(resultado.tipo) && (
+                    {['nfe', 'nfce', 'cte', 'mdfe', 'bpe', 'cteos'].includes(resultado.tipo) && (
                       <a
                         href={`/api/consulta/${resultado.tipo}/${resultado.chaveAcesso}/xml?format=danfe`}
                         target="_blank"
@@ -807,7 +469,7 @@ export default function ConsultaPage() {
               </div>
               {resultado.fonte === 'scraper' && (
                 <div className="mt-3 p-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-xs text-center">
-                  Dados obtidos via consulta publica SEFAZ
+                  Dados obtidos via serviço oficial SEFAZ
                 </div>
               )}
               {resultado.fonte === 'mock' && (

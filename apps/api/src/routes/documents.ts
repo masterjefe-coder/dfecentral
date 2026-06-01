@@ -14,6 +14,8 @@ function tipoDaChave(chave: string): TipoDocumento | null {
   if (modelo === '65') return 'nfce';
   if (modelo === '57') return 'cte';
   if (modelo === '58') return 'mdfe';
+  if (modelo === '63') return 'bpe';
+  if (modelo === '67') return 'cteos';
   return null;
 }
 

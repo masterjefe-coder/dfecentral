@@ -1,6 +1,6 @@
 export type Ambiente = 1 | 2;
 
-export type TipoDocumento = 'nfe' | 'nfce' | 'nfse' | 'cte' | 'mdfe' | 'dce';
+export type TipoDocumento = 'nfe' | 'nfce' | 'nfse' | 'cte' | 'mdfe' | 'bpe' | 'cteos' | 'dce';
 
 export type Fonte = 'sefaz' | 'cache' | 'mock' | 'scraper';
 
@@ -100,6 +100,8 @@ const MODELO_PARA_TIPO: Record<string, TipoDocumento> = {
   '65': 'nfce',
   '57': 'cte',
   '58': 'mdfe',
+  '63': 'bpe',
+  '67': 'cteos',
 };
 
 export function parseChaveAcesso(chave: string): InfoChave | null {

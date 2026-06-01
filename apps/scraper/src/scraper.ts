@@ -10,6 +10,8 @@ function tipoDaChave(chaveAcesso: string): DadosExtraidos['tipo'] {
   if (modelo === '65') return 'nfce';
   if (modelo === '57') return 'cte';
   if (modelo === '58') return 'mdfe';
+  if (modelo === '63') return 'bpe';
+  if (modelo === '67') return 'cteos';
   return 'nfe';
 }
 
@@ -41,6 +43,8 @@ function detectarTipoPorChave(chaveAcesso: string): DadosExtraidos['tipo'] {
     if (modelo === '65') return 'nfce';
     if (modelo === '57') return 'cte';
     if (modelo === '58') return 'mdfe';
+    if (modelo === '63') return 'bpe';
+    if (modelo === '67') return 'cteos';
     return 'nfe';
   }
 
@@ -140,6 +144,81 @@ async function extrairResultadoGenerico(page: import('playwright').Page, chaveAc
   }
 
   return { sucesso: true, dados, xml: dados.xmlOriginal, fonte: 'scraper' };
+}
+
+const CONSULTA_PUBLICA_URL: Partial<Record<DadosExtraidos['tipo'], string>> = {
+  bpe: 'https://sped.fazenda.pr.gov.br/BPe/webservices/sped/bpe/completa',
+  cteos: 'https://sped.fazenda.pr.gov.br/webservices/sped/cteos/completa',
+};
+
+async function scrapePortalPublicoGenerico(
+  chaveAcesso: string,
+  config: ScraperConfig,
+  tipo: DadosExtraidos['tipo'],
+): Promise<ScrapeResult> {
+  const timeout = config.timeout || 60000;
+  const consultUrl = CONSULTA_PUBLICA_URL[tipo];
+  if (!consultUrl) {
+    return { sucesso: false, erro: `Consulta publica nao configurada para ${tipo}`, fonte: 'scraper' };
+  }
+
+  let browser;
+
+  try {
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    });
+
+    const ctx = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      viewport: { width: 1366, height: 768 },
+      locale: 'pt-BR',
+    });
+
+    const page = await ctx.newPage();
+    await page.goto(consultUrl, { waitUntil: 'domcontentloaded', timeout });
+
+    const campo = page.locator('input[type="text"], input:not([type]), textarea').first();
+    await campo.waitFor({ state: 'visible', timeout: 15000 });
+    await campo.fill(chaveAcesso);
+
+    const hcaptchaKey = (await page.getAttribute('.h-captcha', 'data-sitekey').catch(() => null)) ||
+      (await page.getAttribute('iframe[src*="hcaptcha"]', 'data-sitekey').catch(() => null)) ||
+      '';
+
+    if (config.anticaptcha && hcaptchaKey) {
+      const token = await resolverCaptcha(hcaptchaKey, consultUrl, config.anticaptcha, 'hcaptcha');
+      await page.evaluate((t: string) => {
+        const ta = document.querySelector('textarea[name="h-captcha-response"]') as HTMLTextAreaElement;
+        if (ta) {
+          ta.textContent = t;
+          ta.style.display = 'block';
+        }
+      }, token);
+      await page.waitForTimeout(1500);
+    }
+
+    const buttons = page.locator('input[type="submit"], button[type="submit"], button');
+    const count = await buttons.count().catch(() => 0);
+    for (let i = 0; i < count; i++) {
+      const candidate = buttons.nth(i);
+      const text = `${(await candidate.textContent().catch(() => '')) || ''} ${(await candidate.getAttribute('value').catch(() => '')) || ''}`.toLowerCase();
+      if (/consultar|continuar|enviar|pesquisar|buscar|obter/.test(text)) {
+        await candidate.click({ force: true }).catch(() => null);
+        break;
+      }
+    }
+
+    await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => null);
+    await page.waitForTimeout(1500);
+
+    return await extrairResultadoGenerico(page, chaveAcesso, tipo);
+  } catch (error: any) {
+    return { sucesso: false, erro: error.message || `Erro na consulta ${tipo.toUpperCase()}`, fonte: 'scraper' };
+  } finally {
+    if (browser) await browser.close().catch(() => {});
+  }
 }
 
 export async function scrapeNFeporChave(
@@ -405,6 +484,10 @@ export async function scrapeDocumentoPorChave(
 ): Promise<ScrapeResult> {
   const clean = normalizarChave(chaveAcesso);
   const tipoDetectado = tipo || detectarTipoPorChave(clean);
+
+  if (tipoDetectado === 'bpe' || tipoDetectado === 'cteos') {
+    return scrapePortalPublicoGenerico(clean, config, tipoDetectado);
+  }
 
   if (tipoDetectado === 'nfse') {
     return scrapeNfsePorChave(clean, config);

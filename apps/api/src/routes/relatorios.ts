@@ -59,7 +59,7 @@ async function carregarRelatorio(cnpj: string, tipo: string, movimento: Moviment
 
   const emitidas = documentosLista.filter((doc) => doc.cnpjEmitente === cnpj);
   const recebidas = documentosLista.filter((doc) => doc.cnpjDestinatario === cnpj);
-  const porTipo = ['nfe', 'nfce', 'cte', 'mdfe', 'nfse', 'dce'].map((item) => {
+  const porTipo = ['nfe', 'nfce', 'cte', 'mdfe', 'bpe', 'cteos', 'nfse', 'dce'].map((item) => {
     const docsTipo = documentosLista.filter((doc) => doc.tipo === item);
     return {
       tipo: item.toUpperCase(),
@@ -91,7 +91,7 @@ function renderHtml({
 }): string {
   const emitidas = documentosLista.filter((doc) => doc.cnpjEmitente === cnpj);
   const recebidas = documentosLista.filter((doc) => doc.cnpjDestinatario === cnpj);
-  const tipoRows = ['nfe', 'nfce', 'cte', 'mdfe', 'nfse', 'dce'].map((item) => {
+  const tipoRows = ['nfe', 'nfce', 'cte', 'mdfe', 'bpe', 'cteos', 'nfse', 'dce'].map((item) => {
     const docsTipo = documentosLista.filter((doc) => doc.tipo === item);
     return {
       tipo: item.toUpperCase(),

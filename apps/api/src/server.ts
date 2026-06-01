@@ -7,13 +7,14 @@ import swaggerUi from '@fastify/swagger-ui';
 import { timingSafeEqual } from 'node:crypto';
 import { nfeRoutes } from './routes/nfe.js';
 import { cteRoutes } from './routes/cte.js';
+import { bpeRoutes } from './routes/bpe.js';
+import { cteosRoutes } from './routes/cteos.js';
 import { mdfeRoutes } from './routes/mdfe.js';
 import { nfseRoutes } from './routes/nfse.js';
 import { nfceRoutes } from './routes/nfce.js';
 import { dceRoutes } from './routes/dce.js';
 import { healthRoutes } from './routes/health.js';
 import { sefazRoutes } from './routes/sefaz.js';
-import { assistidoRoutes } from './routes/assistido.js';
 import { importacoesRoutes } from './routes/importacoes.js';
 import { consultasRoutes } from './routes/consultas.js';
 import { contaRoutes } from './routes/conta.js';
@@ -135,14 +136,15 @@ await app.register(swaggerUi, {
 
 // Rotas
 await app.register(healthRoutes);
-await app.register(nfeRoutes, { prefix: '/api/v1/nfe' });
-await app.register(nfceRoutes, { prefix: '/api/v1/nfce' });
-await app.register(nfseRoutes, { prefix: '/api/v1/nfse' });
-await app.register(cteRoutes, { prefix: '/api/v1/cte' });
-await app.register(mdfeRoutes, { prefix: '/api/v1/mdfe' });
-await app.register(dceRoutes, { prefix: '/api/v1/dce' });
+  await app.register(nfeRoutes, { prefix: '/api/v1/nfe' });
+  await app.register(nfceRoutes, { prefix: '/api/v1/nfce' });
+  await app.register(nfseRoutes, { prefix: '/api/v1/nfse' });
+  await app.register(bpeRoutes, { prefix: '/api/v1/bpe' });
+  await app.register(cteRoutes, { prefix: '/api/v1/cte' });
+  await app.register(cteosRoutes, { prefix: '/api/v1/cteos' });
+  await app.register(mdfeRoutes, { prefix: '/api/v1/mdfe' });
+  await app.register(dceRoutes, { prefix: '/api/v1/dce' });
 await app.register(sefazRoutes, { prefix: '/api/v1/sefaz' });
-await app.register(assistidoRoutes, { prefix: '/api/v1/assistido' });
 await app.register(importacoesRoutes, { prefix: '/api/v1/importacoes' });
 await app.register(consultasRoutes, { prefix: '/api/v1/consultas' });
 await app.register(contaRoutes, { prefix: '/api/v1/conta' });

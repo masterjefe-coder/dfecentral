@@ -9,7 +9,17 @@ function tipoDaChave(chaveAcesso: string): DadosExtraidos['tipo'] {
   if (modelo === '65') return 'nfce';
   if (modelo === '57') return 'cte';
   if (modelo === '58') return 'mdfe';
+  if (modelo === '63') return 'bpe';
+  if (modelo === '67') return 'cteos';
   return 'nfe';
+}
+
+function consultaUrlPorTipo(tipo: DadosExtraidos['tipo']): string {
+  if (tipo === 'nfse') return 'https://www.nfse.gov.br/consultapublica';
+  if (tipo === 'dce') return 'https://sped.fazenda.pr.gov.br/webservices/sped/dce/completa';
+  if (tipo === 'bpe') return 'https://sped.fazenda.pr.gov.br/BPe/webservices/sped/bpe/completa';
+  if (tipo === 'cteos') return 'https://sped.fazenda.pr.gov.br/webservices/sped/cteos/completa';
+  return `${BASE_URL}/consultaRecaptcha.aspx?tipoConsulta=resumo&tipoConteudo=7PhJ+gAVw2g=`;
 }
 
 export type AssistStatus = 'running' | 'aguardando_interacao' | 'concluido' | 'erro';
@@ -223,12 +233,12 @@ async function extractResultFromPage(page: Page, chaveAcesso: string): Promise<A
   return { sucesso: true, dados, xml, fonte: 'scraper' };
 }
 
-async function openAssistPage(page: Page, chaveAcesso: string) {
-  const consultUrl = `${BASE_URL}/consultaRecaptcha.aspx?tipoConsulta=resumo&tipoConteudo=7PhJ+gAVw2g=`;
+async function openAssistPage(page: Page, chaveAcesso: string, tipo: DadosExtraidos['tipo']) {
+  const consultUrl = consultaUrlPorTipo(tipo);
   await page.goto(consultUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
-  const chaveField = '#ctl00_ContentPlaceHolder1_txtChaveAcessoResumo';
-  await page.waitForSelector(chaveField, { timeout: 15000 });
-  await page.fill(chaveField, chaveAcesso);
+  const chaveField = page.locator('input[type="text"], input:not([type]), textarea').first();
+  await chaveField.waitFor({ state: 'visible', timeout: 15000 });
+  await chaveField.fill(chaveAcesso);
   await page.waitForTimeout(1000);
 }
 
@@ -272,7 +282,7 @@ async function createJob(chaveAcesso: string): Promise<AssistJob> {
   });
   const page = await context.newPage();
 
-  await openAssistPage(page, chaveAcesso);
+  await openAssistPage(page, chaveAcesso, tipoDaChave(chaveAcesso));
 
   const id = randomUUID();
   const job: AssistJob = {

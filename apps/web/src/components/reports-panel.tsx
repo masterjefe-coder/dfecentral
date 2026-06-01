@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 
-type Tipo = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'nfse' | 'dce';
+type Tipo = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'bpe' | 'cteos' | 'nfse' | 'dce';
 type Movimento = 'todas' | 'emitidas' | 'recebidas';
 
 type Documento = {
@@ -35,6 +35,8 @@ const TIPOS: Array<{ tipo: Tipo; nome: string }> = [
   { tipo: 'nfce', nome: 'NFC-e' },
   { tipo: 'cte', nome: 'CT-e' },
   { tipo: 'mdfe', nome: 'MDF-e' },
+  { tipo: 'bpe', nome: 'BP-e' },
+  { tipo: 'cteos', nome: 'CT-e OS' },
   { tipo: 'nfse', nome: 'NFS-e' },
   { tipo: 'dce', nome: 'DC-e' },
 ];

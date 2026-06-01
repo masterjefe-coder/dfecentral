@@ -59,7 +59,7 @@ export function reconstruirXML(dados: DadosExtraidos): string {
   const cNFVal = cNF(dados.chaveAcesso);
 
   const modelos: Record<string, string> = {
-    'nfe': '55','nfce': '65','cte': '57','mdfe': '58',
+    'nfe': '55','nfce': '65','cte': '57','mdfe': '58','bpe': '63','cteos': '67',
   };
   const mod = modelos[dados.tipo] || '55';
 

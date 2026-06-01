@@ -44,7 +44,7 @@ const preferenciasSchema = z.object({
   cnpjPadrao: z.string().optional().nullable(),
   cnpjAtivo: z.string().optional().nullable(),
   movimentoPadrao: z.enum(['todas', 'emitidas', 'recebidas']).optional(),
-  tipoPadrao: z.enum(['nfe', 'nfce', 'cte', 'mdfe', 'nfse', 'dce']).optional(),
+  tipoPadrao: z.enum(['nfe', 'nfce', 'cte', 'mdfe', 'bpe', 'cteos', 'nfse', 'dce']).optional(),
   inicioPadrao: z.string().optional().nullable(),
   fimPadrao: z.string().optional().nullable(),
 });

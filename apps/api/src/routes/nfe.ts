@@ -34,7 +34,7 @@ const documentoSchema = {
   properties: {
     id: { type: 'string', format: 'uuid' },
     chaveAcesso: { type: 'string', example: '35240312345678000195550010000001231234567890' },
-    tipo: { type: 'string', enum: ['nfe', 'nfce', 'nfse', 'cte', 'mdfe', 'dce'] },
+    tipo: { type: 'string', enum: ['nfe', 'nfce', 'nfse', 'cte', 'mdfe', 'bpe', 'cteos', 'dce'] },
     numero: { type: 'string', example: '123' },
     serie: { type: 'string', example: '1' },
     dataEmissao: { type: 'string', format: 'date-time' },

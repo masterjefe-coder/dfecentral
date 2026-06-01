@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
-type TipoImport = 'nfe' | 'nfce' | 'cte' | 'mdfe';
+type TipoImport = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'bpe' | 'cteos';
 type TipoResumo = TipoImport | 'nfse' | 'dce';
 type Movimento = 'emitidas' | 'recebidas';
 type FiltroMovimento = Movimento | 'todas';
@@ -52,6 +52,8 @@ const TIPOS_IMPORT: Array<{ tipo: TipoImport; nome: string; cor: string; descric
   { tipo: 'nfce', nome: 'NFC-e', cor: 'from-emerald-500 to-teal-600', descricao: 'Consumidor final e operação de balcão.' },
   { tipo: 'cte', nome: 'CT-e', cor: 'from-violet-500 to-fuchsia-600', descricao: 'Conhecimento de transporte e logística.' },
   { tipo: 'mdfe', nome: 'MDF-e', cor: 'from-orange-500 to-amber-600', descricao: 'Manifesto e consolidação de carga.' },
+  { tipo: 'bpe', nome: 'BP-e', cor: 'from-fuchsia-500 to-pink-600', descricao: 'Bilhete de passagem eletrônico.' },
+  { tipo: 'cteos', nome: 'CT-e OS', cor: 'from-amber-500 to-yellow-600', descricao: 'Transporte eletrônico para outros serviços.' },
 ];
 
 const TIPOS_RESUMO: Array<{ tipo: TipoResumo; nome: string; cor: string; descricao: string }> = [
@@ -71,6 +73,8 @@ function resumoVazio(): ResumoMovimento {
     nfce: { total: 0, documentos: [] },
     cte: { total: 0, documentos: [] },
     mdfe: { total: 0, documentos: [] },
+    bpe: { total: 0, documentos: [] },
+    cteos: { total: 0, documentos: [] },
     nfse: { total: 0, documentos: [] },
     dce: { total: 0, documentos: [] },
   };
