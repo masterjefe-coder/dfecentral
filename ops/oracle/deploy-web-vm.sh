@@ -33,6 +33,9 @@ while IFS= read -r line || [ -n "$line" ]; do
   if [ "$key" = "DATABASE_URL" ] && [[ "$value" == *"?schema="* ]]; then
     value="${value%%\?schema=*}"
   fi
+  if [ "$key" = "SEFAZ_AMBIENTE" ] && [ "$value" != "1" ]; then
+    value="1"
+  fi
   printf '%s=%s\n' "$key" "$value" >> "$NORMALIZED_ENV_FILE"
 done < "$ENV_FILE"
 

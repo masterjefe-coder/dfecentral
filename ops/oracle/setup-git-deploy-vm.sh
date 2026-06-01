@@ -41,6 +41,9 @@ if grep -qE '^DATABASE_URL=.*\?schema=' "$ENV_FILE"; then
     if [ "$key" = "DATABASE_URL" ] && [[ "$value" == *"?schema="* ]]; then
       value="${value%%\?schema=*}"
     fi
+    if [ "$key" = "SEFAZ_AMBIENTE" ] && [ "$value" != "1" ]; then
+      value="1"
+    fi
     printf '%s=%s\n' "$key" "$value" >> "$tmp_env_file"
   done < "$ENV_FILE"
 

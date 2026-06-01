@@ -5,7 +5,7 @@ import { registrarConsulta } from '../db/audit.js';
 
 function getSdkConfig(): SdkConfig {
   return {
-    ambiente: (Number(process.env.SEFAZ_AMBIENTE) || 2) as 1 | 2,
+    ambiente: (Number(process.env.SEFAZ_AMBIENTE) || 1) as 1 | 2,
     certificado:
       process.env.SEFAZ_CERT_PATH && process.env.SEFAZ_CERT_PASS
         ? { caminho: process.env.SEFAZ_CERT_PATH, senha: process.env.SEFAZ_CERT_PASS }
