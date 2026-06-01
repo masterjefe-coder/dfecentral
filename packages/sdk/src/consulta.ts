@@ -561,7 +561,7 @@ export async function consultarNFeporChave(
       const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/);
       const msg = fault ? fault[1] : `HTTP ${response.statusCode}`;
 
-      if (deveTentarScraper(msg)) {
+      if (config.scraperUrl) {
         const fallback = await consultarComScraper(chave, tipo, config);
         if (fallback.sucesso) return fallback;
       }
@@ -575,7 +575,7 @@ export async function consultarNFeporChave(
 
     const resultMatch = response.body.match(/<nfeDistDFeInteresseResult[^>]*>([\s\S]*?)<\/nfeDistDFeInteresseResult>/);
     if (!resultMatch) {
-      if (deveTentarScraper(response.body)) {
+      if (config.scraperUrl) {
         const fallback = await consultarComScraper(chave, tipo, config);
         if (fallback.sucesso) return fallback;
       }
@@ -595,7 +595,7 @@ export async function consultarNFeporChave(
     const docZipB64 = docZipMatch ? docZipMatch[1] : null;
 
     if (!docZipB64) {
-      if (deveTentarScraper(xMotivo || cStat || response.body)) {
+      if (config.scraperUrl) {
         const fallback = await consultarComScraper(chave, tipo, config);
         if (fallback.sucesso) return fallback;
       }
@@ -610,7 +610,7 @@ export async function consultarNFeporChave(
 
     const doc = parseDocumentoFromXML(xmlDecoded, tipo);
     if (!doc) {
-      if (deveTentarScraper(response.body)) {
+      if (config.scraperUrl) {
         const fallback = await consultarComScraper(chave, tipo, config);
         if (fallback.sucesso) return fallback;
       }
@@ -624,6 +624,11 @@ export async function consultarNFeporChave(
 
     return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
   } catch (error: any) {
+    if (config.scraperUrl) {
+      const fallback = await consultarComScraper(chave, tipo, config);
+      if (fallback.sucesso) return fallback;
+    }
+
     return {
       sucesso: false,
       erro: error.message || 'Erro na consulta SEFAZ',
