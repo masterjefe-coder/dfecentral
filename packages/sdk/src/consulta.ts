@@ -310,9 +310,6 @@ function extrairMensagemNfse(body: string): string {
 
 async function consultarNfseOficial(chave: string, config: SdkConfig): Promise<ConsultaResultado> {
   if (!config.certificado) {
-    const fallback = await consultarComScraper(chave, 'nfse', config);
-    if (fallback.sucesso) return fallback;
-
     return {
       sucesso: false,
       erro: 'Certificado digital nao configurado',
@@ -366,25 +363,12 @@ async function consultarNfseOficial(chave: string, config: SdkConfig): Promise<C
 
     return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
   } catch (error: any) {
-    if (deveTentarScraper(error?.message)) {
-      const fallback = await consultarComScraper(chave, 'nfse', config);
-      if (fallback.sucesso) return fallback;
-    }
-
     return {
       sucesso: false,
       erro: error.message || 'Erro na consulta NFS-e',
       fonte: 'sefaz',
     };
   }
-}
-
-async function consultarComScraper(chave: string, tipo: DocumentoFiscal['tipo'], config: SdkConfig): Promise<ConsultaResultado> {
-  if (!config.scraperUrl) {
-    return { sucesso: false, erro: 'Scraper nao configurado', fonte: 'scraper' };
-  }
-
-  return chamarScraperService(chave, config.scraperUrl, tipo);
 }
 
 export function decodificarDocZip(docZipB64: string): string {
@@ -468,19 +452,11 @@ export async function consultarNFeporChave(
     if (tipoDetectado === 'nfse') {
       const oficial = await consultarNfseOficial(chave, config);
       if (oficial.sucesso) return oficial;
-      if (deveTentarScraper(oficial.erro)) {
-        const fallback = await consultarComScraper(chave, 'nfse', config);
-        if (fallback.sucesso) return fallback;
-      }
     }
 
     if (tipoDetectado === 'dce') {
       const oficial = await consultarDocumentoOficialPorChave(chave, 'dce', config);
       if (oficial.sucesso) return oficial;
-      if (deveTentarScraper(oficial.erro)) {
-        const fallback = await consultarComScraper(chave, 'dce', config);
-        if (fallback.sucesso) return fallback;
-      }
     }
 
     return { sucesso: false, erro: 'Consulta oficial indisponivel para este documento', fonte: 'sefaz' };
@@ -489,11 +465,6 @@ export async function consultarNFeporChave(
   if (tipoDetectado === 'bpe' || tipoDetectado === 'cteos') {
     const oficial = await consultarDocumentoOficialPorChave(chave, tipoDetectado, config);
     if (oficial.sucesso) return oficial;
-
-    if (deveTentarScraper(oficial.erro)) {
-      const fallback = await consultarComScraper(chave, tipoDetectado, config);
-      if (fallback.sucesso) return fallback;
-    }
 
     return {
       sucesso: false,
@@ -561,11 +532,6 @@ export async function consultarNFeporChave(
       const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/);
       const msg = fault ? fault[1] : `HTTP ${response.statusCode}`;
 
-      if (config.scraperUrl) {
-        const fallback = await consultarComScraper(chave, tipo, config);
-        if (fallback.sucesso) return fallback;
-      }
-
       return {
         sucesso: false,
         erro: `SEFAZ: ${msg}`,
@@ -575,11 +541,6 @@ export async function consultarNFeporChave(
 
     const resultMatch = response.body.match(/<nfeDistDFeInteresseResult[^>]*>([\s\S]*?)<\/nfeDistDFeInteresseResult>/);
     if (!resultMatch) {
-      if (config.scraperUrl) {
-        const fallback = await consultarComScraper(chave, tipo, config);
-        if (fallback.sucesso) return fallback;
-      }
-
       return {
         sucesso: false,
         erro: 'Resposta SEFAZ sem bloco de resultado',
@@ -595,11 +556,6 @@ export async function consultarNFeporChave(
     const docZipB64 = docZipMatch ? docZipMatch[1] : null;
 
     if (!docZipB64) {
-      if (config.scraperUrl) {
-        const fallback = await consultarComScraper(chave, tipo, config);
-        if (fallback.sucesso) return fallback;
-      }
-
       return {
         sucesso: false,
         erro: xMotivo || `SEFAZ: status ${cStat}`,
@@ -610,11 +566,6 @@ export async function consultarNFeporChave(
 
     const doc = parseDocumentoFromXML(xmlDecoded, tipo);
     if (!doc) {
-      if (config.scraperUrl) {
-        const fallback = await consultarComScraper(chave, tipo, config);
-        if (fallback.sucesso) return fallback;
-      }
-
       return {
         sucesso: false,
         erro: 'Nao foi possivel interpretar o XML retornado pela SEFAZ',
@@ -624,11 +575,6 @@ export async function consultarNFeporChave(
 
     return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
   } catch (error: any) {
-    if (config.scraperUrl) {
-      const fallback = await consultarComScraper(chave, tipo, config);
-      if (fallback.sucesso) return fallback;
-    }
-
     return {
       sucesso: false,
       erro: error.message || 'Erro na consulta SEFAZ',
