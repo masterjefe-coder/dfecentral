@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { gerarPdfConsultadanfe, consultarNfePublicaConsultadanfe } from '@dfecentral/sdk/consultadanfe';
 
 const ALLOWED_TYPES = new Set(['nfe', 'nfce', 'nfse', 'cte', 'mdfe', 'bpe', 'cteos', 'dce']);
 
@@ -44,6 +45,29 @@ async function proxyXml(tipo: string, chave: string) {
   });
 }
 
+async function obterXmlUpstream(tipo: string, chave: string): Promise<string | null> {
+  const apiKey = getApiKey();
+  const headers: Record<string, string> = {};
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+  const upstream = await fetch(`${getApiBaseUrl()}/api/v1/${tipo}/${chave}/xml`, {
+    method: 'GET',
+    headers,
+    cache: 'no-store',
+  });
+
+  if (!upstream.ok) return null;
+
+  const contentType = upstream.headers.get('content-type') || '';
+  if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+    return upstream.text();
+  }
+
+  const text = await upstream.text();
+  if (text.trim().startsWith('<')) return text;
+  return null;
+}
+
 function tipoDaChave(chave: string): string | null {
   if (chave.length === 50) return 'nfse';
   if (chave.length === 56) return 'dce';
@@ -65,6 +89,51 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ ti
 
   if (tipoEsperado && tipoEsperado !== tipo) {
     return Response.json({ sucesso: false, erro: `A chave informada corresponde a ${tipoEsperado.toUpperCase()}` }, { status: 400 });
+  }
+
+  if (tipo === 'nfe') {
+    const resultado = await consultarNfePublicaConsultadanfe(chave);
+    if (!resultado.sucesso || !resultado.documento?.xml) {
+      return Response.json({ sucesso: false, erro: resultado.erro || 'XML nao disponivel' }, { status: 404 });
+    }
+
+    const formato = String((new URL(_request.url).searchParams.get('format') || '')).toLowerCase();
+    if (formato === 'danfe' || formato === 'pdf') {
+      const pdf = await gerarPdfConsultadanfe(resultado.documento.xml, 'nfe');
+      if (!pdf) {
+        return Response.json({ sucesso: false, erro: 'PDF nao disponivel' }, { status: 404 });
+      }
+
+      return new Response(new Uint8Array(pdf), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="danfe-${chave}.pdf"`,
+        },
+      });
+    }
+
+    return new Response(resultado.documento.xml, {
+      status: 200,
+      headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+    });
+  }
+
+  const formato = String((new URL(_request.url).searchParams.get('format') || '')).toLowerCase();
+  if (formato === 'danfe' || formato === 'pdf') {
+    const xml = await obterXmlUpstream(tipo, chave);
+    if (!xml) return Response.json({ sucesso: false, erro: 'XML nao disponivel' }, { status: 404 });
+
+    const pdf = await gerarPdfConsultadanfe(xml, tipo);
+    if (!pdf) return Response.json({ sucesso: false, erro: 'PDF nao disponivel' }, { status: 404 });
+
+    return new Response(new Uint8Array(pdf), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${tipo}-${chave}.pdf"`,
+      },
+    });
   }
 
   return proxyXml(tipo, chave);

@@ -120,6 +120,25 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
       };
     }
 
+    const procCTe = parsed?.procCTe?.CTe?.infCte ?? parsed?.CTe?.infCte;
+    if (procCTe) {
+      return {
+        chaveAcesso: String(procCTe.Id || '').replace(/^CTe/i, '') || '',
+        tipo: tipo as DocumentoFiscal['tipo'],
+        numero: String(procCTe.ide?.nCT || procCTe.ide?.nDoc || '').replace(/^0+/, ''),
+        serie: String(procCTe.ide?.serie || '').replace(/^0+/, ''),
+        dataEmissao: procCTe.ide?.dhEmi || new Date().toISOString(),
+        cnpjEmitente: procCTe.emit?.CNPJ || '',
+        razaoSocialEmitente: procCTe.emit?.xNome || '',
+        cnpjDestinatario: procCTe.dest?.CNPJ || undefined,
+        razaoSocialDestinatario: procCTe.dest?.xNome || undefined,
+        valorTotal: String(procCTe.vPrest?.vTPrest || procCTe.total?.vTPrest || procCTe.total?.vRec || '0'),
+        status: 'autorizada',
+        xml,
+        protocolo: parsed?.procCTe?.protCTe?.infProt?.nProt || parsed?.protCTe?.infProt?.nProt || undefined,
+      };
+    }
+
     const procDCe = parsed?.procDCe?.DCe?.infDCe ?? parsed?.DCe?.infDCe;
     if (procDCe) {
       return {
@@ -230,6 +249,7 @@ async function consultarDocumentoOficialPorChave(
   const uf = info?.ufSigla || config.ufPadrao || 'PR';
   const endpoints = montarEndpoints(config.ambiente);
   const serviceMap: Record<string, string> = {
+    cte: 'cteConsulta',
     bpe: 'bpeConsulta',
     cteos: 'cteosConsulta',
     dce: 'dceConsulta',

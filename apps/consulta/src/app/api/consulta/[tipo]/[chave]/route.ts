@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { consultarNfePublicaConsultadanfe } from '@dfecentral/sdk/consultadanfe';
 
 const ALLOWED_TYPES = new Set(['nfe', 'nfce', 'nfse', 'cte', 'mdfe', 'bpe', 'cteos', 'dce']);
 
@@ -44,6 +45,10 @@ async function proxyJson(tipo: string, chave: string) {
   });
 }
 
+async function consultarNfePublica(chave: string) {
+  return consultarNfePublicaConsultadanfe(chave);
+}
+
 function tipoDaChave(chave: string): string | null {
   if (chave.length === 50) return 'nfse';
   if (chave.length === 56) return 'dce';
@@ -65,6 +70,18 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ ti
 
   if (tipoEsperado && tipoEsperado !== tipo) {
     return Response.json({ sucesso: false, erro: `A chave informada corresponde a ${tipoEsperado.toUpperCase()}` }, { status: 400 });
+  }
+
+  if (tipo === 'nfe') {
+    const resultado = await consultarNfePublica(chave);
+    if (!resultado.sucesso || !resultado.documento) {
+      return Response.json({ sucesso: false, erro: resultado.erro || 'NF-e nao encontrada' }, { status: 404 });
+    }
+
+    return Response.json({
+      sucesso: true,
+      dados: { ...resultado.documento, fonte: 'consultadanfe' },
+    });
   }
 
   return proxyJson(tipo, chave);
