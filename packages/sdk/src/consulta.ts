@@ -267,13 +267,15 @@ async function consultarDocumentoOficialPorChave(
 
   try {
     carregarCertificado(config.certificado.caminho, config.certificado.senha);
+    const soapVersion: '1.1' | '1.2' = tipo === 'cte' || tipo === 'cteos' ? '1.2' : '1.1';
     const response = await enviarSOAPComCert(
       serviceUrl,
-      montarEnvelope(consulta.envelope),
+      montarEnvelope(consulta.envelope, soapVersion),
       consulta.action,
       config.certificado.caminho,
       config.certificado.senha,
       config.timeout || 60000,
+      soapVersion,
     );
 
     if (response.statusCode !== 200) {

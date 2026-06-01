@@ -59,9 +59,13 @@ export function assinarSOAP(
   return soapXml.replace('</s:Header>', wsse + '\n</s:Header>');
 }
 
-export function montarEnvelope(xmlBody: string): string {
+export function montarEnvelope(xmlBody: string, versao: '1.1' | '1.2' = '1.1'): string {
+  const namespace = versao === '1.2'
+    ? 'http://www.w3.org/2003/05/soap-envelope'
+    : 'http://schemas.xmlsoap.org/soap/envelope/';
+
   return `<?xml version="1.0" encoding="UTF-8"?>
-<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
+<s:Envelope xmlns:s="${namespace}"
   xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
   <s:Header/>
   <s:Body wsu:Id="id-corpo">
@@ -129,14 +133,20 @@ export async function enviarSOAP(
   envelope: string,
   action: string,
   timeout = 60000,
+  soapVersion: '1.1' | '1.2' = '1.1',
 ): Promise<SoapResponse> {
+  const headers: Record<string, string> = {};
+  if (soapVersion === '1.2') {
+    headers['Content-Type'] = `application/soap+xml; charset=utf-8; action="${action}"`;
+  } else {
+    headers['Content-Type'] = 'text/xml; charset=utf-8';
+    headers.SOAPAction = action;
+  }
+
   return requestComCert({
     url,
     method: 'POST',
-    headers: {
-      'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: action,
-    },
+    headers,
     body: envelope,
     timeout,
   });
@@ -149,14 +159,20 @@ export async function enviarSOAPComCert(
   certPath: string,
   certPass: string,
   timeout = 60000,
+  soapVersion: '1.1' | '1.2' = '1.1',
 ): Promise<SoapResponse> {
+  const headers: Record<string, string> = {};
+  if (soapVersion === '1.2') {
+    headers['Content-Type'] = `application/soap+xml; charset=utf-8; action="${action}"`;
+  } else {
+    headers['Content-Type'] = 'text/xml; charset=utf-8';
+    headers.SOAPAction = action;
+  }
+
   return requestComCert({
     url,
     method: 'POST',
-    headers: {
-      'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: action,
-    },
+    headers,
     body: envelope,
     certPath,
     certPass,
