@@ -89,7 +89,15 @@ cd "$REPO_DIR"
 if [ -n "${DATABASE_URL:-}" ]; then
   echo ">>> Rodando migrations..."
   cd "$REPO_DIR/apps/api"
-  npx drizzle-kit push 2>/dev/null || echo "Migrations puladas"
+  if command -v psql >/dev/null 2>&1; then
+    for migration in src/db/migrations/*.sql; do
+      [ -e "$migration" ] || continue
+      psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration" >/dev/null
+    done
+  else
+    echo "psql nao encontrado"
+    exit 1
+  fi
   cd "$REPO_DIR"
 fi
 
