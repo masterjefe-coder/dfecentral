@@ -196,6 +196,15 @@ function montarConsultaPorChaveSoap(tipo: DocumentoFiscal['tipo'], chave: string
     };
   }
 
+  if (tipo === 'cte') {
+    return {
+      urlServico: '',
+      action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeConsulta/CTeConsulta',
+      envelope: `<CTeConsulta xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsulta"><cteDadosMsg><consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe></cteDadosMsg></CTeConsulta>`,
+      resultadoRegex: /<CTeConsultaResult[^>]*>([\s\S]*?)<\/CTeConsultaResult>/,
+    };
+  }
+
   if (tipo === 'dce') {
     return {
       urlServico: '',
@@ -473,6 +482,17 @@ export async function consultarNFeporChave(
     };
   }
 
+  if (tipoDetectado === 'cte') {
+    const oficial = await consultarDocumentoOficialPorChave(chave, 'cte', config);
+    if (oficial.sucesso) return oficial;
+
+    return {
+      sucesso: false,
+      erro: oficial.erro || 'Consulta oficial indisponivel para CTE',
+      fonte: 'sefaz',
+    };
+  }
+
   const info = parseChaveAcesso(chave);
   if (!info) {
     return { sucesso: false, erro: 'Chave de acesso invalida', fonte: 'mock' };
@@ -494,7 +514,7 @@ export async function consultarNFeporChave(
   }
 
   try {
-    carregarCertificado(config.certificado.caminho, config.certificado.senha);
+    const cert = carregarCertificado(config.certificado.caminho, config.certificado.senha);
     const endpoints = montarEndpoints(config.ambiente);
 
     const distDFeUrl = getServiceUrl(endpoints, uf, 'nfeDistDFeInteresse');
@@ -511,7 +531,7 @@ export async function consultarNFeporChave(
         <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
           <tpAmb>${config.ambiente}</tpAmb>
           <cUFAutor>${info.uf}</cUFAutor>
-          <CNPJ>${info.cnpjEmitente}</CNPJ>
+          <CNPJ>${cert.cnpj}</CNPJ>
           <consChNFe>
             <chNFe>${params.chaveAcesso}</chNFe>
           </consChNFe>
