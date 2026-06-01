@@ -30,9 +30,13 @@ while IFS= read -r line || [ -n "$line" ]; do
   if [ "${value#\"}" != "$value" ] && [ "${value%\"}" != "$value" ]; then
     value="${value#\"}"; value="${value%\"}"
   fi
+  if [ "$key" = "DATABASE_URL" ] && [[ "$value" == *"?schema="* ]]; then
+    value="${value%%\?schema=*}"
+  fi
   printf '%s=%s\n' "$key" "$value" >> "$NORMALIZED_ENV_FILE"
 done < "$ENV_FILE"
 
+cp "$NORMALIZED_ENV_FILE" "$ENV_FILE"
 cp "$NORMALIZED_ENV_FILE" "$REPO_DIR/.env"
 
 while IFS= read -r line || [ -n "$line" ]; do

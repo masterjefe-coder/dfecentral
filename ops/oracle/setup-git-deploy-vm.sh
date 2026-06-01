@@ -29,6 +29,24 @@ if [ ! -f "$ENV_FILE" ]; then
   fi
 fi
 
+if grep -qE '^DATABASE_URL=.*\?schema=' "$ENV_FILE"; then
+  tmp_env_file="$(mktemp)"
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      "" | \#*) printf '%s\n' "$line" >> "$tmp_env_file"; continue ;;
+    esac
+
+    key="${line%%=*}"
+    value="${line#*=}"
+    if [ "$key" = "DATABASE_URL" ] && [[ "$value" == *"?schema="* ]]; then
+      value="${value%%\?schema=*}"
+    fi
+    printf '%s=%s\n' "$key" "$value" >> "$tmp_env_file"
+  done < "$ENV_FILE"
+
+  mv "$tmp_env_file" "$ENV_FILE"
+fi
+
 # Verificar git
 if ! command -v git >/dev/null 2>&1; then
   echo "git nao encontrado. Instalando..."
