@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
@@ -14,6 +15,12 @@ import { healthRoutes } from './routes/health.js';
 import { sefazRoutes } from './routes/sefaz.js';
 import { assistidoRoutes } from './routes/assistido.js';
 import { importacoesRoutes } from './routes/importacoes.js';
+import { consultasRoutes } from './routes/consultas.js';
+import { contaRoutes } from './routes/conta.js';
+import { authRoutes } from './routes/auth.js';
+import { relatoriosRoutes } from './routes/relatorios.js';
+import { empresasRoutes } from './routes/empresas.js';
+import { obterContaPorApiKey } from './db/account.js';
 
 const app = Fastify({
   logger: {
@@ -53,7 +60,8 @@ app.addHook('onRequest', async (request, reply) => {
   const isPublicRoute =
     pathname === '/health' ||
     pathname === '/api/v1/health' ||
-    pathname.startsWith('/docs');
+    pathname.startsWith('/docs') ||
+    pathname.startsWith('/api/v1/auth');
 
   if (isPublicRoute) return;
 
@@ -70,6 +78,21 @@ app.addHook('onRequest', async (request, reply) => {
       sucesso: false,
       erro: 'Autenticacao requerida. Envie Authorization: Bearer <token> ou X-API-Key.',
     });
+  }
+
+  const conta = await obterContaPorApiKey(token);
+  (request as any).conta = conta;
+
+  if (pathname !== '/api/v1/conta' && pathname !== '/api/v1/conta/') {
+    if (conta && conta.limiteMensal !== null && conta.usoMensal >= conta.limiteMensal) {
+      return reply.status(429).send({
+        sucesso: false,
+        erro: 'Limite mensal do plano atingido',
+        plano: conta.plano,
+        usoMensal: conta.usoMensal,
+        limiteMensal: conta.limiteMensal,
+      });
+    }
   }
 });
 
@@ -121,6 +144,11 @@ await app.register(dceRoutes, { prefix: '/api/v1/dce' });
 await app.register(sefazRoutes, { prefix: '/api/v1/sefaz' });
 await app.register(assistidoRoutes, { prefix: '/api/v1/assistido' });
 await app.register(importacoesRoutes, { prefix: '/api/v1/importacoes' });
+await app.register(consultasRoutes, { prefix: '/api/v1/consultas' });
+await app.register(contaRoutes, { prefix: '/api/v1/conta' });
+await app.register(authRoutes, { prefix: '/api/v1/auth' });
+await app.register(relatoriosRoutes, { prefix: '/api/v1/relatorios' });
+await app.register(empresasRoutes, { prefix: '/api/v1/empresas' });
 
 // Start
 const port = Number(process.env.API_PORT || 3004);

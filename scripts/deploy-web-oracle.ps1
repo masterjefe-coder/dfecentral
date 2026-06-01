@@ -1,10 +1,11 @@
 param(
-  [string]$ServerHost = "147.15.59.187",
-  [string]$User = "ubuntu",
-  [string]$KeyPath = "C:\Projetos\oci_recuperacao",
-  [string]$RemoteRoot = "/opt/apps/dfecentral",
-  [string]$Branch = "main",
-  [string]$CertPath = ""
+  [string]$ServerHost = "",
+  [string]$User = "",
+  [string]$KeyPath = "",
+  [string]$RemoteRoot = "",
+  [string]$Branch = "",
+  [string]$CertPath = "",
+  [string]$ConfigPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +16,35 @@ $gitExe = if (Get-Command git -ErrorAction SilentlyContinue) {
   "C:\Program Files\Git\cmd\git.exe"
 } else {
   throw "Git nao encontrado. Instale o Git ou ajuste o PATH."
+}
+
+if (-not $ConfigPath) {
+  $ConfigPath = Join-Path $PSScriptRoot "..\deploy\oracle\oracle_vm.json"
+}
+
+$vmConfig = $null
+if (Test-Path $ConfigPath) {
+  $vmConfig = Get-Content -Raw $ConfigPath | ConvertFrom-Json
+}
+
+if (-not $ServerHost) {
+  $ServerHost = if ($vmConfig -and $vmConfig.public_ip) { [string]$vmConfig.public_ip } else { "147.15.59.187" }
+}
+
+if (-not $User) {
+  $User = if ($vmConfig -and $vmConfig.username) { [string]$vmConfig.username } else { "ubuntu" }
+}
+
+if (-not $KeyPath) {
+  $KeyPath = if ($vmConfig -and $vmConfig.ssh_private_key_path) { [string]$vmConfig.ssh_private_key_path } else { "C:\Projetos\oci_recuperacao" }
+}
+
+if (-not $RemoteRoot) {
+  $RemoteRoot = if ($vmConfig -and $vmConfig.app_root) { [string]$vmConfig.app_root } else { "/opt/apps/dfecentral" }
+}
+
+if (-not $Branch) {
+  $Branch = "main"
 }
 
 if (-not (Test-Path $KeyPath)) {

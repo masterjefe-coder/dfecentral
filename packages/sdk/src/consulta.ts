@@ -2,7 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { gunzipSync } from 'node:zlib';
 import { carregarCertificado } from './certificate.js';
 import { montarEndpoints, getServiceUrl } from './endpoints.js';
-import { enviarSOAPComCert, montarEnvelope } from './soap.js';
+import { enviarSOAPComCert, montarEnvelope, requestComCert } from './soap.js';
 import { parseChaveAcesso } from './types.js';
 import type {
   SdkConfig,
@@ -108,7 +108,95 @@ function gerarRespostaDaChave(info: InfoChave): DocumentoFiscal {
 function deveTentarScraper(erro?: string): boolean {
   if (!erro) return false;
   const msg = erro.toLowerCase();
-  return msg.includes('cnpj-base') || msg.includes('difere') || msg.includes('certificado');
+  return msg.includes('cnpj-base') || msg.includes('difere') || msg.includes('certificado') || msg.includes('captcha');
+}
+
+function obterBaseUrlNfse(ambiente: 1 | 2): string {
+  return ambiente === 1
+    ? 'https://sefin.nfse.gov.br/SefinNacional'
+    : 'https://sefin.producaorestrita.nfse.gov.br/SefinNacional';
+}
+
+function extrairMensagemNfse(body: string): string {
+  try {
+    const json = JSON.parse(body);
+    return json?.erro?.mensagem || json?.erro?.descricao || json?.message || json?.mensagem || '';
+  } catch {
+    return body.trim();
+  }
+}
+
+async function consultarNfseOficial(chave: string, config: SdkConfig): Promise<ConsultaResultado> {
+  if (!config.certificado) {
+    return {
+      sucesso: false,
+      erro: 'Certificado digital nao configurado',
+      fonte: 'mock',
+    };
+  }
+
+  try {
+    carregarCertificado(config.certificado.caminho, config.certificado.senha);
+    const url = `${obterBaseUrlNfse(config.ambiente)}/nfse/${chave}`;
+    const response = await requestComCert({
+      url,
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      certPath: config.certificado.caminho,
+      certPass: config.certificado.senha,
+      timeout: config.timeout || 60000,
+    });
+
+    if (response.statusCode !== 200) {
+      const msg = extrairMensagemNfse(response.body) || `HTTP ${response.statusCode}`;
+      if (deveTentarScraper(msg) && config.scraperUrl) {
+        const s = await chamarScraperService(chave, config.scraperUrl, 'nfse');
+        if (s.sucesso) return s;
+      }
+
+      return {
+        sucesso: false,
+        erro: `NFS-e: ${msg}`,
+        fonte: 'sefaz',
+      };
+    }
+
+    const payload = JSON.parse(response.body) as {
+      nfseXmlGZipB64?: string;
+      chaveAcesso?: string;
+    };
+
+    if (!payload?.nfseXmlGZipB64) {
+      return {
+        sucesso: false,
+        erro: 'Resposta NFS-e sem XML compactado',
+        fonte: 'sefaz',
+      };
+    }
+
+    const xmlDecoded = decodificarDocZip(payload.nfseXmlGZipB64);
+    const doc = parseDocumentoFromXML(xmlDecoded, 'nfse');
+    if (!doc) {
+      return {
+        sucesso: false,
+        erro: 'Nao foi possivel interpretar o XML retornado pela NFS-e',
+        fonte: 'sefaz',
+      };
+    }
+
+    return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
+  } catch (error: any) {
+    if (deveTentarScraper(error.message) && config.scraperUrl) {
+      const s = await chamarScraperService(chave, config.scraperUrl, 'nfse');
+      if (s.sucesso) return s;
+    }
+
+    return {
+      sucesso: false,
+      erro: error.message || 'Erro na consulta NFS-e',
+      fonte: 'sefaz',
+    };
+  }
 }
 
 export function decodificarDocZip(docZipB64: string): string {
@@ -127,12 +215,13 @@ export function parseDocumentoFiscalXml(xml: string, tipo: DocumentoFiscal['tipo
 async function chamarScraperService(
   chaveAcesso: string,
   scraperUrl: string,
+  tipo?: DocumentoFiscal['tipo'],
 ): Promise<ConsultaResultado> {
   try {
     const res = await fetch(`${scraperUrl.replace(/\/$/, '')}/scrape`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chaveAcesso }),
+      body: JSON.stringify({ chaveAcesso, tipo }),
       signal: AbortSignal.timeout(90000),
     });
 
@@ -144,7 +233,7 @@ async function chamarScraperService(
 
     const doc: DocumentoFiscal = {
       chaveAcesso: data.dados?.chaveAcesso || chaveAcesso,
-      tipo: (data.dados?.tipo || 'nfe') as DocumentoFiscal['tipo'],
+      tipo: (data.dados?.tipo || tipo || 'nfe') as DocumentoFiscal['tipo'],
       numero: data.dados?.numero || '',
       serie: data.dados?.serie || '',
       dataEmissao: data.dados?.dataEmissao || new Date().toISOString(),
@@ -168,11 +257,43 @@ async function chamarScraperService(
   }
 }
 
+function detectarTipoLivre(chaveAcesso: string): DocumentoFiscal['tipo'] | 'desconhecido' {
+  const chave = chaveAcesso.replace(/\s/g, '');
+  if (/^\d{44}$/.test(chave)) {
+    const info = parseChaveAcesso(chave);
+    return info?.tipo && info.tipo !== 'desconhecido' ? info.tipo : 'desconhecido';
+  }
+
+  if (chave.length === 50) return 'nfse';
+  if (chave.length === 56) return 'dce';
+  return 'desconhecido';
+}
+
 export async function consultarNFeporChave(
   params: ConsultaChaveParams,
   config: SdkConfig,
 ): Promise<ConsultaResultado> {
-  const info = parseChaveAcesso(params.chaveAcesso);
+  const chave = params.chaveAcesso.replace(/\s/g, '');
+  const tipoDetectado = params.tipo || detectarTipoLivre(chave);
+
+  if (tipoDetectado === 'nfse' || tipoDetectado === 'dce') {
+    if (tipoDetectado === 'nfse') {
+      const oficial = await consultarNfseOficial(chave, config);
+      if (oficial.sucesso) return oficial;
+    }
+
+    if (config.scraperUrl) {
+      return chamarScraperService(chave, config.scraperUrl, tipoDetectado);
+    }
+
+    return {
+      sucesso: false,
+      erro: 'Scraper indisponivel para consulta de NFS-e/DC-e',
+      fonte: 'mock',
+    };
+  }
+
+  const info = parseChaveAcesso(chave);
   if (!info) {
     return { sucesso: false, erro: 'Chave de acesso invalida', fonte: 'mock' };
   }
@@ -186,7 +307,7 @@ export async function consultarNFeporChave(
 
   if (!config.certificado) {
     if (config.scraperUrl) {
-      const scraperResult = await chamarScraperService(params.chaveAcesso, config.scraperUrl);
+      const scraperResult = await chamarScraperService(chave, config.scraperUrl, tipo);
       if (scraperResult.sucesso) return scraperResult;
     }
     return {
@@ -236,7 +357,7 @@ export async function consultarNFeporChave(
       const msg = fault ? fault[1] : `HTTP ${response.statusCode}`;
 
       if (deveTentarScraper(msg) && config.scraperUrl) {
-        const s = await chamarScraperService(params.chaveAcesso, config.scraperUrl);
+        const s = await chamarScraperService(chave, config.scraperUrl, tipo);
         if (s.sucesso) return s;
       }
 
@@ -289,7 +410,7 @@ export async function consultarNFeporChave(
     return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
   } catch (error: any) {
     if (deveTentarScraper(error.message) && config.scraperUrl) {
-      const s = await chamarScraperService(params.chaveAcesso, config.scraperUrl);
+      const s = await chamarScraperService(chave, config.scraperUrl, tipo);
       if (s.sucesso) return s;
     }
 

@@ -32,7 +32,7 @@ export const documentos = pgTable(
   'documentos',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    chaveAcesso: varchar('chave_acesso', { length: 44 }).unique().notNull(),
+    chaveAcesso: varchar('chave_acesso', { length: 56 }).unique().notNull(),
     tipo: tipoDocumentoEnum('tipo').notNull(),
     numero: varchar('numero', { length: 20 }).notNull(),
     serie: varchar('serie', { length: 10 }).notNull(),
@@ -63,9 +63,11 @@ export const usuarios = pgTable('usuarios', {
   nome: varchar('nome', { length: 200 }).notNull(),
   senhaHash: varchar('senha_hash', { length: 255 }).notNull(),
   cnpj: varchar('cnpj', { length: 14 }),
+  cnpjAtivo: varchar('cnpj_ativo', { length: 14 }),
   plano: varchar('plano', { length: 20 }).notNull().default('free'),
   apiKey: varchar('api_key', { length: 64 }).unique(),
   consultasMes: decimal('consultas_mes', { precision: 10, scale: 0 }).notNull().default('0'),
+  preferencias: jsonb('preferencias').default({}),
   criadoEm: timestamp('criado_em', { withTimezone: true }).defaultNow().notNull(),
   atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -84,5 +86,21 @@ export const consultas = pgTable(
   (table) => [
     index('idx_consultas_usuario_id').on(table.usuarioId),
     index('idx_consultas_criado_em').on(table.criadoEm),
+  ]
+);
+
+export const empresasUsuario = pgTable(
+  'empresas_usuario',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    usuarioId: uuid('usuario_id').references(() => usuarios.id).notNull(),
+    nome: varchar('nome', { length: 200 }).notNull(),
+    cnpj: varchar('cnpj', { length: 14 }).notNull(),
+    criadoEm: timestamp('criado_em', { withTimezone: true }).defaultNow().notNull(),
+    atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_empresas_usuario_id').on(table.usuarioId),
+    index('idx_empresas_cnpj').on(table.cnpj),
   ]
 );

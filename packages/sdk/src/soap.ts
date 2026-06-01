@@ -70,33 +70,40 @@ export function montarEnvelope(xmlBody: string): string {
 </s:Envelope>`;
 }
 
-function requestPromise(url: string, body: string, action: string, certPath?: string, certPass?: string, timeout = 60000): Promise<SoapResponse> {
+export interface HttpRequestComCertOptions {
+  url: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  headers?: Record<string, string>;
+  body?: string;
+  certPath?: string;
+  certPass?: string;
+  timeout?: number;
+}
+
+export function requestComCert(options: HttpRequestComCertOptions): Promise<SoapResponse> {
   return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
+    const urlObj = new URL(options.url);
     const isHttps = urlObj.protocol === 'https:';
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: action,
-    };
+    const headers: Record<string, string> = { ...(options.headers || {}) };
 
-    const options: RequestOptions = {
+    const requestOptions: RequestOptions = {
       hostname: urlObj.hostname,
       port: urlObj.port || (isHttps ? 443 : 80),
       path: urlObj.pathname + urlObj.search,
-      method: 'POST',
+      method: options.method,
       headers,
-      timeout,
+      timeout: options.timeout || 60000,
       rejectUnauthorized: process.env.NODE_ENV === 'production',
     };
 
-    if (isHttps && certPath) {
-      options.pfx = readFileSync(certPath);
-      options.passphrase = certPass;
+    if (isHttps && options.certPath) {
+      requestOptions.pfx = readFileSync(options.certPath);
+      requestOptions.passphrase = options.certPass;
     }
 
     const requester = isHttps ? httpsRequest : httpRequest;
-    const req = requester(options as any, (res: any) => {
+    const req = requester(requestOptions as any, (res: any) => {
       const chunks: Array<{ toString(): string }> = [];
       res.on('data', (chunk: { toString(): string }) => chunks.push(chunk));
       res.on('end', () => {
@@ -110,7 +117,7 @@ function requestPromise(url: string, body: string, action: string, certPath?: st
 
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
-    req.write(body);
+    if (options.body) req.write(options.body);
     req.end();
   });
 }
@@ -121,7 +128,16 @@ export async function enviarSOAP(
   action: string,
   timeout = 60000,
 ): Promise<SoapResponse> {
-  return requestPromise(url, envelope, action, undefined, undefined, timeout);
+  return requestComCert({
+    url,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: action,
+    },
+    body: envelope,
+    timeout,
+  });
 }
 
 export async function enviarSOAPComCert(
@@ -132,5 +148,16 @@ export async function enviarSOAPComCert(
   certPass: string,
   timeout = 60000,
 ): Promise<SoapResponse> {
-  return requestPromise(url, envelope, action, certPath, certPass, timeout);
+  return requestComCert({
+    url,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: action,
+    },
+    body: envelope,
+    certPath,
+    certPass,
+    timeout,
+  });
 }

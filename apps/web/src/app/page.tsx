@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CTA, GlassCard, MetricCard, SectionHeader } from '../components/ui';
 
 const documentos = [
   {
@@ -203,7 +204,7 @@ const precos = [
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen app-shell bg-white">
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-slate-200/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -266,7 +267,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-grid opacity-[0.03]" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-50 border border-brand-200 rounded-full text-sm font-medium text-brand-700 mb-8 animate-fade-in">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-50 border border-brand-200 rounded-full text-sm font-medium text-brand-700 mb-8 animate-fade-in shadow-sm">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               Plataforma fiscal completa
             </div>
@@ -282,21 +283,15 @@ export default function HomePage() {
               Uma plataforma para todos os documentos fiscais eletrônicos do Brasil.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              <Link
-                href="/auth/cadastrar"
-                className="inline-flex items-center justify-center px-8 py-3.5 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-all shadow-xl shadow-slate-900/20"
-              >
+              <CTA href="/auth/cadastrar" className="px-8">
                 Criar Conta Grátis
                 <svg className="ml-2 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
-              </Link>
-              <Link
-                href="https://consulta.dfecentral.com.br"
-                className="inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-slate-700 bg-white border-2 border-slate-200 hover:border-slate-300 rounded-xl transition-all"
-              >
+              </CTA>
+              <CTA href="https://consulta.dfecentral.com.br" variant="secondary" className="px-8">
                 Consultar Documento
-              </Link>
+              </CTA>
             </div>
           </div>
         </div>
@@ -304,42 +299,32 @@ export default function HomePage() {
 
       <section className="relative -mt-8 pb-16">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm divide-y divide-slate-100">
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-100">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { valor: '6', label: 'Documentos Suportados' },
                 { valor: '5M+', label: 'Consultas realizadas' },
                 { valor: '99.9%', label: 'SLA de disponibilidade' },
                 { valor: 'R$ 0', label: 'Para começar' },
               ].map((stat) => (
-                <div key={stat.label} className="p-6 text-center">
-                  <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stat.valor}</div>
-                  <div className="text-sm text-slate-500 mt-1">{stat.label}</div>
-                </div>
+                <MetricCard key={stat.label} label={stat.label} value={stat.valor} />
               ))}
-            </div>
           </div>
         </div>
       </section>
 
       <section id="documentos" className="py-24 bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <span className="text-xs font-semibold tracking-widest text-brand-600 uppercase">Documentos</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mt-3 mb-4">
-              Tipos de Documentos Suportados
-            </h2>
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-              Todos os tipos de documentos fiscais eletrônicos brasileiros em uma única plataforma.
-            </p>
+          <div className="mb-16">
+            <SectionHeader
+              kicker="Documentos"
+              title="Tipos de Documentos Suportados"
+              description="Todos os tipos de documentos fiscais eletrônicos brasileiros em uma única plataforma."
+            />
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {documentos.map((doc, i) => (
-              <div
-                key={doc.sigla}
-                className="group bg-white p-6 rounded-xl border border-slate-200 hover:border-brand-200 hover:shadow-lg hover:shadow-brand-100/50 transition-all duration-300"
-              >
-                <div className="w-12 h-12 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center mb-4 group-hover:bg-brand-100 transition-colors">
+              <GlassCard key={doc.sigla} className="group rounded-2xl p-6 hover:border-brand-200 hover:shadow-xl hover:shadow-brand-100/40 transition-all duration-300">
+                <div className="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mb-4 group-hover:bg-brand-100 transition-colors shadow-inner">
                   {doc.icon}
                 </div>
                 <div className="flex items-baseline gap-2 mb-1">
@@ -347,7 +332,7 @@ export default function HomePage() {
                   <span className="text-xs font-medium text-brand-600">{doc.nome}</span>
                 </div>
                 <p className="text-sm text-slate-500 leading-relaxed">{doc.descricao}</p>
-              </div>
+              </GlassCard>
             ))}
           </div>
         </div>
@@ -355,24 +340,22 @@ export default function HomePage() {
 
       <section id="funcionalidades" className="py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <span className="text-xs font-semibold tracking-widest text-brand-600 uppercase">Funcionalidades</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mt-3 mb-4">
-              Tudo que você precisa
-            </h2>
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-              Ferramentas completas para consultar e gerenciar documentos fiscais.
-            </p>
+          <div className="mb-16">
+            <SectionHeader
+              kicker="Funcionalidades"
+              title="Tudo que você precisa"
+              description="Ferramentas completas para consultar e gerenciar documentos fiscais."
+            />
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {funcionalidades.map((func, i) => (
-              <div key={func.titulo} className="group p-6 rounded-xl hover:bg-slate-50 transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center mb-4 group-hover:bg-brand-100 transition-colors">
+              <GlassCard key={func.titulo} className="group rounded-2xl p-6 hover:translate-y-[-2px] transition-all">
+                <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mb-4 group-hover:bg-brand-100 transition-colors shadow-inner">
                   {func.icon}
                 </div>
                 <h3 className="text-base font-semibold text-slate-900 mb-2">{func.titulo}</h3>
                 <p className="text-sm text-slate-500 leading-relaxed">{func.descricao}</p>
-              </div>
+              </GlassCard>
             ))}
           </div>
         </div>
@@ -380,16 +363,16 @@ export default function HomePage() {
 
       <section className="py-24 bg-slate-900">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <span className="text-xs font-semibold tracking-widest text-brand-400 uppercase">API</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mt-3 mb-4">
+          <div className="mb-12 text-center">
+            <span className="section-kicker text-brand-400">API</span>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mt-3 mb-4 tracking-tight">
               API para Desenvolvedores
             </h2>
             <p className="text-lg text-slate-400 max-w-2xl mx-auto">
               Integre a consulta de documentos fiscais no seu sistema com nossa REST API.
             </p>
           </div>
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+          <div className="surface-card rounded-[1.75rem] overflow-hidden border-slate-700/70 bg-slate-900/60 text-slate-100">
             <div className="flex items-center gap-2 px-4 py-3 bg-slate-800 border-b border-slate-700">
               <div className="w-3 h-3 rounded-full bg-red-500/80" />
               <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
@@ -416,35 +399,30 @@ Authorization: Bearer sua_api_key
             </div>
           </div>
           <div className="text-center mt-8">
-            <Link
-              href="/documentacao"
-              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl transition-all"
-            >
+            <CTA href="/documentacao" className="px-6 py-3 text-sm">
               Ver Documentação Completa
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
-            </Link>
+            </CTA>
           </div>
         </div>
       </section>
 
       <section id="preços" className="py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <span className="text-xs font-semibold tracking-widest text-brand-600 uppercase">Preços</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mt-3 mb-4">
-              Planos Simples e Transparentes
-            </h2>
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-              Escolha o plano ideal para o seu negócio. Sem taxas escondidas.
-            </p>
+          <div className="mb-16">
+            <SectionHeader
+              kicker="Preços"
+              title="Planos Simples e Transparentes"
+              description="Escolha o plano ideal para o seu negócio. Sem taxas escondidas."
+            />
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {precos.map((plano) => (
               <div
                 key={plano.nome}
-                className={`relative bg-white rounded-2xl border-2 p-8 transition-all duration-300 hover:shadow-lg ${
+                className={`relative surface-card rounded-[1.75rem] border-2 p-8 transition-all duration-300 hover:shadow-xl ${
                   plano.destaque
                     ? 'border-brand-500 shadow-xl shadow-brand-100/50 scale-105 md:scale-110'
                     : 'border-slate-200 hover:border-slate-300'
@@ -500,15 +478,12 @@ Authorization: Bearer sua_api_key
           <p className="text-lg text-brand-200 mb-8 max-w-2xl mx-auto">
             Crie sua conta gratuita e comece a consultar NF-e, NFC-e, NFS-e, CT-e, MDF-e e DC-e em segundos.
           </p>
-          <Link
-            href="/auth/cadastrar"
-            className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold text-brand-700 bg-white rounded-xl hover:bg-brand-50 transition-all shadow-xl shadow-black/20"
-          >
+          <CTA href="/auth/cadastrar" variant="secondary" className="px-8 py-3.5 text-base text-brand-700 bg-white hover:bg-brand-50">
             Criar Conta Grátis
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
-          </Link>
+          </CTA>
         </div>
       </section>
 

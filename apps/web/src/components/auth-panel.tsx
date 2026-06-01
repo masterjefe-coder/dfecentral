@@ -1,0 +1,161 @@
+'use client';
+
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState, type FormEvent } from 'react';
+
+type Mode = 'login' | 'register' | 'forgot' | 'reset';
+
+type Props = {
+  mode: Mode;
+  token?: string;
+};
+
+const copy = {
+  login: {
+    title: 'Entrar',
+    description: 'Acesse o dashboard, relatórios e integrações.',
+    action: 'Entrar',
+  },
+  register: {
+    title: 'Criar conta',
+    description: 'Comece com acesso ao painel e às consultas fiscais.',
+    action: 'Criar conta',
+  },
+  forgot: {
+    title: 'Recuperar senha',
+    description: 'Enviaremos um link de redefinição para seu e-mail.',
+    action: 'Enviar link',
+  },
+  reset: {
+    title: 'Redefinir senha',
+    description: 'Defina uma nova senha para continuar.',
+    action: 'Redefinir',
+  },
+} as const;
+
+export function AuthPanel({ mode, token }: Props) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState('');
+  const [sucesso, setSucesso] = useState('');
+  const [form, setForm] = useState({ nome: '', email: '', senha: '', cnpj: '', confirmarSenha: '' });
+
+  const meta = copy[mode];
+  const googleHref = `/api/auth/google/iniciar?next=${encodeURIComponent('/dashboard')}`;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErro('');
+    setSucesso('');
+
+    if ((mode === 'register' || mode === 'reset') && form.senha !== form.confirmarSenha) {
+      setErro('As senhas precisam ser iguais.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload =
+        mode === 'login'
+          ? { email: form.email, senha: form.senha }
+          : mode === 'register'
+            ? { nome: form.nome, email: form.email, senha: form.senha, cnpj: form.cnpj || undefined }
+            : mode === 'forgot'
+              ? { email: form.email }
+              : { token, senha: form.senha };
+
+      const endpoint = mode === 'login' ? '/api/auth/entrar' : mode === 'register' ? '/api/auth/cadastrar' : mode === 'forgot' ? '/api/auth/esqueci-senha' : '/api/auth/redefinir';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!data.sucesso) {
+        setErro(data.erro || 'Nao foi possivel concluir a operacao.');
+        return;
+      }
+
+      if (mode === 'forgot') {
+        setSucesso(data.dados?.recuperacaoUrl || 'Verifique seu e-mail para redefinir a senha.');
+        return;
+      }
+
+      router.push('/dashboard');
+      router.refresh();
+    } catch {
+      setErro('Nao foi possivel concluir a operacao.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-md">
+      <div className="surface-card rounded-[2rem] border border-white/10 bg-white/5 p-6 text-white shadow-2xl shadow-black/20 backdrop-blur">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{mode === 'login' ? 'Acesso' : 'Conta'}</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight">{meta.title}</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-300">{meta.description}</p>
+          </div>
+          <Link href="/" className="text-sm font-semibold text-slate-300 hover:text-white">
+            Site
+          </Link>
+        </div>
+
+        <form className="mt-6 space-y-4" onSubmit={submit}>
+          {mode === 'register' ? (
+            <Field label="Nome" value={form.nome} onChange={(value) => setForm((prev) => ({ ...prev, nome: value }))} />
+          ) : null}
+          <Field label="E-mail" type="email" value={form.email} onChange={(value) => setForm((prev) => ({ ...prev, email: value }))} />
+          {mode === 'register' ? <Field label="CNPJ (opcional)" value={form.cnpj} onChange={(value) => setForm((prev) => ({ ...prev, cnpj: value }))} /> : null}
+          {mode !== 'forgot' ? (
+            <Field label="Senha" type="password" value={form.senha} onChange={(value) => setForm((prev) => ({ ...prev, senha: value }))} />
+          ) : null}
+          {mode === 'register' || mode === 'reset' ? (
+            <Field label="Confirmar senha" type="password" value={form.confirmarSenha} onChange={(value) => setForm((prev) => ({ ...prev, confirmarSenha: value }))} />
+          ) : null}
+
+          {erro ? <p className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">{erro}</p> : null}
+          {sucesso ? <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{sucesso}</p> : null}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? 'Processando...' : meta.action}
+          </button>
+
+          {mode === 'login' || mode === 'register' ? (
+            <a href={googleHref} className="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
+              Entrar com Google
+            </a>
+          ) : null}
+        </form>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-300">
+          {mode !== 'login' ? <Link href="/auth/entrar" className="hover:text-white">Já tenho conta</Link> : <Link href="/auth/cadastrar" className="hover:text-white">Criar conta</Link>}
+          {mode === 'login' ? <Link href="/auth/esqueci-senha" className="hover:text-white">Esqueci minha senha</Link> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-slate-200">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-400/50"
+      />
+    </label>
+  );
+}

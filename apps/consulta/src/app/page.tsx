@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import Link from 'next/link';
+import { Badge, EmptyState, GlassCard } from '../components/ui';
 
 interface DocumentoEncontrado {
   chaveAcesso: string;
@@ -17,6 +18,7 @@ interface DocumentoEncontrado {
   valorTotal: string;
   status: string;
   fonte?: string;
+  xml?: string;
 }
 
 interface AssistResult {
@@ -43,27 +45,50 @@ interface AssistActionResponse {
   erro?: string;
 }
 
+type TipoConsulta = 'auto' | 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'nfse' | 'dce';
+
 const MODELOS: Record<string, { tipo: string; label: string; cor: string }> = {
   '55': { tipo: 'nfe', label: 'NF-e', cor: 'bg-blue-100 text-blue-700' },
   '65': { tipo: 'nfce', label: 'NFC-e', cor: 'bg-emerald-100 text-emerald-700' },
   '57': { tipo: 'cte', label: 'CT-e', cor: 'bg-violet-100 text-violet-700' },
   '58': { tipo: 'mdfe', label: 'MDF-e', cor: 'bg-orange-100 text-orange-700' },
+  nfse: { tipo: 'nfse', label: 'NFS-e', cor: 'bg-slate-100 text-slate-700' },
+  dce: { tipo: 'dce', label: 'DC-e', cor: 'bg-cyan-100 text-cyan-700' },
 };
 
-const STATUS_CORES: Record<string, string> = {
-  autorizada: 'bg-green-100 text-green-700',
-  cancelada: 'bg-red-100 text-red-700',
-  denegada: 'bg-red-100 text-red-700',
-  inutilizada: 'bg-yellow-100 text-yellow-700',
-  processando: 'bg-sky-100 text-sky-700',
-  pendente: 'bg-amber-100 text-amber-700',
-};
+const TIPOS_CONSULTA: Array<{ value: TipoConsulta; label: string; ajuda: string }> = [
+  { value: 'auto', label: 'Automático', ajuda: 'Detecta pelo tamanho da chave' },
+  { value: 'nfe', label: 'NF-e', ajuda: '44 dígitos' },
+  { value: 'nfce', label: 'NFC-e', ajuda: '44 dígitos' },
+  { value: 'cte', label: 'CT-e', ajuda: '44 dígitos' },
+  { value: 'mdfe', label: 'MDF-e', ajuda: '44 dígitos' },
+  { value: 'nfse', label: 'NFS-e', ajuda: '50 caracteres' },
+  { value: 'dce', label: 'DC-e', ajuda: '56 caracteres' },
+];
+
+const NFSE_DOCS = [
+  { label: 'API de integração', href: 'https://www.gov.br/nfse/pt-br/municipios/produtos-disponiveis/api-de-integracao' },
+  { label: 'APIs - Prod. Restrita e Produção', href: 'https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/apis-prod-restrita-e-producao' },
+  { label: 'Documentação atual', href: 'https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual' },
+];
+
+const TIPOS_SEFAZ = new Set(['nfe', 'nfce', 'cte', 'mdfe']);
+
+function formatarChaveDocumento(valor: string, tipo: TipoConsulta) {
+  const limite = tipo === 'nfse' ? 50 : tipo === 'dce' ? 56 : tipo === 'auto' ? 56 : 44;
+  const limpa = valor.replace(/\s/g, '').replace(/[^0-9A-Za-z]/g, '').slice(0, limite);
+  return limpa.replace(/(.{4})(?=.)/g, '$1 ');
+}
 
 function detectarTipo(chave: string) {
-  const nums = chave.replace(/\s/g, '');
-  if (nums.length !== 44) return null;
-  const modelo = nums.slice(20, 22);
-  return MODELOS[modelo] || null;
+  const limpa = chave.replace(/\s/g, '').replace(/[^0-9A-Za-z]/g, '');
+  if (limpa.length === 44) {
+    const modelo = limpa.slice(20, 22);
+    return MODELOS[modelo] || null;
+  }
+  if (limpa.length === 50) return MODELOS.nfse;
+  if (limpa.length === 56) return MODELOS.dce;
+  return null;
 }
 
 function formatarCNPJ(valor: string) {
@@ -92,6 +117,7 @@ function formatarData(data: string) {
 }
 
 export default function ConsultaPage() {
+  const [tipoConsulta, setTipoConsulta] = useState<TipoConsulta>('auto');
   const [chaveAcesso, setChaveAcesso] = useState('');
   const [resultado, setResultado] = useState<DocumentoEncontrado | null>(null);
   const [erro, setErro] = useState('');
@@ -101,14 +127,34 @@ export default function ConsultaPage() {
   const [assistidoFrameTick, setAssistidoFrameTick] = useState(0);
   const popupAssistidoRef = useRef<Window | null>(null);
 
-  const infoChave = useMemo(() => detectarTipo(chaveAcesso), [chaveAcesso]);
+  const infoChaveDetectada = useMemo(() => detectarTipo(chaveAcesso), [chaveAcesso]);
+  const infoChave = useMemo(() => {
+    if (tipoConsulta === 'auto') return infoChaveDetectada;
+    return Object.values(MODELOS).find((item) => item.tipo === tipoConsulta) || null;
+  }, [tipoConsulta, infoChaveDetectada]);
 
-  const formatarChave = (valor: string) => {
-    const nums = valor.replace(/\D/g, '').slice(0, 44);
-    return nums.replace(/(\d{4})(?=\d)/g, '$1 ');
-  };
+  const chaveLimpa = useMemo(() => chaveAcesso.replace(/\s/g, '').replace(/[^0-9A-Za-z]/g, ''), [chaveAcesso]);
 
-  const chaveLimpa = useMemo(() => chaveAcesso.replace(/\s/g, ''), [chaveAcesso]);
+  const tipoEfetivo = useMemo(() => {
+    if (tipoConsulta === 'auto') return infoChaveDetectada?.tipo || null;
+    return tipoConsulta;
+  }, [tipoConsulta, infoChaveDetectada]);
+
+  const chaveValida = useMemo(() => {
+    if (!tipoEfetivo) return false;
+    if (tipoEfetivo === 'nfse') return chaveLimpa.length === 50;
+    if (tipoEfetivo === 'dce') return chaveLimpa.length === 56;
+    if (chaveLimpa.length !== 44) return false;
+    if (tipoConsulta === 'auto') return !!infoChaveDetectada;
+    return infoChaveDetectada?.tipo === tipoEfetivo;
+  }, [tipoEfetivo, chaveLimpa, tipoConsulta, infoChaveDetectada]);
+
+  const consultaDireta = tipoEfetivo === 'nfse' || tipoEfetivo === 'dce';
+
+  useEffect(() => {
+    setChaveAcesso((valor) => formatarChaveDocumento(valor, tipoConsulta));
+  }, [tipoConsulta]);
+
   const assistidoFrameUrl = assistido?.id
     ? `/api/assistido/${assistido.id}/frame?ts=${assistidoFrameTick}`
     : '';
@@ -129,13 +175,44 @@ export default function ConsultaPage() {
     return true;
   };
 
+  const consultarDireto = async (tipo: Exclude<TipoConsulta, 'auto'>) => {
+    if (!['nfse', 'dce'].includes(tipo)) return false;
+
+    if (popupAssistidoRef.current && !popupAssistidoRef.current.closed) {
+      popupAssistidoRef.current.close();
+    }
+    popupAssistidoRef.current = null;
+
+    setAssistidoCarregando(true);
+    setErro('');
+    setResultado(null);
+
+    try {
+      const res = await fetch(`/api/consulta/${tipo}/${encodeURIComponent(chaveLimpa)}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!data.sucesso || !data.dados) {
+        setErro(data.erro || 'Nao foi possivel consultar o documento.');
+        return false;
+      }
+
+      setResultado(data.dados);
+      setAssistido(null);
+      return true;
+    } catch {
+      setErro('Nao foi possivel consultar o documento.');
+      return false;
+    } finally {
+      setAssistidoCarregando(false);
+    }
+  };
+
   const atualizarAssistido = async (id: string) => {
     const res = await fetch(`/api/assistido/${id}/state`, { cache: 'no-store' });
     const data = await res.json();
     if (!data.sucesso || !data.job) return null;
     setAssistido(data.job);
     if (data.job.status === 'concluido' && data.job.result?.sucesso && data.job.result.dados) {
-      setResultado(data.job.result.dados);
+      setResultado({ ...data.job.result.dados, xml: data.job.result.xml });
       setErro('');
     }
     if (data.job.status === 'erro') {
@@ -172,8 +249,18 @@ export default function ConsultaPage() {
   }, [assistido?.id]);
 
   const iniciarAssistido = async () => {
-    if (chaveLimpa.length !== 44) {
-      setErro('A chave de acesso deve ter exatamente 44 digitos.');
+    if (!tipoEfetivo) {
+      setErro('Escolha um tipo ou informe uma chave valida.');
+      return;
+    }
+
+    if (!chaveValida) {
+      setErro('A chave informada nao corresponde ao tipo selecionado.');
+      return;
+    }
+
+    if (consultaDireta) {
+      await consultarDireto(tipoEfetivo as Exclude<TipoConsulta, 'auto'>);
       return;
     }
 
@@ -236,6 +323,7 @@ export default function ConsultaPage() {
     setAssistido(null);
     setAssistidoTexto('');
     setAssistidoFrameTick(0);
+    setTipoConsulta('auto');
   };
 
   const enviarAcaoAssistida = async (action: Record<string, unknown>) => {
@@ -256,7 +344,7 @@ export default function ConsultaPage() {
       setAssistido(data.job);
       setAssistidoFrameTick((value) => value + 1);
       if (data.job.status === 'concluido' && data.job.result?.sucesso && data.job.result.dados) {
-        setResultado(data.job.result.dados);
+        setResultado({ ...data.job.result.dados, xml: data.job.result.xml });
         setErro('');
       }
       if (data.job.status === 'erro') {
@@ -280,7 +368,7 @@ export default function ConsultaPage() {
 
       setAssistido(data.job);
       if (data.job.status === 'concluido' && data.job.result?.sucesso && data.job.result.dados) {
-        setResultado(data.job.result.dados);
+        setResultado({ ...data.job.result.dados, xml: data.job.result.xml });
         setErro('');
       }
       if (data.job.status === 'erro') {
@@ -318,7 +406,7 @@ export default function ConsultaPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen app-shell bg-transparent">
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
@@ -351,54 +439,101 @@ export default function ConsultaPage() {
                   Consultar Documento Fiscal
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm sm:text-base text-slate-300 leading-6">
-                  Digite a chave de acesso de 44 digitos e abra a sessao assistida para resolver o captcha na janela dedicada.
+                  Selecione o tipo, informe a chave e use a consulta assistida para os documentos SEFAZ ou a consulta oficial para NFS-e.
                 </p>
+                {tipoConsulta === 'nfse' && (
+                  <GlassCard className="mt-4 rounded-2xl border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-50">
+                    <p className="font-semibold text-white">NFS-e Nacional</p>
+                    <p className="mt-1 leading-6 text-cyan-50/90">
+                      A consulta nesta tela usa a API oficial de contribuintes do portal nacional com certificado digital.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {NFSE_DOCS.map((doc) => (
+                        <Link
+                          key={doc.href}
+                          href={doc.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-full border border-cyan-200/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/15 transition-colors"
+                        >
+                          {doc.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </GlassCard>
+                )}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
+                <GlassCard className="rounded-2xl bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Entrada</p>
                   <p className="mt-1 text-sm font-semibold text-white">Chave de acesso</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
+                </GlassCard>
+                <GlassCard className="rounded-2xl bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Modo</p>
                   <p className="mt-1 text-sm font-semibold text-white">Assistido no popup</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
+                </GlassCard>
+                <GlassCard className="rounded-2xl bg-white/10 px-4 py-3 shadow-sm backdrop-blur">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Saida</p>
                   <p className="mt-1 text-sm font-semibold text-white">XML e PDF</p>
-                </div>
+                </GlassCard>
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white p-5 sm:p-6 shadow-2xl shadow-black/20 text-slate-900">
+              <div className="surface-card-strong rounded-3xl p-5 sm:p-6 text-slate-900">
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
-                  Chave de Acesso
+                  Tipo de documento
+                </label>
+                <select
+                  value={tipoConsulta}
+                  onChange={(e) => setTipoConsulta(e.target.value as TipoConsulta)}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white"
+                >
+                  {TIPOS_CONSULTA.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label} - {item.ajuda}
+                    </option>
+                  ))}
+                </select>
+
+                <label className="block text-xs font-semibold text-slate-700 mt-4 mb-1.5 uppercase tracking-wider">
+                  {tipoEfetivo ? `Chave de acesso ${tipoEfetivo.toUpperCase()}` : 'Chave de acesso'}
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={chaveAcesso}
                     onChange={(e) => {
-                      setChaveAcesso(formatarChave(e.target.value));
+                      setChaveAcesso(formatarChaveDocumento(e.target.value, tipoConsulta));
                       setErro('');
                     }}
                     onKeyDown={(e) => e.key === 'Enter' && iniciarAssistido()}
-                    placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000"
+                    placeholder={
+                      tipoConsulta === 'nfse'
+                        ? '0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 00'
+                        : tipoConsulta === 'dce'
+                          ? '0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 00'
+                          : '0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 00'
+                    }
                     className="w-full px-4 py-3 border border-slate-300 rounded-xl font-mono text-base sm:text-lg tracking-wider focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white placeholder:text-slate-300 transition-shadow"
-                    maxLength={59}
+                    maxLength={69}
                     autoFocus
                   />
-                  {infoChave && chaveLimpa.length === 44 && (
-                    <div className={`absolute right-2.5 top-1/2 -translate-y-1/2 px-2.5 py-0.5 rounded-md text-xs font-bold ${infoChave.cor}`}>
+                  {infoChave && chaveLimpa.length > 0 && (
+                    <Badge tone={tipoConsulta === 'nfse' ? 'cyan' : 'slate'}>
                       {infoChave.label}
-                    </div>
+                    </Badge>
                   )}
+                </div>
+
+                <div className="mt-2 text-xs text-slate-500 flex flex-wrap gap-2">
+                  <span>Selecionado: <strong>{tipoConsulta === 'auto' ? 'automático' : tipoConsulta.toUpperCase()}</strong></span>
+                  <span>Detectado: <strong>{infoChaveDetectada?.label || 'indefinido'}</strong></span>
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     onClick={iniciarAssistido}
-                    disabled={assistidoCarregando || chaveLimpa.length !== 44}
+                    disabled={assistidoCarregando || !chaveValida || !tipoEfetivo}
                     className="w-full py-3.5 px-6 bg-slate-950 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-slate-950/10"
                   >
                     {assistidoCarregando ? (
@@ -407,9 +542,9 @@ export default function ConsultaPage() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                        Abrindo sessao...
+                        Consultando...
                       </span>
-                    ) : 'Consultar'}
+                    ) : consultaDireta ? 'Consultar direto' : 'Consultar assistida'}
                   </button>
 
                   <button
@@ -428,46 +563,55 @@ export default function ConsultaPage() {
                     <span>{erro}</span>
                   </div>
                 )}
+
+                {!resultado && !erro && (
+                  <EmptyState
+                    title="Pronto para consultar"
+                    description={consultaDireta
+                      ? 'NFS-e usa a API oficial com certificado; DC-e continua no portal público e pode nao devolver XML/PDF em todos os casos.'
+                      : 'Os documentos SEFAZ usam a consulta assistida e podem gerar XML/PDF quando disponíveis.'}
+                  />
+                )}
               </div>
             </section>
 
             <aside className="space-y-4">
-              <div className="rounded-3xl border border-slate-200 bg-slate-950 text-white p-5 shadow-xl shadow-slate-950/10">
+              <GlassCard className="rounded-3xl bg-slate-950 text-white p-5 shadow-xl shadow-slate-950/10">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Fluxo</p>
                 <ol className="mt-4 space-y-3 text-sm text-slate-200">
-                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">1</span><span>Digite a chave com 44 digitos.</span></li>
-                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span><span>O popup abre a consulta remota.</span></li>
-                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span><span>Resolva o captcha e baixe XML/PDF.</span></li>
+                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">1</span><span>Digite a chave no formato correto do documento.</span></li>
+                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span><span>Documentos SEFAZ abrem em popup assistido.</span></li>
+                  <li className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span><span>NFS-e consulta na API oficial; DC-e segue no portal público.</span></li>
                 </ol>
-              </div>
+              </GlassCard>
 
-              <div className="rounded-3xl border border-white/10 bg-white p-5 shadow-sm text-slate-900">
+              <GlassCard className="rounded-3xl bg-white p-5 shadow-sm text-slate-900">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Dica</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   Se o popup nao abrir, permita janelas pop-up para este site e tente novamente.
                 </p>
-              </div>
+              </GlassCard>
 
-              <div className="rounded-3xl border border-white/10 bg-white p-5 shadow-sm text-slate-900">
+              <GlassCard className="rounded-3xl bg-white p-5 shadow-sm text-slate-900">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Documento</p>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">{infoChave?.label || 'Aguardando chave'}</p>
                     <p className="text-xs text-slate-500">Tipo detectado pela chave</p>
                   </div>
-                  {infoChave && chaveLimpa.length === 44 ? (
-                    <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold ${infoChave.cor}`}>{infoChave.label}</span>
+                  {infoChave && chaveLimpa.length > 0 ? (
+                    <Badge tone={tipoConsulta === 'nfse' ? 'cyan' : 'slate'}>{infoChave.label}</Badge>
                   ) : (
                     <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-500">incompleta</span>
                   )}
                 </div>
-              </div>
+              </GlassCard>
             </aside>
           </div>
         </div>
 
         {assistido && (
-          <div className="mt-5 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up">
+          <div className="mt-5 surface-card-strong rounded-[1.5rem] overflow-hidden animate-slide-up">
             <div className="bg-slate-900 px-5 py-4 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-sm font-semibold text-white">Consulta assistida</h2>
@@ -476,9 +620,9 @@ export default function ConsultaPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`px-2.5 py-0.5 rounded-md text-xs font-semibold ${STATUS_CORES[assistido.result?.dados?.status || 'pendente'] || 'bg-yellow-100 text-yellow-700'}`}>
+                <Badge tone={assistido.result?.dados?.status === 'autorizada' ? 'emerald' : assistido.result?.dados?.status === 'erro' ? 'red' : 'amber'}>
                   {assistido.status}
-                </span>
+                </Badge>
                 <button
                   onClick={encerrarAssistido}
                   className="rounded-md border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 transition-colors"
@@ -570,7 +714,7 @@ export default function ConsultaPage() {
         )}
 
         {resultado && (
-          <div className="mt-5 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up">
+          <div className="mt-5 surface-card-strong rounded-[1.5rem] overflow-hidden animate-slide-up">
             <div className="bg-slate-900 px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center text-white font-bold text-sm">
@@ -581,9 +725,9 @@ export default function ConsultaPage() {
                   <p className="text-xs text-slate-400">Chave de acesso valida</p>
                 </div>
               </div>
-              <span className={`px-2.5 py-0.5 rounded-md text-xs font-semibold ${STATUS_CORES[resultado.status] || 'bg-yellow-100 text-yellow-700'}`}>
-                {resultado.status}
-              </span>
+                <Badge tone={resultado.status === 'autorizada' ? 'emerald' : resultado.status === 'erro' ? 'red' : 'amber'}>
+                  {resultado.status}
+                </Badge>
             </div>
 
             <div className="p-5">
@@ -624,22 +768,33 @@ export default function ConsultaPage() {
               </div>
 
               <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                <a
-                  href={`/api/consulta/${resultado.tipo}/${resultado.chaveAcesso}/xml`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
-                >
-                  Download XML
-                </a>
-                <a
-                  href={`/api/consulta/${resultado.tipo}/${resultado.chaveAcesso}/xml?format=danfe`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
-                >
-                  Abrir PDF
-                </a>
+                {resultado.xml ? (
+                  <>
+                    <a
+                      href={['nfe', 'nfce', 'cte', 'mdfe'].includes(resultado.tipo)
+                        ? `/api/consulta/${resultado.tipo}/${resultado.chaveAcesso}/xml`
+                        : `data:text/xml;charset=utf-8,${encodeURIComponent(resultado.xml)}`}
+                      download={`${resultado.chaveAcesso}.xml`}
+                      className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
+                    >
+                      Download XML
+                    </a>
+                    {['nfe', 'nfce', 'cte', 'mdfe'].includes(resultado.tipo) && (
+                      <a
+                        href={`/api/consulta/${resultado.tipo}/${resultado.chaveAcesso}/xml?format=danfe`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-2.5 px-4 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
+                      >
+                        Abrir PDF
+                      </a>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-600 text-center">
+                    Consulta realizada via API oficial de NFS-e. XML/PDF dependem da resposta do serviço.
+                  </div>
+                )}
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(resultado.chaveAcesso);

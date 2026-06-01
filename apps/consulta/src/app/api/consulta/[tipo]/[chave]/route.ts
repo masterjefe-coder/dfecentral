@@ -9,6 +9,8 @@ const MODELO_PARA_TIPO: Record<string, string> = {
   '58': 'mdfe',
 };
 
+const TIPOS_SEM_CHAVE_44 = new Set(['nfse', 'dce']);
+
 function getApiBaseUrl(): string {
   return process.env.API_BASE_URL || 'http://127.0.0.1:3004';
 }
@@ -41,6 +43,8 @@ async function proxyJson(tipo: string, chave: string) {
 }
 
 function tipoDaChave(chave: string): string | null {
+  if (chave.length === 50) return 'nfse';
+  if (chave.length === 56) return 'dce';
   return MODELO_PARA_TIPO[chave.slice(20, 22)] || null;
 }
 
@@ -52,10 +56,12 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ ti
 
   const tipoEsperado = tipoDaChave(chave);
   if (!tipoEsperado) {
-    return Response.json({ sucesso: false, erro: 'Nao foi possivel identificar o tipo pela chave' }, { status: 400 });
+    if (!TIPOS_SEM_CHAVE_44.has(tipo)) {
+      return Response.json({ sucesso: false, erro: 'Nao foi possivel identificar o tipo pela chave' }, { status: 400 });
+    }
   }
 
-  if (tipoEsperado !== tipo) {
+  if (tipoEsperado && tipoEsperado !== tipo) {
     return Response.json({ sucesso: false, erro: `A chave informada corresponde a ${tipoEsperado.toUpperCase()}` }, { status: 400 });
   }
 

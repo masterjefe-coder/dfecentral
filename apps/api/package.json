@@ -13,24 +13,26 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "fastify": "^5.2.0",
+    "@dfecentral/sdk": "*",
+    "@dfecentral/shared": "*",
     "@fastify/cors": "^11.0.0",
     "@fastify/rate-limit": "^10.0.0",
     "@fastify/swagger": "^9.4.0",
     "@fastify/swagger-ui": "^5.2.0",
-    "drizzle-orm": "^0.38.0",
-    "postgres": "^3.4.0",
-    "ioredis": "^5.4.0",
-    "zod": "^3.24.0",
     "dotenv": "^16.4.0",
-    "@dfecentral/shared": "*",
-    "@dfecentral/sdk": "*"
+    "drizzle-orm": "^0.38.0",
+    "fastify": "^5.2.0",
+    "ioredis": "^5.4.0",
+    "nodemailer": "^8.0.10",
+    "postgres": "^3.4.0",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "tsx": "^4.19.0",
-    "drizzle-kit": "^0.30.0",
     "@types/node": "^22.0.0",
-    "eslint": "^9.0.0"
+    "@types/nodemailer": "^8.0.0",
+    "drizzle-kit": "^0.30.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
   }
 }

@@ -1,5 +1,5 @@
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
-import { scrapeNFeporChave } from './scraper.js';
+import { scrapeDocumentoPorChave } from './scraper.js';
 import {
   abortAssistJob,
   finalizeAssistJob,
@@ -14,6 +14,7 @@ const ANTICAPTCHA_KEY = process.env.ANTICAPTCHA_KEY || '';
 
 interface ScrapeRequest {
   chaveAcesso: string;
+  tipo?: string;
 }
 
 function parseBody(req: IncomingMessage): Promise<any> {
@@ -167,19 +168,20 @@ const server = http.createServer(async (req, res) => {
     try {
       const body: ScrapeRequest = await parseBody(req);
       const { chaveAcesso } = body;
+      const tipo = String(body?.tipo || '').trim();
 
-      if (!chaveAcesso || !/^\d{44}$/.test(chaveAcesso.replace(/\s/g, ''))) {
+      const cleanChave = chaveAcesso ? chaveAcesso.replace(/\s/g, '') : '';
+      if (!cleanChave || (!/^\d{44}$/.test(cleanChave) && cleanChave.length !== 50 && cleanChave.length !== 56)) {
         sendJson(res, 400, { sucesso: false, erro: 'Chave de acesso invalida' });
         return;
       }
 
-      const cleanChave = chaveAcesso.replace(/\s/g, '');
       console.log(`[scraper] Consultando chave ${cleanChave}`);
 
-      const resultado = await scrapeNFeporChave(cleanChave, {
+      const resultado = await scrapeDocumentoPorChave(cleanChave, {
         anticaptcha: ANTICAPTCHA_KEY ? { apiKey: ANTICAPTCHA_KEY } : undefined,
         timeout: 60000,
-      });
+      }, tipo || undefined);
 
       sendJson(res, resultado.sucesso ? 200 : 404, resultado);
     } catch (error: any) {

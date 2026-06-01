@@ -8,6 +8,8 @@ APP_ROOT="${APP_ROOT:-/opt/apps/dfecentral}"
 REPO_DIR="${REPO_DIR:-$APP_ROOT/repo}"
 REPO_GIT_DIR="${REPO_GIT_DIR:-$APP_ROOT/repo.git}"
 BRANCH="${BRANCH:-main}"
+ENV_FILE="${ENV_FILE:-$APP_ROOT/shared/app.env}"
+ENV_EXAMPLE="${ENV_EXAMPLE:-$REPO_DIR/deploy/oracle/app.env.example}"
 
 echo "=== DFeCentral: Setup Git Deploy ==="
 echo "APP_ROOT: $APP_ROOT"
@@ -15,6 +17,17 @@ echo "APP_ROOT: $APP_ROOT"
 # Criar estrutura de pastas
 mkdir -p "$APP_ROOT/shared/bin" "$APP_ROOT/backups" "$APP_ROOT/runtime"
 mkdir -p "$APP_ROOT/web" "$APP_ROOT/api" "$APP_ROOT/consulta"
+
+if [ ! -f "$ENV_FILE" ]; then
+  if [ -f "$ENV_EXAMPLE" ]; then
+    echo "Criando $ENV_FILE a partir do template..."
+    cp "$ENV_EXAMPLE" "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+  else
+    echo "Arquivo de ambiente ausente e template nao encontrado: $ENV_FILE" >&2
+    exit 1
+  fi
+fi
 
 # Verificar git
 if ! command -v git >/dev/null 2>&1; then

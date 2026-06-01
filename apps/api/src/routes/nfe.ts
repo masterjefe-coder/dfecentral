@@ -6,6 +6,7 @@ import { consultarNFeporChave } from '@dfecentral/sdk';
 import type { SdkConfig } from '@dfecentral/sdk';
 import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
 import { gerarPdfDanfe } from '../utils/danfe.js';
+import { registrarConsulta } from '../db/audit.js';
 
 function tipoDaChave(chave: string) {
   const modelo = chave.slice(20, 22);
@@ -94,10 +95,14 @@ export async function nfeRoutes(app: FastifyInstance) {
 
     const config = getSdkConfig();
     const resultado = await consultarComCache(chave, config);
+    const usuarioId = (request as any).conta?.id;
 
     if (!resultado.sucesso) {
+      await registrarConsulta({ tipo: 'nfe', consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
       return reply.status(404).send({ sucesso: false, erro: resultado.erro || 'NF-e nao encontrada' });
     }
+
+    await registrarConsulta({ tipo: 'nfe', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
 
     return { sucesso: true, dados: { ...resultado.documento, fonte: resultado.fonte } };
   });
@@ -118,7 +123,9 @@ export async function nfeRoutes(app: FastifyInstance) {
     }
 
     const cache = await buscarNoCache(chave);
+    const usuarioId = (request as any).conta?.id;
     if ((formato === 'danfe' || formato === 'pdf') && cache?.xml) {
+      await registrarConsulta({ tipo: 'nfe:xml', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
       const pdf = await gerarPdfDanfe(docParaFiscal(cache));
       return reply
         .header('Content-Type', 'application/pdf')
@@ -127,6 +134,7 @@ export async function nfeRoutes(app: FastifyInstance) {
     }
 
     if (cache?.xml) {
+      await registrarConsulta({ tipo: 'nfe:xml', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
       return reply.type('application/xml').send(cache.xml);
     }
 
@@ -134,10 +142,12 @@ export async function nfeRoutes(app: FastifyInstance) {
     const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
 
     if (!resultado.sucesso || !resultado.documento?.xml) {
+      await registrarConsulta({ tipo: 'nfe:xml', consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
       return reply.status(404).send({ sucesso: false, erro: 'XML nao disponivel para esta chave' });
     }
 
     await salvarNoCache(resultado.documento);
+    await registrarConsulta({ tipo: 'nfe:xml', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
     if (formato === 'danfe' || formato === 'pdf') {
       const pdf = await gerarPdfDanfe(resultado.documento);
       return reply
@@ -150,9 +160,10 @@ export async function nfeRoutes(app: FastifyInstance) {
   });
 
   app.get('/', async (request, reply) => {
-    const { cnpj, tipo = 'todas', dataInicio, dataFim, pagina = 1, limite = 20 } = request.query as any;
+    const { cnpj, tipo = 'todas', movimento, dataInicio, dataFim, pagina = 1, limite = 20 } = request.query as any;
     const paginaNum = Math.max(1, Number(pagina) || 1);
     const limiteNum = Math.min(100, Math.max(1, Number(limite) || 20));
+    const filtroMovimento = String(movimento || tipo || 'emitidas');
 
     if (!cnpj || !/^\d{14}$/.test(cnpj)) {
       return reply.status(400).send({ sucesso: false, erro: 'CNPJ deve ter 14 digitos numericos' });
@@ -164,9 +175,9 @@ export async function nfeRoutes(app: FastifyInstance) {
 
     const conditions = [eq(documentos.tipo, 'nfe')];
 
-    if (tipo === 'emitidas') {
+    if (filtroMovimento === 'emitidas') {
       conditions.push(eq(documentos.cnpjEmitente, cnpj));
-    } else if (tipo === 'recebidas') {
+    } else if (filtroMovimento === 'recebidas') {
       conditions.push(eq(documentos.cnpjDestinatario, cnpj));
     } else {
       conditions.push(eq(documentos.cnpjEmitente, cnpj));

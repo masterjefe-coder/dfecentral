@@ -9,6 +9,7 @@ interface AntiCaptchaResponse {
   solution?: {
     gRecaptchaResponse?: string;
     token?: string;
+    text?: string;
   };
 }
 
@@ -29,13 +30,21 @@ export async function resolverCaptcha(
   siteKey: string,
   pageUrl: string,
   config: AntiCaptchaConfig,
-  tipo: 'recaptcha' | 'hcaptcha' = 'hcaptcha',
+  tipo: 'recaptcha' | 'hcaptcha' | 'imagem' = 'hcaptcha',
 ): Promise<string> {
-  const taskType = tipo === 'hcaptcha' ? 'HCaptchaTaskProxyless' : 'RecaptchaV2TaskProxyless';
+  const taskType = tipo === 'imagem'
+    ? 'ImageToTextTask'
+    : tipo === 'hcaptcha'
+      ? 'HCaptchaTaskProxyless'
+      : 'RecaptchaV2TaskProxyless';
+
+  const task = tipo === 'imagem'
+    ? { type: taskType, body: siteKey }
+    : { type: taskType, websiteURL: pageUrl, websiteKey: siteKey };
 
   const createResult: AntiCaptchaResponse = await apiCall('createTask', {
     clientKey: config.apiKey,
-    task: { type: taskType, websiteURL: pageUrl, websiteKey: siteKey },
+    task,
   });
 
   if (createResult.errorId !== 0) {
@@ -57,11 +66,15 @@ export async function resolverCaptcha(
     }
 
     if (result.status === 'ready') {
-      return result.solution?.token || result.solution?.gRecaptchaResponse || '';
+      return result.solution?.text || result.solution?.token || result.solution?.gRecaptchaResponse || '';
     }
   }
 
   throw new Error('Anti-Captacha: timeout');
+}
+
+export async function resolverCaptchaImagem(base64: string, config: AntiCaptchaConfig): Promise<string> {
+  return resolverCaptcha(base64, 'image://local', config, 'imagem');
 }
 
 export async function verificarSaldo(config: AntiCaptchaConfig): Promise<number> {

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { carregarCertificado, montarEndpoints, getServiceUrl, enviarSOAPComCert, montarEnvelope, parseDocumentoFiscalXml, decodificarDocZip, type TipoDocumento, type SdkConfig } from '@dfecentral/sdk';
 import { salvarNoCache } from '../db/cache.js';
+import { registrarConsulta } from '../db/audit.js';
 
 function getSdkConfig(): SdkConfig {
   return {
@@ -161,6 +162,14 @@ export async function importacoesRoutes(app: FastifyInstance) {
 
     try {
       const resultado = await importarPorTipo(tipo as Importavel, cnpj, uf, ultNSU);
+      const usuarioId = (request as any).conta?.id;
+      await registrarConsulta({
+        tipo: `importacao:${tipo}`,
+        consulta: cnpj,
+        resultado: `sucesso:${resultado.importados.length}`,
+        ip: request.ip,
+        usuarioId,
+      });
       return {
         sucesso: true,
         tipo,
@@ -169,6 +178,14 @@ export async function importacoesRoutes(app: FastifyInstance) {
         documentos: resultado.importados,
       };
     } catch (error: any) {
+      const usuarioId = (request as any).conta?.id;
+      await registrarConsulta({
+        tipo: `importacao:${tipo}`,
+        consulta: cnpj,
+        resultado: 'erro',
+        ip: request.ip,
+        usuarioId,
+      });
       return reply.status(500).send({ sucesso: false, erro: error?.message || 'Falha ao importar documentos' });
     }
   });
