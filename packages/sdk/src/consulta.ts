@@ -209,18 +209,18 @@ function montarConsultaPorChaveSoap(tipo: DocumentoFiscal['tipo'], chave: string
   if (tipo === 'cteos') {
     return {
       urlServico: '',
-      action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeConsulta/CTeConsulta',
-      envelope: `<CTeConsulta xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsulta"><cteDadosMsg><consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe></cteDadosMsg></CTeConsulta>`,
-      resultadoRegex: /<CTeConsultaResult[^>]*>([\s\S]*?)<\/CTeConsultaResult>/,
+      action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4/cteConsultaCT',
+      envelope: `<cteConsultaCT xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4"><cteDadosMsg><consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe></cteDadosMsg></cteConsultaCT>`,
+      resultadoRegex: /<cteConsultaCTResult[^>]*>([\s\S]*?)<\/cteConsultaCTResult>/,
     };
   }
 
   if (tipo === 'cte') {
     return {
       urlServico: '',
-      action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeConsulta/CTeConsulta',
-      envelope: `<CTeConsulta xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsulta"><cteDadosMsg><consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe></cteDadosMsg></CTeConsulta>`,
-      resultadoRegex: /<CTeConsultaResult[^>]*>([\s\S]*?)<\/CTeConsultaResult>/,
+      action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4/cteConsultaCT',
+      envelope: `<cteConsultaCT xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4"><cteDadosMsg><consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe></cteDadosMsg></cteConsultaCT>`,
+      resultadoRegex: /<cteConsultaCTResult[^>]*>([\s\S]*?)<\/cteConsultaCTResult>/,
     };
   }
 
@@ -248,6 +248,58 @@ async function consultarDocumentoOficialPorChave(
   const info = parseChaveAcesso(chave);
   const uf = info?.ufSigla || config.ufPadrao || 'PR';
   const endpoints = montarEndpoints(config.ambiente);
+
+  if (tipo === 'cte') {
+    const distDFeUrl = getServiceUrl(endpoints, uf, 'cteDistDFeInteresse');
+    if (!distDFeUrl) {
+      return { sucesso: false, erro: `Endpoint oficial indisponivel para CTE/${uf}`, fonte: 'sefaz' };
+    }
+
+    try {
+      const cert = carregarCertificado(config.certificado.caminho, config.certificado.senha);
+      const body = `<cteDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeDistribuicaoDFe">
+        <cteDadosMsg>
+          <distDFeInt xmlns="http://www.portalfiscal.inf.br/cte" versao="1.00">
+            <tpAmb>${config.ambiente}</tpAmb>
+            <cUFAutor>${info?.uf || uf}</cUFAutor>
+            <CNPJ>${cert.cnpj}</CNPJ>
+            <consChCTe>
+              <chCTe>${chave}</chCTe>
+            </consChCTe>
+          </distDFeInt>
+        </cteDadosMsg>
+      </cteDistDFeInteresse>`;
+
+      const action = 'http://www.portalfiscal.inf.br/cte/wsdl/CTeDistribuicaoDFe/cteDistDFeInteresse';
+      const response = await enviarSOAPComCert(
+        distDFeUrl,
+        montarEnvelope(body, '1.2'),
+        action,
+        config.certificado.caminho,
+        config.certificado.senha,
+        config.timeout || 60000,
+        '1.2',
+      );
+
+      if (response.statusCode === 200) {
+        const parsed = parser.parse(response.body);
+        const inner = encontrarXmlAninhado(parsed) || response.body;
+        const result = inner.match(/<cteDistDFeInteresseResult[^>]*>([\s\S]*?)<\/cteDistDFeInteresseResult>/)?.[1] || inner;
+        const docZip = result.match(/<docZip[^>]*>([^<]+)<\/docZip>/)?.[1] || null;
+
+        if (docZip) {
+          const xmlDecoded = decodificarDocZip(docZip);
+          const doc = parseDocumentoFromXML(xmlDecoded, tipo);
+          if (doc) {
+            return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
+          }
+        }
+      }
+    } catch {
+      // cai para a consulta direta abaixo
+    }
+  }
+
   const serviceMap: Record<string, string> = {
     cte: 'cteConsulta',
     bpe: 'bpeConsulta',
