@@ -336,7 +336,11 @@ async function consultarDocumentoOficialPorChave(
 
     if (response.statusCode !== 200) {
       const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/);
-      return { sucesso: false, erro: fault ? fault[1] : `HTTP ${response.statusCode}`, fonte: 'sefaz' };
+      return {
+        sucesso: false,
+        erro: fault ? fault[1] : `HTTP ${response.statusCode}: ${response.body.slice(0, 200)}`,
+        fonte: 'sefaz',
+      };
     }
 
     const parsed = parser.parse(response.body);
