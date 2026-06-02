@@ -166,6 +166,7 @@ export async function nfeRoutes(app: FastifyInstance) {
         xml: resultado.documento.xml,
       });
       await arquivarXmlEmR2({
+        usuarioId,
         chave: resultado.documento.chaveAcesso,
         xml: resultado.documento.xml,
         dataEmissao: new Date(resultado.documento.dataEmissao),

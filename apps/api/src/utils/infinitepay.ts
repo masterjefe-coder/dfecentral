@@ -14,13 +14,28 @@ const PLANOS: Record<
   enterprise: { amount: 19990, description: 'Plano Enterprise DFeCentral' },
 };
 
+const ARQUIVAMENTO: Record<
+  string,
+  {
+    amount: number;
+    description: string;
+  }
+> = {
+  starter: { amount: 1990, description: 'Add-on Arquivamento XML Starter DFeCentral' },
+  pro: { amount: 3990, description: 'Add-on Arquivamento XML Pro DFeCentral' },
+};
+
 export type PlanoCobrado = keyof typeof PLANOS;
+export type ArquivamentoCobrado = keyof typeof ARQUIVAMENTO;
+export type ProdutoCobrado = 'plano' | 'arquivamento';
 
 export type InfinitePayCheckoutInput = {
   usuarioId: string;
   nome: string;
   email: string;
-  plano: PlanoCobrado;
+  produto: ProdutoCobrado;
+  plano?: PlanoCobrado;
+  arquivamento?: ArquivamentoCobrado;
 };
 
 export type InfinitePayWebhookPayload = {
@@ -39,7 +54,9 @@ export type InfinitePayWebhookPayload = {
 
 type ParsedOrder = {
   usuarioId: string;
-  plano: PlanoCobrado;
+  produto: ProdutoCobrado;
+  plano?: PlanoCobrado;
+  arquivamento?: ArquivamentoCobrado;
   exp: number;
 };
 
@@ -67,30 +84,46 @@ function getPlano(plano: string): (typeof PLANOS)[PlanoCobrado] {
   return value;
 }
 
+function getArquivamento(codigo: string): (typeof ARQUIVAMENTO)[ArquivamentoCobrado] {
+  const value = ARQUIVAMENTO[codigo as ArquivamentoCobrado];
+  if (!value) throw new Error(`Arquivamento invalido: ${codigo}`);
+  return value;
+}
+
 function signOrder(input: ParsedOrder): string {
-  const base = `${input.usuarioId}|${input.plano}|${input.exp}`;
+  const base = `${input.usuarioId}|${input.produto}|${input.plano || ''}|${input.arquivamento || ''}|${input.exp}`;
   const sig = createHash('sha256').update(`${segredo()}|${base}`).digest('base64url');
-  return `ip1.${input.plano}.${input.usuarioId}.${input.exp}.${sig}`;
+  return `ip1.${input.produto}.${input.plano || '-'}${input.arquivamento ? `.${input.arquivamento}` : '.-'}.${input.usuarioId}.${input.exp}.${sig}`;
 }
 
 function parseOrder(orderNsu?: string): ParsedOrder | null {
   if (!orderNsu) return null;
   const parts = orderNsu.split('.');
-  if (parts.length !== 5 || parts[0] !== 'ip1') return null;
+  if ((parts.length !== 6 && parts.length !== 7) || parts[0] !== 'ip1') return null;
 
-  const plano = parts[1] as PlanoCobrado;
-  const usuarioId = parts[2];
-  const exp = Number(parts[3]);
-  const sig = parts[4];
+  const produto = parts[1] as ProdutoCobrado;
+  const planoPart = parts[2];
+  const arquivamentoPart = parts[3];
+  const usuarioId = parts[4];
+  const exp = Number(parts[5]);
+  const sig = parts[6];
 
   if (!usuarioId || !Number.isFinite(exp)) return null;
-  if (!PLANOS[plano]) return null;
+  if (!['plano', 'arquivamento'].includes(produto)) return null;
 
-  const expected = createHash('sha256').update(`${segredo()}|${usuarioId}|${plano}|${exp}`).digest('base64url');
+  const plano = planoPart && planoPart !== '-' ? (planoPart as PlanoCobrado) : undefined;
+  const arquivamento = arquivamentoPart && arquivamentoPart !== '-' ? (arquivamentoPart as ArquivamentoCobrado) : undefined;
+
+  if (produto === 'plano' && !plano) return null;
+  if (produto === 'arquivamento' && !arquivamento) return null;
+  if (plano && !PLANOS[plano]) return null;
+  if (arquivamento && !ARQUIVAMENTO[arquivamento]) return null;
+
+  const expected = createHash('sha256').update(`${segredo()}|${usuarioId}|${produto}|${plano || ''}|${arquivamento || ''}|${exp}`).digest('base64url');
   if (expected !== sig) return null;
 
   if (Date.now() > exp) return null;
-  return { usuarioId, plano, exp };
+  return { usuarioId, produto, plano, arquivamento, exp };
 }
 
 function findCheckoutUrl(payload: unknown): string | null {
@@ -121,13 +154,26 @@ function findCheckoutUrl(payload: unknown): string | null {
 
 export function montarOrderNsu(usuarioId: string, plano: PlanoCobrado): string {
   const exp = Date.now() + 1000 * 60 * 60 * 24;
-  return signOrder({ usuarioId, plano, exp });
+  return signOrder({ usuarioId, produto: 'plano', plano, exp });
+}
+
+export function montarOrderNsuArquivamento(usuarioId: string, arquivamento: ArquivamentoCobrado): string {
+  const exp = Date.now() + 1000 * 60 * 60 * 24;
+  return signOrder({ usuarioId, produto: 'arquivamento', arquivamento, exp });
 }
 
 export function extrairOrderNsu(orderNsu?: string): { usuarioId: string; plano: PlanoCobrado } | null {
   const parsed = parseOrder(orderNsu);
   if (!parsed) return null;
+  if (parsed.produto !== 'plano' || !parsed.plano) return null;
   return { usuarioId: parsed.usuarioId, plano: parsed.plano };
+}
+
+export function extrairOrderNsuArquivamento(orderNsu?: string): { usuarioId: string; arquivamento: ArquivamentoCobrado } | null {
+  const parsed = parseOrder(orderNsu);
+  if (!parsed) return null;
+  if (parsed.produto !== 'arquivamento' || !parsed.arquivamento) return null;
+  return { usuarioId: parsed.usuarioId, arquivamento: parsed.arquivamento };
 }
 
 export function planoCobradoEhValido(plano: string): plano is PlanoCobrado {
@@ -138,12 +184,29 @@ export function obterPrecoPlano(plano: PlanoCobrado): number {
   return getPlano(plano).amount;
 }
 
+export function obterPrecoArquivamento(arquivamento: ArquivamentoCobrado): number {
+  return getArquivamento(arquivamento).amount;
+}
+
 export async function criarCheckoutInfinitePay(input: InfinitePayCheckoutInput): Promise<{
   checkoutUrl: string;
   payload: unknown;
 }> {
-  const planoInfo = getPlano(input.plano);
-  const orderNsu = montarOrderNsu(input.usuarioId, input.plano);
+  const itens = [] as Array<{ quantity: number; price: number; description: string }>;
+  let orderNsu = '';
+
+  if (input.produto === 'plano') {
+    if (!input.plano) throw new Error('Plano nao informado');
+    const planoInfo = getPlano(input.plano);
+    itens.push({ quantity: 1, price: planoInfo.amount, description: planoInfo.description });
+    orderNsu = montarOrderNsu(input.usuarioId, input.plano);
+  } else {
+    if (!input.arquivamento) throw new Error('Arquivamento nao informado');
+    const arquivamentoInfo = getArquivamento(input.arquivamento);
+    itens.push({ quantity: 1, price: arquivamentoInfo.amount, description: arquivamentoInfo.description });
+    orderNsu = montarOrderNsuArquivamento(input.usuarioId, input.arquivamento);
+  }
+
   const redirectUrl = `${baseWebUrl()}/dashboard?checkout=infinitepay`;
   const webhookUrl = `${baseApiUrl()}/api/v1/billing/infinitepay/webhook`;
 
@@ -159,13 +222,7 @@ export async function criarCheckoutInfinitePay(input: InfinitePayCheckoutInput):
         name: input.nome,
         email: input.email,
       },
-      itens: [
-        {
-          quantity: 1,
-          price: planoInfo.amount,
-          description: planoInfo.description,
-        },
-      ],
+      itens,
     }),
   });
 
@@ -192,6 +249,16 @@ export function validarWebhookPlano(body: InfinitePayWebhookPayload): { usuarioI
 
   const plano = getPlano(parsed.plano);
   if (typeof body.amount === 'number' && body.amount !== plano.amount) return null;
+
+  return parsed;
+}
+
+export function validarWebhookArquivamento(body: InfinitePayWebhookPayload): { usuarioId: string; arquivamento: ArquivamentoCobrado } | null {
+  const parsed = extrairOrderNsuArquivamento(body.order_nsu);
+  if (!parsed) return null;
+
+  const arquivo = getArquivamento(parsed.arquivamento);
+  if (typeof body.amount === 'number' && body.amount !== arquivo.amount) return null;
 
   return parsed;
 }

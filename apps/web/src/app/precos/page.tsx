@@ -1,5 +1,5 @@
 import { StaticPage } from '../../components/static-page';
-import { CheckoutButton } from '../../components/checkout-button';
+import { CheckoutAddonButton, CheckoutButton } from '../../components/checkout-button';
 
 const planos = [
   { nome: 'Starter', preco: 'R$ 49,90/mês', texto: '50 consultas/mês, 5 GB de XML incluso e consulta por chave', plano: 'starter' as const },
@@ -105,6 +105,12 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
               </div>
               <p className="mt-3 text-2xl font-bold text-white">{item.preco}</p>
               <p className="mt-2 text-sm leading-6 text-slate-300">{item.texto}</p>
+              {item.nome !== 'Enterprise' ? (
+                <CheckoutAddonButton
+                  arquivamento={item.nome.toLowerCase() as 'starter' | 'pro'}
+                  label={`Ativar ${item.nome}`}
+                />
+              ) : null}
             </div>
           ))}
         </div>

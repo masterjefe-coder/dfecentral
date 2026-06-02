@@ -1,16 +1,18 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { atualizarAssinaturaUsuario, atualizarPlanoUsuario, encontrarUsuarioPorApiKey, obterAssinaturaUsuario } from '../db/auth.js';
+import { atualizarAssinaturaUsuario, atualizarPlanoUsuario, encontrarUsuarioPorApiKey, mesclarPreferenciasUsuario, obterAssinaturaUsuario } from '../db/auth.js';
 import {
   criarCheckoutInfinitePay,
   type InfinitePayWebhookPayload,
+  validarWebhookArquivamento,
   validarWebhookPlano,
   webhookEstaPago,
 } from '../utils/infinitepay.js';
 
-const checkoutSchema = z.object({
-  plano: z.enum(['starter', 'pro', 'enterprise']),
-});
+const checkoutSchema = z.discriminatedUnion('produto', [
+  z.object({ produto: z.literal('plano'), plano: z.enum(['starter', 'pro', 'enterprise']) }),
+  z.object({ produto: z.literal('arquivamento'), arquivamento: z.enum(['starter', 'pro']) }),
+]);
 
 function adicionarDias(base: Date, dias: number): Date {
   return new Date(base.getTime() + dias * 24 * 60 * 60 * 1000);
@@ -48,7 +50,8 @@ export async function billingRoutes(app: FastifyInstance) {
         usuarioId: usuario.id,
         nome: usuario.nome,
         email: usuario.email,
-        plano: body.plano,
+        produto: body.produto,
+        ...(body.produto === 'plano' ? { plano: body.plano } : { arquivamento: body.arquivamento }),
       });
 
       return {
@@ -70,19 +73,28 @@ export async function billingRoutes(app: FastifyInstance) {
       return reply.status(200).send({ sucesso: true, ignorado: true });
     }
 
-    const validado = validarWebhookPlano(body);
-    if (!validado) {
-      return reply.status(400).send({ sucesso: false, erro: 'Webhook invalido.' });
+    const plano = validarWebhookPlano(body);
+    if (plano) {
+      await atualizarPlanoUsuario(plano.usuarioId, plano.plano);
+      const agora = new Date();
+      await atualizarAssinaturaUsuario(plano.usuarioId, {
+        status: 'ativa',
+        cancelEm: null,
+        renovaEm: adicionarDias(agora, 30),
+      });
+      return { sucesso: true };
     }
 
-    await atualizarPlanoUsuario(validado.usuarioId, validado.plano);
-    const agora = new Date();
-    await atualizarAssinaturaUsuario(validado.usuarioId, {
-      status: 'ativa',
-      cancelEm: null,
-      renovaEm: adicionarDias(agora, 30),
-    });
-    return { sucesso: true };
+    const arquivamento = validarWebhookArquivamento(body);
+    if (arquivamento) {
+      await mesclarPreferenciasUsuario(arquivamento.usuarioId, {
+        arquivamentoXmlAtivo: true,
+        arquivamentoXmlPlano: arquivamento.arquivamento,
+      });
+      return { sucesso: true };
+    }
+
+    return reply.status(400).send({ sucesso: false, erro: 'Webhook invalido.' });
   });
 
   app.post('/subscription/cancel', async (request, reply) => {
@@ -129,6 +141,7 @@ export async function billingRoutes(app: FastifyInstance) {
       usuarioId: usuario.id,
       nome: usuario.nome,
       email: usuario.email,
+      produto: 'plano',
       plano: planoAtual,
     });
 

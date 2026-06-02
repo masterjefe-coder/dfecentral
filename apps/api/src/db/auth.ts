@@ -109,6 +109,11 @@ export async function atualizarPreferenciasUsuario(usuarioId: string, preferenci
   await db.update(usuarios).set({ preferencias, atualizadoEm: new Date() }).where(eq(usuarios.id, usuarioId));
 }
 
+export async function mesclarPreferenciasUsuario(usuarioId: string, parciais: Record<string, unknown>): Promise<void> {
+  const atuais = await obterPreferenciasUsuario(usuarioId);
+  await atualizarPreferenciasUsuario(usuarioId, { ...atuais, ...parciais });
+}
+
 export async function atualizarPlanoUsuario(usuarioId: string, plano: string): Promise<void> {
   await db.update(usuarios).set({ plano, atualizadoEm: new Date() }).where(eq(usuarios.id, usuarioId));
 }

@@ -131,6 +131,7 @@ export async function contabilidadeRoutes(app: FastifyInstance) {
     }
 
     const pacote = await enviarPacoteXmlMensal({
+      usuarioId: usuario.id,
       to: destino,
       mes,
       incluirEntradas,

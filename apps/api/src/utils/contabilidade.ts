@@ -95,13 +95,17 @@ export async function criarPacoteXmlMensal(opcoes: {
 }
 
 export async function arquivarXmlEmR2(opcoes: {
+  usuarioId?: string | null;
   chave: string;
   xml: string;
   dataEmissao: Date;
   tipo: string;
   direcao: DirecaoXml;
 }): Promise<{ bucket: string; key: string } | null> {
-  if (!r2EstaConfigurado()) return null;
+  if (!r2EstaConfigurado() || !opcoes.usuarioId) return null;
+
+  const preferencias = await obterPreferenciasUsuario(opcoes.usuarioId);
+  if (!preferencias.arquivamentoXmlAtivo) return null;
 
   return enviarArquivoParaR2({
     chave: opcoes.chave,
@@ -114,6 +118,7 @@ export async function arquivarXmlEmR2(opcoes: {
 }
 
 export async function enviarPacoteXmlMensal(opcoes: {
+  usuarioId?: string | null;
   to: string;
   mes: string;
   incluirEntradas: boolean;
@@ -126,6 +131,7 @@ export async function enviarPacoteXmlMensal(opcoes: {
   });
 
   const r2 = r2EstaConfigurado()
+    && opcoes.usuarioId
     ? await enviarArquivoParaR2({
         chave: `pacote-${opcoes.mes}`,
         corpo: pacote.buffer,

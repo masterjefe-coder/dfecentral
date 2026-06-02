@@ -3,8 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 
 type PlanoCheckout = 'starter' | 'pro' | 'enterprise';
+type ArquivamentoCheckout = 'starter' | 'pro';
 
-export function CheckoutButton({ plano, label, autoStart = false }: { plano: PlanoCheckout; label: string; autoStart?: boolean }) {
+export function CheckoutButton(
+  { plano, label, autoStart = false }: { plano: PlanoCheckout; label: string; autoStart?: boolean },
+) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
   const autoStartDone = useRef(false);
@@ -32,7 +35,7 @@ export function CheckoutButton({ plano, label, autoStart = false }: { plano: Pla
       const response = await fetch('/api/billing/infinitepay/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plano }),
+        body: JSON.stringify({ produto: 'plano', plano }),
       });
       const data = await response.json();
 
@@ -67,6 +70,67 @@ export function CheckoutButton({ plano, label, autoStart = false }: { plano: Pla
       <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
         Pagamento seguro via InfinitePay
       </p>
+      {erro ? <p className="mt-2 text-sm text-rose-300">{erro}</p> : null}
+    </div>
+  );
+}
+
+export function CheckoutAddonButton({
+  arquivamento,
+  label,
+}: {
+  arquivamento: ArquivamentoCheckout;
+  label: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState('');
+
+  async function iniciarCheckout() {
+    setLoading(true);
+    setErro('');
+
+    try {
+      const me = await fetch('/api/auth/session', { cache: 'no-store' });
+      if (!me.ok) {
+        window.location.href = `/auth/entrar?redirect=${encodeURIComponent('/precos')}`;
+        return;
+      }
+
+      const response = await fetch('/api/billing/infinitepay/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ produto: 'arquivamento', arquivamento }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data?.sucesso) {
+        if (response.status === 401) {
+          window.location.href = `/auth/entrar?redirect=${encodeURIComponent('/precos')}`;
+          return;
+        }
+        setErro(data?.erro || 'Nao foi possivel iniciar o checkout.');
+        return;
+      }
+
+      window.location.href = data.dados.checkoutUrl;
+    } catch {
+      setErro('Nao foi possivel iniciar o checkout.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mt-4">
+      <button
+        type="button"
+        onClick={iniciarCheckout}
+        disabled={loading}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition-all hover:-translate-y-0.5 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950" /> : null}
+        {loading ? 'Abrindo checkout...' : label}
+      </button>
       {erro ? <p className="mt-2 text-sm text-rose-300">{erro}</p> : null}
     </div>
   );
