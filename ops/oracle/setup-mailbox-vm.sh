@@ -19,6 +19,11 @@ fi
 
 cd "$MAIL_ROOT"
 
+if sudo docker compose exec -T mailserver setup email list 2>/dev/null | grep -qF "$MAILBOX"; then
+  echo "=== Mailbox ja existe: $MAILBOX ==="
+  exit 0
+fi
+
 sudo docker compose exec -T mailserver setup email add "$MAILBOX" "$PASSWORD"
 
 echo "=== Mailbox criada: $MAILBOX ==="
