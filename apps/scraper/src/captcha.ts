@@ -48,7 +48,7 @@ export async function resolverCaptcha(
   });
 
   if (createResult.errorId !== 0) {
-    throw new Error(`Anti-Captacha: ${createResult.errorCode} - ${createResult.errorDescription}`);
+    throw new Error(`Anti-Captcha: ${createResult.errorCode} - ${createResult.errorDescription}`);
   }
 
   const taskId = createResult.taskId!;
@@ -62,7 +62,7 @@ export async function resolverCaptcha(
     });
 
     if (result.errorId !== 0) {
-      throw new Error(`Anti-Captacha: ${result.errorCode} - ${result.errorDescription}`);
+      throw new Error(`Anti-Captcha: ${result.errorCode} - ${result.errorDescription}`);
     }
 
     if (result.status === 'ready') {
@@ -70,16 +70,5 @@ export async function resolverCaptcha(
     }
   }
 
-  throw new Error('Anti-Captacha: timeout');
-}
-
-export async function resolverCaptchaImagem(base64: string, config: AntiCaptchaConfig): Promise<string> {
-  return resolverCaptcha(base64, 'image://local', config, 'imagem');
-}
-
-export async function verificarSaldo(config: AntiCaptchaConfig): Promise<number> {
-  const result = await apiCall('getBalance', {
-    clientKey: config.apiKey,
-  });
-  return result.balance || 0;
+  throw new Error('Anti-Captcha: timeout');
 }

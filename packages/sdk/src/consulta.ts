@@ -393,12 +393,6 @@ function gerarRespostaDaChave(info: InfoChave): DocumentoFiscal {
   };
 }
 
-function deveTentarScraper(erro?: string): boolean {
-  if (!erro) return false;
-  const msg = erro.toLowerCase();
-  return msg.includes('cnpj-base') || msg.includes('difere') || msg.includes('certificado') || msg.includes('captcha');
-}
-
 function obterBaseUrlNfse(ambiente: 1 | 2): string {
   return ambiente === 1
     ? 'https://sefin.nfse.gov.br/SefinNacional'
@@ -488,51 +482,6 @@ export function decodificarDocZip(docZipB64: string): string {
 
 export function parseDocumentoFiscalXml(xml: string, tipo: DocumentoFiscal['tipo']): DocumentoFiscal | null {
   return parseDocumentoFromXML(xml, tipo);
-}
-
-async function chamarScraperService(
-  chaveAcesso: string,
-  scraperUrl: string,
-  tipo?: DocumentoFiscal['tipo'],
-): Promise<ConsultaResultado> {
-  try {
-    const res = await fetch(`${scraperUrl.replace(/\/$/, '')}/scrape`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chaveAcesso, tipo }),
-      signal: AbortSignal.timeout(90000),
-    });
-
-    const data = await res.json();
-
-    if (!data?.sucesso) {
-      return { sucesso: false, erro: data.erro || 'Scraper falhou', fonte: 'scraper' };
-    }
-
-    const doc: DocumentoFiscal = {
-      chaveAcesso: data.dados?.chaveAcesso || chaveAcesso,
-      tipo: (data.dados?.tipo || tipo || 'nfe') as DocumentoFiscal['tipo'],
-      numero: data.dados?.numero || '',
-      serie: data.dados?.serie || '',
-      dataEmissao: data.dados?.dataEmissao || new Date().toISOString(),
-      cnpjEmitente: data.dados?.cnpjEmitente || '',
-      razaoSocialEmitente: data.dados?.razaoSocialEmitente,
-      cnpjDestinatario: data.dados?.cnpjDestinatario,
-      razaoSocialDestinatario: data.dados?.razaoSocialDestinatario,
-      valorTotal: data.dados?.valorTotal || '0',
-      status: (data.dados?.status || 'pendente') as StatusDocumento,
-      xml: data.xml,
-      protocolo: data.dados?.protocolo,
-    };
-
-    return { sucesso: true, documento: doc, fonte: 'scraper' };
-  } catch (error: any) {
-    return {
-      sucesso: false,
-      erro: `Scraper: ${error.message || 'erro de conexao'}`,
-      fonte: 'scraper',
-    };
-  }
 }
 
 function detectarTipoLivre(chaveAcesso: string): DocumentoFiscal['tipo'] | 'desconhecido' {

@@ -2,7 +2,7 @@ export type Ambiente = 1 | 2;
 
 export type TipoDocumento = 'nfe' | 'nfce' | 'nfse' | 'cte' | 'mdfe' | 'bpe' | 'cteos' | 'dce';
 
-export type Fonte = 'sefaz' | 'cache' | 'mock' | 'scraper';
+export type Fonte = 'sefaz' | 'cache' | 'mock';
 
 export type StatusDocumento =
   | 'autorizada'
@@ -29,8 +29,6 @@ export interface SdkConfig {
   certificado?: CertificadoConfig;
   ufPadrao?: string;
   timeout?: number;
-  scraperUrl?: string;
-  anticaptchaKey?: string;
 }
 
 export interface ConsultaChaveParams {
@@ -72,7 +70,6 @@ export interface ConsultaResultado {
 
 export interface ConsultaComCache extends ConsultaChaveParams {
   cacheKey?: string;
-  forcarScraper?: boolean;
 }
 
 export interface DistribuicaoResultado {

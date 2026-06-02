@@ -94,14 +94,14 @@ export function AuthPanel({ mode, token }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-md">
-      <div className="surface-card rounded-[2rem] border border-white/10 bg-white/5 p-6 text-white shadow-2xl shadow-black/20 backdrop-blur">
-        <div className="flex items-center justify-between gap-4">
+      <div className="surface-card rounded-[2rem] border border-white/10 bg-white/5 p-6 text-white shadow-2xl shadow-black/20 backdrop-blur sm:p-7">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{mode === 'login' ? 'Acesso' : 'Conta'}</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight">{meta.title}</h1>
             <p className="mt-2 text-sm leading-6 text-slate-300">{meta.description}</p>
           </div>
-          <Link href="/" className="text-sm font-semibold text-slate-300 hover:text-white">
+          <Link href="/" className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white">
             Site
           </Link>
         </div>
@@ -121,6 +121,8 @@ export function AuthPanel({ mode, token }: Props) {
 
           {erro ? <p className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">{erro}</p> : null}
           {sucesso ? <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{sucesso}</p> : null}
+
+          {mode === 'login' ? <p className="text-xs leading-5 text-slate-400">Ao entrar, você acessa o dashboard, consultas e integrações.</p> : null}
 
           <button
             type="submit"

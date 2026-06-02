@@ -24,7 +24,6 @@ function getSdkConfig(): SdkConfig {
       process.env.SEFAZ_CERT_PATH && process.env.SEFAZ_CERT_PASS
         ? { caminho: process.env.SEFAZ_CERT_PATH, senha: process.env.SEFAZ_CERT_PASS }
         : undefined,
-    scraperUrl: process.env.SCRAPER_URL || '',
     timeout: 45000,
   };
 }

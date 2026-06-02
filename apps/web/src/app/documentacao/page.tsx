@@ -3,11 +3,13 @@ import { StaticPage } from '../../components/static-page';
 
 export default function DocumentacaoPage() {
   return (
-    <StaticPage kicker="API" title="Documentação da plataforma" description="Base para integração com consulta, importação e conta. A API está em evolução e já expõe autenticação, conta e auditoria.">
+    <StaticPage kicker="API" title="Documentação da plataforma" description="Base para integração com autenticação, conta, auditoria e importação. Rotas estáveis e linguagem direta para começar rápido.">
       <div className="grid gap-4 md:grid-cols-2">
         {[
           ['/api/v1/auth/entrar', 'Login por e-mail e senha'],
           ['/api/v1/auth/registrar', 'Cadastro de usuário'],
+          ['/api/v1/auth/me', 'Perfil e chave da conta'],
+          ['/api/v1/auth/prefs', 'Preferências do usuário'],
           ['/api/v1/conta', 'Resumo da conta'],
           ['/api/v1/consultas/recentes', 'Auditoria recente'],
         ].map(([rota, desc]) => (

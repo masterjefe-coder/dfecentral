@@ -1,18 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import { type Browser, type BrowserContext, type Page } from 'playwright';
+import { criarBrowserScraper, criarContextoScraper, SCRAPER_VIEWPORT } from './browser.js';
 import { reconstruirXML, type DadosExtraidos } from './reconstruct-xml.js';
+import { tipoDaChave } from './tipo.js';
+import { extrairTextoPorChaves, parseValor } from './helpers.js';
 
 const BASE_URL = 'https://www.nfe.fazenda.gov.br/portal';
-
-function tipoDaChave(chaveAcesso: string): DadosExtraidos['tipo'] {
-  const modelo = chaveAcesso.slice(20, 22);
-  if (modelo === '65') return 'nfce';
-  if (modelo === '57') return 'cte';
-  if (modelo === '58') return 'mdfe';
-  if (modelo === '63') return 'bpe';
-  if (modelo === '67') return 'cteos';
-  return 'nfe';
-}
 
 function consultaUrlPorTipo(tipo: DadosExtraidos['tipo']): string {
   if (tipo === 'nfse') return 'https://www.nfse.gov.br/consultapublica';
@@ -71,37 +64,8 @@ interface AssistJob {
 
 const jobs = new Map<string, AssistJob>();
 
-function parseValor(v: string): string {
-  return v.replace(/[R$\s.]/g, '').replace(',', '.');
-}
-
 function now() {
   return Date.now();
-}
-
-function extractBodyInfo(body: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  const lines = body
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  for (let i = 0; i < lines.length - 1; i++) {
-    const key = lines[i].toLowerCase();
-    const value = lines[i + 1];
-    if (key && value) {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
-function findVal(content: Record<string, string>, keys: string[]): string | undefined {
-  for (const k of keys) {
-    const found = Object.entries(content).find(([key]) => key.includes(k));
-    if (found) return found[1];
-  }
-  return undefined;
 }
 
 async function detectCaptcha(page: Page): Promise<boolean> {
@@ -200,10 +164,10 @@ async function extractResultFromPage(page: Page, chaveAcesso: string): Promise<A
     dataEmissao: new Date().toISOString(),
   };
 
-  dados.razaoSocialEmitente = findVal(content, ['emitente', 'razao social', 'nome fantasia']) || undefined;
-  dados.razaoSocialDestinatario = findVal(content, ['destinatario', 'razao social dest']) || undefined;
-  dados.valorTotal = parseValor(findVal(content, ['valor total', 'v.nf', 'valor']) || '0');
-  dados.protocolo = findVal(content, ['protocolo', 'n.prot', 'numero protocolo'])?.replace(/\D/g, '') || undefined;
+  dados.razaoSocialEmitente = extrairTextoPorChaves(content, ['emitente', 'razao social', 'nome fantasia']) || undefined;
+  dados.razaoSocialDestinatario = extrairTextoPorChaves(content, ['destinatario', 'razao social dest']) || undefined;
+  dados.valorTotal = parseValor(extrairTextoPorChaves(content, ['valor total', 'v.nf', 'valor']) || '0');
+  dados.protocolo = extrairTextoPorChaves(content, ['protocolo', 'n.prot', 'numero protocolo'])?.replace(/\D/g, '') || undefined;
 
   const statusText = body.toLowerCase();
   if (statusText.includes('autorizado')) dados.status = 'autorizada';
@@ -269,17 +233,8 @@ async function submitConsulta(page: Page) {
 }
 
 async function createJob(chaveAcesso: string): Promise<AssistJob> {
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
-  });
-
-  const viewport = { width: 1366, height: 768 };
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-    viewport,
-    locale: 'pt-BR',
-  });
+  const browser = await criarBrowserScraper();
+  const context = await criarContextoScraper(browser);
   const page = await context.newPage();
 
   await openAssistPage(page, chaveAcesso, tipoDaChave(chaveAcesso));
@@ -292,7 +247,7 @@ async function createJob(chaveAcesso: string): Promise<AssistJob> {
     context,
     page,
     status: 'running',
-    viewport,
+    viewport: SCRAPER_VIEWPORT,
     consultaEnviada: false,
     updatedAt: now(),
   };

@@ -301,9 +301,9 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { valor: '6', label: 'Documentos Suportados' },
-                { valor: '5M+', label: 'Consultas realizadas' },
-                { valor: '99.9%', label: 'SLA de disponibilidade' },
+                { valor: '6', label: 'Formatos suportados' },
+                { valor: '1', label: 'Dashboard unificado' },
+                { valor: 'PDF/XML', label: 'Saída pronta' },
                 { valor: 'R$ 0', label: 'Para começar' },
               ].map((stat) => (
                 <MetricCard key={stat.label} label={stat.label} value={stat.valor} />
@@ -512,7 +512,7 @@ Authorization: Bearer sua_api_key
               <ul className="space-y-3">
                 {['NF-e', 'NFC-e', 'NFS-e', 'CT-e', 'MDF-e', 'DC-e'].map((doc) => (
                   <li key={doc}>
-                    <Link href={`/documentos/${doc.toLowerCase()}`} className="text-sm hover:text-white transition-colors">{doc}</Link>
+                    <span className="text-sm text-slate-500">{doc}</span>
                   </li>
                 ))}
               </ul>
@@ -533,8 +533,12 @@ Authorization: Bearer sua_api_key
               &copy; 2026 DFeCentral. Todos os direitos reservados.
             </p>
             <div className="flex items-center gap-6">
-              {['Twitter', 'LinkedIn', 'GitHub'].map((social) => (
-                <Link key={social} href="#" className="text-sm text-slate-600 hover:text-white transition-colors">
+              {[
+                ['Contato', '/contato'],
+                ['Documentação', '/documentacao'],
+                ['Dashboard', '/dashboard'],
+              ].map(([social, href]) => (
+                <Link key={social} href={href} className="text-sm text-slate-600 hover:text-white transition-colors">
                   {social}
                 </Link>
               ))}

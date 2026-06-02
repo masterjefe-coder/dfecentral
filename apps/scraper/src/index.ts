@@ -197,8 +197,8 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[scraper] Servidor rodando em http://127.0.0.1:${PORT}`);
   if (ANTICAPTCHA_KEY) {
-    console.log(`[scraper] Anti-Captacha configurado`);
+    console.log(`[scraper] Anti-Captcha configurado`);
   } else {
-    console.log(`[scraper] ATENCAO: Anti-Captacha nao configurado (ANTICAPTCHA_KEY)`);
+    console.log(`[scraper] ATENCAO: Anti-Captcha nao configurado (ANTICAPTCHA_KEY)`);
   }
 });

@@ -1,19 +1,11 @@
-import { chromium } from 'playwright';
 import { resolverCaptcha, type AntiCaptchaConfig } from './captcha.js';
+import { criarBrowserScraper, criarContextoScraper } from './browser.js';
 import { reconstruirXML } from './reconstruct-xml.js';
 import type { DadosExtraidos } from './reconstruct-xml.js';
+import { tipoDaChave } from './tipo.js';
+import { extrairTextoPorChaves, parseValor } from './helpers.js';
 
 const BASE_URL = 'https://www.nfe.fazenda.gov.br/portal';
-
-function tipoDaChave(chaveAcesso: string): DadosExtraidos['tipo'] {
-  const modelo = chaveAcesso.slice(20, 22);
-  if (modelo === '65') return 'nfce';
-  if (modelo === '57') return 'cte';
-  if (modelo === '58') return 'mdfe';
-  if (modelo === '63') return 'bpe';
-  if (modelo === '67') return 'cteos';
-  return 'nfe';
-}
 
 export interface ScraperConfig {
   anticaptcha?: AntiCaptchaConfig;
@@ -28,29 +20,8 @@ export interface ScrapeResult {
   fonte: string;
 }
 
-function parseValor(v: string): string {
-  return v.replace(/[R$\s.]/g, '').replace(',', '.');
-}
-
 function normalizarChave(chaveAcesso: string): string {
   return chaveAcesso.replace(/\s/g, '').trim();
-}
-
-function detectarTipoPorChave(chaveAcesso: string): DadosExtraidos['tipo'] {
-  const chave = normalizarChave(chaveAcesso);
-  if (/^\d{44}$/.test(chave)) {
-    const modelo = chave.slice(20, 22);
-    if (modelo === '65') return 'nfce';
-    if (modelo === '57') return 'cte';
-    if (modelo === '58') return 'mdfe';
-    if (modelo === '63') return 'bpe';
-    if (modelo === '67') return 'cteos';
-    return 'nfe';
-  }
-
-  if (chave.length === 50) return 'nfse';
-  if (chave.length === 56) return 'dce';
-  return 'nfe';
 }
 
 function extrairCamposBasicos(chaveAcesso: string, tipo: DadosExtraidos['tipo']): DadosExtraidos {
@@ -70,14 +41,6 @@ function extrairCamposBasicos(chaveAcesso: string, tipo: DadosExtraidos['tipo'])
   };
 
   return dados;
-}
-
-function extrairTextoChave(content: Record<string, string>, keys: string[]): string | undefined {
-  for (const key of keys) {
-    const found = Object.entries(content).find(([candidate]) => candidate.includes(key));
-    if (found) return found[1];
-  }
-  return undefined;
 }
 
 async function extrairResultadoGenerico(page: import('playwright').Page, chaveAcesso: string, tipo: DadosExtraidos['tipo']): Promise<ScrapeResult> {
@@ -112,14 +75,14 @@ async function extrairResultadoGenerico(page: import('playwright').Page, chaveAc
   }).catch(() => ({} as Record<string, string>));
 
   const dados = extrairCamposBasicos(chaveAcesso, tipo);
-  dados.razaoSocialEmitente = extrairTextoChave(content, ['emitente', 'prestador', 'remetente', 'razao social', 'nome fantasia']) || undefined;
-  dados.razaoSocialDestinatario = extrairTextoChave(content, ['destinatario', 'tomador', 'recebedor', 'razao social dest']) || undefined;
-  dados.cnpjEmitente = extrairTextoChave(content, ['cpf/cnpj do emitente', 'cpf/cnpj', 'cnpj emitente', 'emitente'])?.replace(/\D/g, '') || dados.cnpjEmitente;
-  dados.cnpjDestinatario = extrairTextoChave(content, ['cpf/cnpj do destinatario', 'destinatario', 'tomador'])?.replace(/\D/g, '') || dados.cnpjDestinatario;
-  dados.numero = extrairTextoChave(content, ['numero', 'número', 'nfs-e', 'nfse', 'dps'])?.replace(/\D/g, '') || dados.numero;
-  dados.serie = extrairTextoChave(content, ['serie', 'série'])?.replace(/\D/g, '') || dados.serie;
-  dados.valorTotal = parseValor(extrairTextoChave(content, ['valor total', 'v.nf', 'valor', 'v. total']) || '0');
-  dados.protocolo = extrairTextoChave(content, ['protocolo', 'n.prot', 'numero protocolo'])?.replace(/\D/g, '') || undefined;
+  dados.razaoSocialEmitente = extrairTextoPorChaves(content, ['emitente', 'prestador', 'remetente', 'razao social', 'nome fantasia']) || undefined;
+  dados.razaoSocialDestinatario = extrairTextoPorChaves(content, ['destinatario', 'tomador', 'recebedor', 'razao social dest']) || undefined;
+  dados.cnpjEmitente = extrairTextoPorChaves(content, ['cpf/cnpj do emitente', 'cpf/cnpj', 'cnpj emitente', 'emitente'])?.replace(/\D/g, '') || dados.cnpjEmitente;
+  dados.cnpjDestinatario = extrairTextoPorChaves(content, ['cpf/cnpj do destinatario', 'destinatario', 'tomador'])?.replace(/\D/g, '') || dados.cnpjDestinatario;
+  dados.numero = extrairTextoPorChaves(content, ['numero', 'número', 'nfs-e', 'nfse', 'dps'])?.replace(/\D/g, '') || dados.numero;
+  dados.serie = extrairTextoPorChaves(content, ['serie', 'série'])?.replace(/\D/g, '') || dados.serie;
+  dados.valorTotal = parseValor(extrairTextoPorChaves(content, ['valor total', 'v.nf', 'valor', 'v. total']) || '0');
+  dados.protocolo = extrairTextoPorChaves(content, ['protocolo', 'n.prot', 'numero protocolo'])?.replace(/\D/g, '') || undefined;
 
   const lowerBody = body.toLowerCase();
   if (lowerBody.includes('autoriz')) dados.status = 'autorizada';
@@ -165,16 +128,8 @@ async function scrapePortalPublicoGenerico(
   let browser;
 
   try {
-    browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
-    });
-
-    const ctx = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-      viewport: { width: 1366, height: 768 },
-      locale: 'pt-BR',
-    });
+    browser = await criarBrowserScraper();
+    const ctx = await criarContextoScraper(browser);
 
     const page = await ctx.newPage();
     await page.goto(consultUrl, { waitUntil: 'domcontentloaded', timeout });
@@ -229,19 +184,8 @@ export async function scrapeNFeporChave(
   let browser;
 
   try {
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        '--no-sandbox', '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage', '--disable-gpu',
-      ],
-    });
-
-    const ctx = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-      viewport: { width: 1366, height: 768 },
-      locale: 'pt-BR',
-    });
+    browser = await criarBrowserScraper();
+    const ctx = await criarContextoScraper(browser);
 
     const page = await ctx.newPage();
 
@@ -328,18 +272,10 @@ export async function scrapeNFeporChave(
       return result;
     });
 
-    function findVal(keys: string[]): string | undefined {
-      for (const k of keys) {
-        const found = Object.entries(content).find(([key]) => key.includes(k));
-        if (found) return found[1];
-      }
-      return undefined;
-    }
-
-    dados.razaoSocialEmitente = findVal(['emitente', 'razao social', 'nome fantasia']) || undefined;
-    dados.razaoSocialDestinatario = findVal(['destinatario', 'razao social dest']) || undefined;
-    dados.valorTotal = parseValor(findVal(['valor total', 'v.nf', 'valor']) || '0');
-    dados.protocolo = findVal(['protocolo', 'n.prot', 'numero protocolo'])?.replace(/\D/g, '') || undefined;
+    dados.razaoSocialEmitente = extrairTextoPorChaves(content, ['emitente', 'razao social', 'nome fantasia']) || undefined;
+    dados.razaoSocialDestinatario = extrairTextoPorChaves(content, ['destinatario', 'razao social dest']) || undefined;
+    dados.valorTotal = parseValor(extrairTextoPorChaves(content, ['valor total', 'v.nf', 'valor']) || '0');
+    dados.protocolo = extrairTextoPorChaves(content, ['protocolo', 'n.prot', 'numero protocolo'])?.replace(/\D/g, '') || undefined;
 
     const statusText = body.toLowerCase();
     if (statusText.includes('autorizado')) dados.status = 'autorizada';
@@ -382,19 +318,8 @@ export async function scrapeNfsePorChave(
   let browser;
 
   try {
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        '--no-sandbox', '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage', '--disable-gpu',
-      ],
-    });
-
-    const ctx = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-      viewport: { width: 1366, height: 768 },
-      locale: 'pt-BR',
-    });
+    browser = await criarBrowserScraper();
+    const ctx = await criarContextoScraper(browser);
 
     const page = await ctx.newPage();
     await page.goto('https://www.nfse.gov.br/consultapublica', { waitUntil: 'domcontentloaded', timeout });
@@ -424,19 +349,8 @@ export async function scrapeDcePorChave(
   let browser;
 
   try {
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        '--no-sandbox', '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage', '--disable-gpu',
-      ],
-    });
-
-    const ctx = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-      viewport: { width: 1366, height: 768 },
-      locale: 'pt-BR',
-    });
+    browser = await criarBrowserScraper();
+    const ctx = await criarContextoScraper(browser);
 
     const page = await ctx.newPage();
     await page.goto('https://sped.fazenda.pr.gov.br/webservices/sped/dce/completa', { waitUntil: 'domcontentloaded', timeout });
@@ -483,7 +397,7 @@ export async function scrapeDocumentoPorChave(
   tipo?: DadosExtraidos['tipo'],
 ): Promise<ScrapeResult> {
   const clean = normalizarChave(chaveAcesso);
-  const tipoDetectado = tipo || detectarTipoPorChave(clean);
+  const tipoDetectado = tipo || tipoDaChave(clean);
 
   if (tipoDetectado === 'bpe' || tipoDetectado === 'cteos') {
     return scrapePortalPublicoGenerico(clean, config, tipoDetectado);

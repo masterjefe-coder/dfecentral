@@ -138,7 +138,7 @@ export default function EmpresaPage() {
     <main className="min-h-screen app-shell bg-slate-950 px-4 py-10 text-white">
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_28%)]" />
       <div className="relative mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/dashboard" className="text-sm font-semibold text-slate-300 hover:text-white">Voltar ao dashboard</Link>
           <Link href="/auth/entrar" className="text-sm font-semibold text-slate-300 hover:text-white">Conta</Link>
         </div>
