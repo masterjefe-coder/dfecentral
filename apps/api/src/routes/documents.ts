@@ -7,7 +7,7 @@ import type { SdkConfig, TipoDocumento } from '@dfecentral/sdk';
 import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
 import { gerarPdfDanfe } from '../utils/danfe.js';
 import { registrarConsulta } from '../db/audit.js';
-import { enviarXmlContabilidadeAutomatico } from '../utils/contabilidade.js';
+import { arquivarXmlEmR2, enviarXmlContabilidadeAutomatico } from '../utils/contabilidade.js';
 
 function tipoDaChave(chave: string): TipoDocumento | null {
   const modelo = chave.slice(20, 22);
@@ -147,10 +147,19 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
 
         if (resultado.fonte !== 'cache' && resultado.documento?.xml && usuarioId) {
           try {
+            const conta = (request as any).conta as { cnpj?: string | null } | undefined;
+            const direcao = conta?.cnpj && resultado.documento.cnpjDestinatario === conta.cnpj ? 'entradas' : 'emitidas';
             await enviarXmlContabilidadeAutomatico({
               usuarioId,
               chave: resultado.documento.chaveAcesso,
               xml: resultado.documento.xml,
+            });
+            await arquivarXmlEmR2({
+              chave: resultado.documento.chaveAcesso,
+              xml: resultado.documento.xml,
+              dataEmissao: new Date(resultado.documento.dataEmissao),
+              tipo: options.tipo,
+              direcao,
             });
           } catch (error) {
             console.error('[contabilidade] erro no envio automatico:', error);

@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import { obterPreferenciasUsuario } from '../db/auth.js';
 import { enviarEmailComAnexo } from './mailer.js';
+import { enviarArquivoParaR2, r2EstaConfigurado } from './r2.js';
 
 export type DirecaoXml = 'emitidas' | 'entradas';
 
@@ -93,17 +94,46 @@ export async function criarPacoteXmlMensal(opcoes: {
   };
 }
 
+export async function arquivarXmlEmR2(opcoes: {
+  chave: string;
+  xml: string;
+  dataEmissao: Date;
+  tipo: string;
+  direcao: DirecaoXml;
+}): Promise<{ bucket: string; key: string } | null> {
+  if (!r2EstaConfigurado()) return null;
+
+  return enviarArquivoParaR2({
+    chave: opcoes.chave,
+    corpo: opcoes.xml,
+    contentType: 'application/xml',
+    categoria: 'xml',
+    dataEmissao: opcoes.dataEmissao,
+    nomeArquivo: `${opcoes.direcao}/${opcoes.tipo}-${opcoes.chave}.xml`,
+  });
+}
+
 export async function enviarPacoteXmlMensal(opcoes: {
   to: string;
   mes: string;
   incluirEntradas: boolean;
   documentos: DocumentoXmlPacote[];
-}): Promise<{ nomeArquivo: string; total: number }> {
+}): Promise<{ nomeArquivo: string; total: number; r2?: { bucket: string; key: string } | null }> {
   const pacote = await criarPacoteXmlMensal({
     mes: opcoes.mes,
     incluirEntradas: opcoes.incluirEntradas,
     documentos: opcoes.documentos,
   });
+
+  const r2 = r2EstaConfigurado()
+    ? await enviarArquivoParaR2({
+        chave: `pacote-${opcoes.mes}`,
+        corpo: pacote.buffer,
+        contentType: 'application/zip',
+        categoria: 'pacote',
+        nomeArquivo: `xmls-${formatarMesArquivo(opcoes.mes)}.zip`,
+      })
+    : null;
 
   await enviarEmailComAnexo({
     to: opcoes.to,
@@ -119,5 +149,5 @@ export async function enviarPacoteXmlMensal(opcoes: {
     ],
   });
 
-  return { nomeArquivo: pacote.nomeArquivo, total: pacote.total };
+  return { nomeArquivo: pacote.nomeArquivo, total: pacote.total, r2 };
 }

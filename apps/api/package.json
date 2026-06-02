@@ -13,6 +13,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1059.0",
     "@dfecentral/sdk": "*",
     "@dfecentral/shared": "*",
     "@fastify/cors": "^11.0.0",

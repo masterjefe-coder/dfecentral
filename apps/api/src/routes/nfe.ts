@@ -7,7 +7,7 @@ import type { SdkConfig } from '@dfecentral/sdk';
 import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
 import { gerarPdfDanfe } from '../utils/danfe.js';
 import { registrarConsulta } from '../db/audit.js';
-import { enviarXmlContabilidadeAutomatico } from '../utils/contabilidade.js';
+import { arquivarXmlEmR2, enviarXmlContabilidadeAutomatico } from '../utils/contabilidade.js';
 
 function tipoDaChave(chave: string) {
   const modelo = chave.slice(20, 22);
@@ -164,6 +164,13 @@ export async function nfeRoutes(app: FastifyInstance) {
         usuarioId,
         chave: resultado.documento.chaveAcesso,
         xml: resultado.documento.xml,
+      });
+      await arquivarXmlEmR2({
+        chave: resultado.documento.chaveAcesso,
+        xml: resultado.documento.xml,
+        dataEmissao: new Date(resultado.documento.dataEmissao),
+        tipo: 'nfe',
+        direcao: 'emitidas',
       });
     } catch (error) {
       console.error('[contabilidade] erro no envio automatico:', error);
