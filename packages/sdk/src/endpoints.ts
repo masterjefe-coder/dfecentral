@@ -37,6 +37,8 @@ const ENDPOINTS_PADRAO: SefazEndpoint[] = [
 
 const SVRS_PRODUCAO = 'https://www.sefazvirtualrs.gov.br';
 const SVRS_HOMOLOGACAO = 'https://homologacao.sefazvirtualrs.gov.br';
+const CTE_SVRS_PRODUCAO = 'https://cte.svrs.rs.gov.br';
+const CTE_SVRS_HOMOLOGACAO = 'https://cte-homologacao.svrs.rs.gov.br';
 const SVAN_PRODUCAO = 'https://www.svan.fazenda.gov.br';
 const SVAN_HOMOLOGACAO = 'https://homologacao.svan.fazenda.gov.br';
 const SVC_PRODUCAO = 'https://www.svc.fazenda.gov.br';
@@ -111,7 +113,7 @@ function cteConsultaBase(sigla: string, amb: Ambiente): string {
   if (sigla === 'MG') return amb === 1 ? 'https://cte.fazenda.mg.gov.br/cte/services/CTeConsultaV4' : 'https://cte.fazenda.mg.gov.br/cte/services/CTeConsultaV4';
   if (sigla === 'MS') return amb === 1 ? 'https://producao.cte.ms.gov.br/ws/CTeConsultaV4' : 'https://homologacao.cte.ms.gov.br/ws/CTeConsultaV4';
   if (sigla === 'MT') return amb === 1 ? 'https://cte.sefaz.mt.gov.br/ctews2/services/CTeConsultaV4' : 'https://cte.sefaz.mt.gov.br/ctews2/services/CTeConsultaV4';
-  return amb === 1 ? 'https://cte.svrs.rs.gov.br/ws/CTeConsultaV4/CTeConsultaV4.asmx' : 'https://cte-homologacao.svrs.rs.gov.br/ws/CTeConsultaV4/CTeConsultaV4.asmx';
+  return amb === 1 ? `${CTE_SVRS_PRODUCAO}/ws/CTeConsultaV4/CTeConsultaV4.asmx` : `${CTE_SVRS_HOMOLOGACAO}/ws/CTeConsultaV4/CTeConsultaV4.asmx`;
 }
 
 export function montarEndpoints(ambiente: Ambiente): SefazEndpoint[] {
@@ -145,11 +147,11 @@ export function montarEndpoints(ambiente: Ambiente): SefazEndpoint[] {
         nfeConsultaProtocolo: `${baseNfe}/NFeWS/ConsultaProtocolo.asmx`,
         nfeDownloadNF: `${baseNfe}/NFeWS/DownloadNF.asmx`,
         nfceDistDFeInteresse: nfceServ,
-        cteConsultaProtocolo: `${svrs(amb)}/CTeWS/ConsultaProtocolo.asmx`,
-        cteDistDFeInteresse: `${svrs(amb)}/CTeWS/DistribuicaoDFe.asmx`,
+        cteConsultaProtocolo: `${CTE_SVRS_PRODUCAO}/ws/CTeWS/ConsultaProtocolo.asmx`,
+        cteDistDFeInteresse: `${amb === 1 ? CTE_SVRS_PRODUCAO : CTE_SVRS_HOMOLOGACAO}/ws/CTeWS/DistribuicaoDFe.asmx`,
         cteConsulta: cteConsultaBase(sigla, amb),
-        cteRecepcaoOS: `${svrs(amb)}/CTeWS/RecepcaoOS.asmx`,
-        cteStatusServico: `${svrs(amb)}/CTeWS/StatusServico.asmx`,
+        cteRecepcaoOS: `${amb === 1 ? CTE_SVRS_PRODUCAO : CTE_SVRS_HOMOLOGACAO}/ws/CTeWS/RecepcaoOS.asmx`,
+        cteStatusServico: `${amb === 1 ? CTE_SVRS_PRODUCAO : CTE_SVRS_HOMOLOGACAO}/ws/CTeWS/StatusServico.asmx`,
         mdfeConsultaProtocolo: `${svrs(amb)}/MDFeWS/ConsultaProtocolo.asmx`,
         mdfeDistDFeInteresse: `${svrs(amb)}/MDFeWS/DistribuicaoDFe.asmx`,
         mdfeConsulta: mdfeConsultaBase(amb),
@@ -157,8 +159,8 @@ export function montarEndpoints(ambiente: Ambiente): SefazEndpoint[] {
         bpeStatusServico: `${bpeServ}/BPeStatusServico`,
         bpeRecepcaoEvento: `${bpeServ}/BPeRecepcaoEvento`,
         cteosConsulta: cteConsultaBase(sigla, amb),
-        cteosRecepcaoOS: `${svrs(amb)}/CTeWS/RecepcaoOS.asmx`,
-        cteosStatusServico: `${svrs(amb)}/CTeWS/StatusServico.asmx`,
+        cteosRecepcaoOS: `${amb === 1 ? CTE_SVRS_PRODUCAO : CTE_SVRS_HOMOLOGACAO}/ws/CTeWS/RecepcaoOS.asmx`,
+        cteosStatusServico: `${amb === 1 ? CTE_SVRS_PRODUCAO : CTE_SVRS_HOMOLOGACAO}/ws/CTeWS/StatusServico.asmx`,
         dceConsulta: `${dceServ}/DCeConsulta`,
         dceStatusServico: `${dceServ}/DCeStatusServico`,
         dceRecepcaoEvento: `${dceServ}/DCeRecepcaoEvento`,
