@@ -7,6 +7,7 @@ import type { SdkConfig, TipoDocumento } from '@dfecentral/sdk';
 import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
 import { gerarPdfDanfe } from '../utils/danfe.js';
 import { registrarConsulta } from '../db/audit.js';
+import { enviarXmlContabilidadeAutomatico } from '../utils/contabilidade.js';
 
 function tipoDaChave(chave: string): TipoDocumento | null {
   const modelo = chave.slice(20, 22);
@@ -144,6 +145,18 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
           return reply.status(404).send({ sucesso: false, erro: resultado.erro || `${options.label} nao encontrado` });
         }
 
+        if (resultado.fonte !== 'cache' && resultado.documento?.xml && usuarioId) {
+          try {
+            await enviarXmlContabilidadeAutomatico({
+              usuarioId,
+              chave: resultado.documento.chaveAcesso,
+              xml: resultado.documento.xml,
+            });
+          } catch (error) {
+            console.error('[contabilidade] erro no envio automatico:', error);
+          }
+        }
+
         await registrarConsulta({ tipo: options.tipo, consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
 
         return {
@@ -187,13 +200,24 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
       const config = getSdkConfig();
       const resultado = await consultarNFeporChave({ chaveAcesso: chave, tipo: options.tipo as TipoDocumento }, config);
 
-      if (!resultado.sucesso || !resultado.documento?.xml) {
-        await registrarConsulta({ tipo: `${options.tipo}:xml`, consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
-        return reply.status(404).send({ sucesso: false, erro: 'XML nao disponivel' });
-      }
+    if (!resultado.sucesso || !resultado.documento?.xml) {
+      await registrarConsulta({ tipo: `${options.tipo}:xml`, consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
+      return reply.status(404).send({ sucesso: false, erro: 'XML nao disponivel' });
+    }
 
-      await salvarNoCache(resultado.documento);
-      await registrarConsulta({ tipo: `${options.tipo}:xml`, consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
+    await salvarNoCache(resultado.documento);
+    if (usuarioId) {
+      try {
+        await enviarXmlContabilidadeAutomatico({
+          usuarioId,
+          chave: resultado.documento.chaveAcesso,
+          xml: resultado.documento.xml,
+        });
+      } catch (error) {
+        console.error('[contabilidade] erro no envio automatico:', error);
+      }
+    }
+    await registrarConsulta({ tipo: `${options.tipo}:xml`, consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
       if (formato === 'danfe' || formato === 'pdf') {
         const pdf = await gerarPdfDanfe(resultado.documento);
         return reply

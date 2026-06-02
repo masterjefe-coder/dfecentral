@@ -7,6 +7,7 @@ import type { SdkConfig } from '@dfecentral/sdk';
 import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
 import { gerarPdfDanfe } from '../utils/danfe.js';
 import { registrarConsulta } from '../db/audit.js';
+import { enviarXmlContabilidadeAutomatico } from '../utils/contabilidade.js';
 
 function tipoDaChave(chave: string) {
   const modelo = chave.slice(20, 22);
@@ -101,6 +102,18 @@ export async function nfeRoutes(app: FastifyInstance) {
       return reply.status(404).send({ sucesso: false, erro: resultado.erro || 'NF-e nao encontrada' });
     }
 
+    if (resultado.fonte !== 'cache' && resultado.documento?.xml && usuarioId) {
+      try {
+        await enviarXmlContabilidadeAutomatico({
+          usuarioId,
+          chave: resultado.documento.chaveAcesso,
+          xml: resultado.documento.xml,
+        });
+      } catch (error) {
+        console.error('[contabilidade] erro no envio automatico:', error);
+      }
+    }
+
     await registrarConsulta({ tipo: 'nfe', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
 
     return { sucesso: true, dados: { ...resultado.documento, fonte: resultado.fonte } };
@@ -146,6 +159,15 @@ export async function nfeRoutes(app: FastifyInstance) {
     }
 
     await salvarNoCache(resultado.documento);
+    try {
+      await enviarXmlContabilidadeAutomatico({
+        usuarioId,
+        chave: resultado.documento.chaveAcesso,
+        xml: resultado.documento.xml,
+      });
+    } catch (error) {
+      console.error('[contabilidade] erro no envio automatico:', error);
+    }
     await registrarConsulta({ tipo: 'nfe:xml', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
     if (formato === 'danfe' || formato === 'pdf') {
       const pdf = await gerarPdfDanfe(resultado.documento);

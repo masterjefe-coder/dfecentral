@@ -109,6 +109,53 @@ export async function atualizarPreferenciasUsuario(usuarioId: string, preferenci
   await db.update(usuarios).set({ preferencias, atualizadoEm: new Date() }).where(eq(usuarios.id, usuarioId));
 }
 
+export async function atualizarPlanoUsuario(usuarioId: string, plano: string): Promise<void> {
+  await db.update(usuarios).set({ plano, atualizadoEm: new Date() }).where(eq(usuarios.id, usuarioId));
+}
+
+export async function atualizarAssinaturaUsuario(
+  usuarioId: string,
+  input: { status?: string; cancelEm?: Date | null; renovaEm?: Date | null },
+): Promise<void> {
+  await db
+    .update(usuarios)
+    .set({
+      assinaturaStatus: input.status || 'ativa',
+      assinaturaCancelEm: input.cancelEm ?? null,
+      assinaturaRenovaEm: input.renovaEm ?? null,
+      atualizadoEm: new Date(),
+    })
+    .where(eq(usuarios.id, usuarioId));
+}
+
+export async function obterAssinaturaUsuario(usuarioId: string): Promise<{
+  plano: string;
+  assinaturaStatus: string;
+  assinaturaCancelEm: Date | null;
+  assinaturaRenovaEm: Date | null;
+} | null> {
+  const resultado = await db
+    .select({
+      plano: usuarios.plano,
+      assinaturaStatus: usuarios.assinaturaStatus,
+      assinaturaCancelEm: usuarios.assinaturaCancelEm,
+      assinaturaRenovaEm: usuarios.assinaturaRenovaEm,
+    })
+    .from(usuarios)
+    .where(eq(usuarios.id, usuarioId))
+    .limit(1);
+
+  const item = resultado[0];
+  if (!item) return null;
+
+  return {
+    plano: item.plano,
+    assinaturaStatus: item.assinaturaStatus,
+    assinaturaCancelEm: item.assinaturaCancelEm || null,
+    assinaturaRenovaEm: item.assinaturaRenovaEm || null,
+  };
+}
+
 export async function garantirUsuarioGoogle(input: { nome: string; email: string; cnpj?: string | null }): Promise<UsuarioAuth> {
   const email = normalizeEmail(input.email);
   const existente = await encontrarUsuarioPorEmail(email);

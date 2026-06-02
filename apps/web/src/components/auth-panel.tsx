@@ -9,17 +9,18 @@ type Mode = 'login' | 'register' | 'forgot' | 'reset';
 type Props = {
   mode: Mode;
   token?: string;
+  redirectTo?: string;
 };
 
 const copy = {
   login: {
     title: 'Entrar',
-    description: 'Acesse o dashboard, relatórios e integrações.',
+    description: 'Acesse o dashboard, relatórios, integrações e seu plano ativo.',
     action: 'Entrar',
   },
   register: {
     title: 'Criar conta',
-    description: 'Comece com acesso ao painel e às consultas fiscais.',
+    description: 'Crie sua conta e escolha o plano ideal para começar.',
     action: 'Criar conta',
   },
   forgot: {
@@ -34,7 +35,7 @@ const copy = {
   },
 } as const;
 
-export function AuthPanel({ mode, token }: Props) {
+export function AuthPanel({ mode, token, redirectTo = '/dashboard' }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
@@ -42,7 +43,7 @@ export function AuthPanel({ mode, token }: Props) {
   const [form, setForm] = useState({ nome: '', email: '', senha: '', cnpj: '', confirmarSenha: '' });
 
   const meta = copy[mode];
-  const googleHref = `/api/auth/google/iniciar?next=${encodeURIComponent('/dashboard')}`;
+  const googleHref = `/api/auth/google/iniciar?next=${encodeURIComponent(redirectTo)}`;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -83,7 +84,7 @@ export function AuthPanel({ mode, token }: Props) {
         return;
       }
 
-      router.push('/dashboard');
+      router.push(redirectTo);
       router.refresh();
     } catch {
       setErro('Nao foi possivel concluir a operacao.');

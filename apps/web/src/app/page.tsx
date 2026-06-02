@@ -83,8 +83,8 @@ const documentos = [
 
 const funcionalidades = [
   {
-    titulo: 'Consulta por Chave',
-    descricao: 'Acesse qualquer documento fiscal com apenas a chave de acesso de 44 dígitos.',
+    titulo: 'Consulta NF-e por Chave',
+    descricao: 'Acesse a consulta pública de NF-e com apenas a chave de acesso de 44 dígitos.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="11" cy="11" r="8" />
@@ -94,7 +94,7 @@ const funcionalidades = [
   },
   {
     titulo: 'Consulta por CNPJ',
-    descricao: 'Visualize todas as notas emitidas e recebidas por um CNPJ específico.',
+    descricao: 'Visualize as notas emitidas e recebidas por um CNPJ no painel autenticado.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
@@ -105,7 +105,7 @@ const funcionalidades = [
   },
   {
     titulo: 'Download de XML',
-    descricao: 'Baixe o XML autorizado de qualquer documento fiscal consultado.',
+    descricao: 'Baixe o XML autorizado dos documentos consultados.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -153,8 +153,8 @@ const funcionalidades = [
 
 const precos = [
   {
-    nome: 'Grátis',
-    preco: 'R$ 0',
+    nome: 'Starter',
+    preco: 'R$ 49,90',
     periodo: '/mês',
     destaque: false,
     recursos: [
@@ -165,16 +165,16 @@ const precos = [
       { inclui: false, texto: 'API REST' },
       { inclui: false, texto: 'CT-e, MDF-e, DC-e' },
     ],
-    cta: 'Começar Grátis',
-    href: '/auth/cadastrar',
+    cta: 'Assinar Starter',
+    href: '/precos?plano=starter',
   },
   {
     nome: 'Pro',
-    preco: 'R$ 49',
+    preco: 'R$ 119,90',
     periodo: '/mês',
     destaque: true,
     recursos: [
-      { inclui: true, texto: 'Consultas ilimitadas' },
+      { inclui: true, texto: '500 consultas/mês' },
       { inclui: true, texto: 'Todos os documentos' },
       { inclui: true, texto: 'Download XML + DANFE' },
       { inclui: true, texto: 'API REST (10K req/mês)' },
@@ -182,11 +182,11 @@ const precos = [
       { inclui: true, texto: 'Suporte por email' },
     ],
     cta: 'Assinar Pro',
-    href: '/auth/cadastrar',
+    href: '/precos?plano=pro',
   },
   {
     nome: 'Enterprise',
-    preco: 'R$ 199',
+    preco: 'R$ 199,90',
     periodo: '/mês',
     destaque: false,
     recursos: [
@@ -197,8 +197,8 @@ const precos = [
       { inclui: true, texto: 'Suporte prioritário' },
       { inclui: true, texto: 'SLA 99.9%' },
     ],
-    cta: 'Falar com Vendas',
-    href: '/contato',
+    cta: 'Assinar Enterprise',
+    href: '/precos?plano=enterprise',
   },
 ];
 
@@ -225,7 +225,7 @@ export default function HomePage() {
                 href="https://consulta.dfecentral.com.br"
                 className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
               >
-                Consulta
+                Consulta NF-e
               </Link>
               <Link
                 href="/dashboard"
@@ -248,10 +248,10 @@ export default function HomePage() {
                 Entrar
               </Link>
               <Link
-                href="/auth/cadastrar"
+                href="/precos"
                 className="inline-flex px-5 py-2 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-full transition-all"
               >
-                Criar Conta
+                Ver Planos
               </Link>
             </div>
           </div>
@@ -283,14 +283,14 @@ export default function HomePage() {
               Uma plataforma para todos os documentos fiscais eletrônicos do Brasil.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              <CTA href="/auth/cadastrar" className="px-8">
-                Criar Conta Grátis
+              <CTA href="/precos" className="px-8">
+                Ver Planos
                 <svg className="ml-2 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
               </CTA>
               <CTA href="https://consulta.dfecentral.com.br" variant="secondary" className="px-8">
-                Consultar Documento
+                Consultar NF-e
               </CTA>
             </div>
           </div>
@@ -304,7 +304,7 @@ export default function HomePage() {
                 { valor: '6', label: 'Formatos suportados' },
                 { valor: '1', label: 'Dashboard unificado' },
                 { valor: 'PDF/XML', label: 'Saída pronta' },
-                { valor: 'R$ 0', label: 'Para começar' },
+                { valor: 'R$ 49,90', label: 'Starter' },
               ].map((stat) => (
                 <MetricCard key={stat.label} label={stat.label} value={stat.valor} />
               ))}
@@ -424,7 +424,7 @@ Authorization: Bearer sua_api_key
                 key={plano.nome}
                 className={`relative surface-card rounded-[1.75rem] border-2 p-8 transition-all duration-300 hover:shadow-xl ${
                   plano.destaque
-                    ? 'border-brand-500 shadow-xl shadow-brand-100/50 scale-105 md:scale-110'
+                    ? 'border-brand-500 bg-gradient-to-b from-white to-brand-50/60 shadow-xl shadow-brand-100/50 scale-105 md:scale-110'
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
@@ -438,6 +438,9 @@ Authorization: Bearer sua_api_key
                   <span className="text-4xl font-bold text-slate-900">{plano.preco}</span>
                   <span className="text-sm text-slate-500">{plano.periodo}</span>
                 </div>
+                {plano.destaque ? (
+                  <p className="mb-4 text-sm font-medium text-brand-700">Plano recomendado para escalar a operação com API e automações.</p>
+                ) : null}
                 <ul className="space-y-3 mb-8">
                   {plano.recursos.map((recurso) => (
                     <li key={recurso.texto} className="flex items-center gap-3 text-sm">
@@ -473,13 +476,13 @@ Authorization: Bearer sua_api_key
       <section className="py-24 bg-gradient-to-br from-brand-600 to-brand-800">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Comece a consultar documentos fiscais agora
+            Escolha um plano e comece agora
           </h2>
           <p className="text-lg text-brand-200 mb-8 max-w-2xl mx-auto">
-            Crie sua conta gratuita e comece a consultar NF-e, NFC-e, NFS-e, CT-e, MDF-e e DC-e em segundos.
+            Starter, Pro e Enterprise para assinar pelo site, com checkout direto na InfinitePay.
           </p>
-          <CTA href="/auth/cadastrar" variant="secondary" className="px-8 py-3.5 text-base text-brand-700 bg-white hover:bg-brand-50">
-            Criar Conta Grátis
+          <CTA href="/precos" variant="secondary" className="px-8 py-3.5 text-base text-brand-700 bg-white hover:bg-brand-50">
+            Ver Planos
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>

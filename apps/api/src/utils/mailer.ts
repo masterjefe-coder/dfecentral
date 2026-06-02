@@ -27,3 +27,34 @@ export async function enviarEmail(opcoes: { to: string; subject: string; html: s
 
   return true;
 }
+
+export async function enviarEmailComAnexo(opcoes: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  attachments: Array<{ filename: string; content: Buffer | string; contentType?: string }>;
+}) {
+  if (!temSMTPConfigurado()) return false;
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: String(process.env.SMTP_PORT || '587') === '465',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM,
+    to: opcoes.to,
+    subject: opcoes.subject,
+    text: opcoes.text,
+    html: opcoes.html,
+    attachments: opcoes.attachments,
+  });
+
+  return true;
+}

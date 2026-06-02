@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 type TipoImport = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'bpe' | 'cteos';
 type TipoResumo = TipoImport | 'nfse' | 'dce';
@@ -307,6 +308,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        <Suspense fallback={null}>
+          <CheckoutReturnBanner />
+        </Suspense>
+
         <section className="grid gap-4 md:grid-cols-4">
           {[
             { label: 'Tipos suportados', value: '6', sub: 'NF-e, NFC-e, CT-e, MDF-e, NFS-e, DC-e' },
@@ -334,6 +339,13 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-slate-300">
               {carregandoConta ? 'Carregando...' : conta?.limiteMensal === null ? 'Uso ilimitado' : `Limite mensal: ${conta?.limiteMensal || 0}`}
             </p>
+            <button
+              type="button"
+              onClick={() => void carregarConta()}
+              className="mt-4 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 transition-colors"
+            >
+              {carregandoConta ? 'Atualizando...' : 'Recarregar plano'}
+            </button>
           </div>
           <div className="surface-card rounded-3xl p-5 text-white bg-white/5 backdrop-blur shadow-2xl shadow-black/20">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Uso do mês</p>
@@ -541,6 +553,7 @@ export default function DashboardPage() {
                 O dashboard já centraliza a importação e agora traz resumos separados de saídas e entradas por tipo.
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+                <Link href="/assinatura" className="rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10">Assinatura</Link>
                 <Link href="/empresa" className="rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10">Empresa</Link>
                 <Link href="/entradas" className="rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10">Entradas</Link>
                 <Link href="/saidas" className="rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10">Saídas</Link>
@@ -577,6 +590,76 @@ export default function DashboardPage() {
           </aside>
         </section>
       </main>
+    </div>
+  );
+}
+
+function CheckoutReturnBanner() {
+  const searchParams = useSearchParams();
+  const [conta, setConta] = useState<ContaResumo | null>(null);
+  const [carregando, setCarregando] = useState(false);
+  const planoAtivo = conta?.plano && conta.plano !== 'free' ? conta.plano.toUpperCase() : null;
+  const estiloPlano = conta?.plano === 'starter' ? 'from-amber-400 to-orange-500' : conta?.plano === 'pro' ? 'from-cyan-400 to-blue-500' : 'from-fuchsia-400 to-violet-500';
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    async function verificarConta() {
+      setCarregando(true);
+      try {
+        const res = await fetch('/api/conta', { cache: 'no-store' });
+        const data = await res.json();
+        if (data?.sucesso) {
+          setConta(data.dados || null);
+          if (data.dados?.plano && data.dados.plano !== 'free') {
+            timeout = setTimeout(() => {
+              window.location.replace('/dashboard');
+            }, 1200);
+            if (interval) clearInterval(interval);
+          }
+        }
+      } catch {
+        // Mantem o banner e tenta novamente no proximo ciclo.
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    void verificarConta();
+    interval = setInterval(() => {
+      void verificarConta();
+    }, 4000);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      if (timeout) clearTimeout(timeout);
+    };
+  }, []);
+
+  if (searchParams.get('checkout') !== 'infinitepay') return null;
+
+  return (
+    <div className={`mb-6 rounded-[1.5rem] border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-white shadow-2xl shadow-black/20`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Assinatura</p>
+          <p className="mt-1 text-sm text-slate-200">
+            {planoAtivo ? (
+              <span className="font-semibold text-emerald-300">Plano {planoAtivo} ativo. Atualizando o dashboard...</span>
+            ) : carregando ? (
+              'Aguardando confirmação da InfinitePay...'
+            ) : (
+              'Checkout aberto na InfinitePay. Quando o pagamento for aprovado, o plano é atualizado automaticamente via webhook.'
+            )}
+          </p>
+        </div>
+        {planoAtivo ? (
+          <span className={`inline-flex rounded-full bg-gradient-to-r ${estiloPlano} px-3 py-1 text-xs font-semibold text-white`}>
+            {planoAtivo}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

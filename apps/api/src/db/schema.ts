@@ -67,6 +67,9 @@ export const usuarios = pgTable('usuarios', {
   cnpj: varchar('cnpj', { length: 14 }),
   cnpjAtivo: varchar('cnpj_ativo', { length: 14 }),
   plano: varchar('plano', { length: 20 }).notNull().default('free'),
+  assinaturaStatus: varchar('assinatura_status', { length: 20 }).notNull().default('ativa'),
+  assinaturaCancelEm: timestamp('assinatura_cancel_em', { withTimezone: true }),
+  assinaturaRenovaEm: timestamp('assinatura_renova_em', { withTimezone: true }),
   apiKey: varchar('api_key', { length: 64 }).unique(),
   consultasMes: decimal('consultas_mes', { precision: 10, scale: 0 }).notNull().default('0'),
   preferencias: jsonb('preferencias').default({}),
@@ -104,5 +107,28 @@ export const empresasUsuario = pgTable(
   (table) => [
     index('idx_empresas_usuario_id').on(table.usuarioId),
     index('idx_empresas_cnpj').on(table.cnpj),
+  ]
+);
+
+export const convitesEmpresa = pgTable(
+  'convites_empresa',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    usuarioId: uuid('usuario_id').references(() => usuarios.id).notNull(),
+    cnpj: varchar('cnpj', { length: 14 }).notNull(),
+    nome: varchar('nome', { length: 200 }).notNull(),
+    email: varchar('email', { length: 255 }).notNull(),
+    papel: varchar('papel', { length: 20 }).notNull().default('membro'),
+    token: varchar('token', { length: 128 }).unique().notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('pendente'),
+    aceitoEm: timestamp('aceito_em', { withTimezone: true }),
+    criadoEm: timestamp('criado_em', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_convites_empresa_usuario').on(table.usuarioId),
+    index('idx_convites_empresa_cnpj').on(table.cnpj),
+    index('idx_convites_empresa_email').on(table.email),
+    index('idx_convites_empresa_token').on(table.token),
+    index('idx_convites_empresa_status').on(table.status),
   ]
 );

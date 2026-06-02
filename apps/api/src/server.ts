@@ -18,6 +18,9 @@ import { sefazRoutes } from './routes/sefaz.js';
 import { importacoesRoutes } from './routes/importacoes.js';
 import { consultasRoutes } from './routes/consultas.js';
 import { contaRoutes } from './routes/conta.js';
+import { billingRoutes } from './routes/billing.js';
+import { equipeRoutes } from './routes/equipe.js';
+import { contabilidadeRoutes } from './routes/contabilidade.js';
 import { authRoutes } from './routes/auth.js';
 import { relatoriosRoutes } from './routes/relatorios.js';
 import { empresasRoutes } from './routes/empresas.js';
@@ -62,7 +65,8 @@ app.addHook('onRequest', async (request, reply) => {
     pathname === '/health' ||
     pathname === '/api/v1/health' ||
     pathname.startsWith('/docs') ||
-    pathname.startsWith('/api/v1/auth');
+    pathname.startsWith('/api/v1/auth') ||
+    pathname.startsWith('/api/v1/billing/infinitepay/webhook');
 
   if (isPublicRoute) return;
 
@@ -148,6 +152,9 @@ await app.register(sefazRoutes, { prefix: '/api/v1/sefaz' });
 await app.register(importacoesRoutes, { prefix: '/api/v1/importacoes' });
 await app.register(consultasRoutes, { prefix: '/api/v1/consultas' });
 await app.register(contaRoutes, { prefix: '/api/v1/conta' });
+await app.register(billingRoutes, { prefix: '/api/v1/billing' });
+await app.register(equipeRoutes, { prefix: '/api/v1/equipe' });
+await app.register(contabilidadeRoutes, { prefix: '/api/v1/contabilidade' });
 await app.register(authRoutes, { prefix: '/api/v1/auth' });
 await app.register(relatoriosRoutes, { prefix: '/api/v1/relatorios' });
 await app.register(empresasRoutes, { prefix: '/api/v1/empresas' });

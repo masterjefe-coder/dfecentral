@@ -47,6 +47,8 @@ const preferenciasSchema = z.object({
   tipoPadrao: z.enum(['nfe', 'nfce', 'cte', 'mdfe', 'bpe', 'cteos', 'nfse', 'dce']).optional(),
   inicioPadrao: z.string().optional().nullable(),
   fimPadrao: z.string().optional().nullable(),
+  contabilidadeEmail: z.string().email().optional().nullable(),
+  contabilidadeEnvioAutomatico: z.boolean().optional(),
 });
 
 function segredoAuth(): string {
