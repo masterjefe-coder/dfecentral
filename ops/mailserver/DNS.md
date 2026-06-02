@@ -9,7 +9,7 @@ Use estes registros para `dfecentral.com.br`.
 - `dfecentral.com.br` -> `mail.dfecentral.com.br` prioridade `10`
 
 ## SPF
-- `dfecentral.com.br` -> `v=spf1 mx -all`
+- `dfecentral.com.br` -> `v=spf1 include:rp.oracleemaildelivery.com ~all`
 
 ## DKIM
 - Gere a chave no Docker Mailserver e publique o TXT em `mail._domainkey.dfecentral.com.br`.
