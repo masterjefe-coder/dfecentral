@@ -6,6 +6,7 @@ export default function FaqPage() {
       <div className="space-y-4">
         {[
           ['Como acesso o dashboard?', 'Entre em /auth/entrar ou crie sua conta em /auth/cadastrar.'],
+          ['Existe plano free?', 'Sim. O Free continua ativo no site e pode ser usado para iniciar sem custo.'],
           ['Como assino um plano?', 'Abra /precos, escolha Starter, Pro ou Enterprise e conclua o pagamento na InfinitePay.'],
           ['Posso arquivar XML automaticamente?', 'Sim. O arquivamento em R2 entra como add-on opcional e pode incluir XMLs de entrada.'],
           ['A consulta NFS-e é oficial?', 'Sim. A integração oficial usa certificado digital e fallback assistido quando necessário.'],

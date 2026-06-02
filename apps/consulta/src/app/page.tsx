@@ -94,7 +94,7 @@ export default function ConsultaPage() {
           <Link href="/" className="flex items-center gap-3">
             <img src="/logo.png" alt="DFeCentral" className="h-8 w-auto" />
           </Link>
-          <span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Consulta NF-e</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">Consulta NF-e</span>
         </header>
 
         <section className="grid flex-1 place-items-center py-8 sm:py-10">
@@ -107,8 +107,8 @@ export default function ConsultaPage() {
               </p>
             </div>
 
-            <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-6">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Chave de acesso da NF-e</label>
+            <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/20 backdrop-blur sm:p-6">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Chave de acesso da NF-e</label>
               <input
                 type="text"
                 value={chaveAcesso}
@@ -147,8 +147,8 @@ export default function ConsultaPage() {
             </div>
 
             {resultado && (
-              <div className="mt-5 rounded-[1.75rem] border border-white/10 bg-white p-5 text-slate-900 shadow-2xl shadow-black/20 sm:p-6">
-                <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-5 rounded-[1.75rem] border border-white/10 bg-white p-5 text-slate-900 shadow-xl shadow-black/20 sm:p-6">
+                 <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700">Resultado</p>
                     <h2 className="mt-1 text-xl font-semibold">{resultado.tipo?.toUpperCase() || 'NF-e'}</h2>
@@ -169,15 +169,15 @@ export default function ConsultaPage() {
 
                 {resultado.cnpjDestinatario && (
                   <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Destinatário</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">Destinatário</p>
                     <p className="mt-1 text-sm font-medium text-slate-900">{resultado.razaoSocialDestinatario || '-'}</p>
-                    <p className="text-xs font-mono text-slate-500">{formatarCNPJ(resultado.cnpjDestinatario)}</p>
+                    <p className="text-xs font-mono text-slate-600">{formatarCNPJ(resultado.cnpjDestinatario)}</p>
                   </div>
                 )}
 
                 <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Chave de Acesso</p>
-                  <p className="mt-1 break-all font-mono text-xs text-slate-700">{resultado.chaveAcesso}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">Chave de Acesso</p>
+                  <p className="mt-1 break-all font-mono text-xs text-slate-900">{resultado.chaveAcesso}</p>
                 </div>
 
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -212,7 +212,7 @@ export default function ConsultaPage() {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-600">{label}</p>
       <p className="mt-1 text-sm font-medium text-slate-900">{value}</p>
     </div>
   );

@@ -153,6 +153,21 @@ const funcionalidades = [
 
 const precos = [
   {
+    nome: 'Free',
+    preco: 'R$ 0,00',
+    periodo: '/mês',
+    destaque: false,
+    recursos: [
+      { inclui: true, texto: '50 consultas/mês' },
+      { inclui: true, texto: '1 GB de XML incluso' },
+      { inclui: true, texto: 'Consulta por chave' },
+      { inclui: false, texto: 'API REST' },
+      { inclui: false, texto: 'Webhooks' },
+    ],
+    cta: 'Acessar Free',
+    href: '/dashboard',
+  },
+  {
     nome: 'Starter',
     preco: 'R$ 49,90',
     periodo: '/mês',
@@ -263,8 +278,8 @@ export default function HomePage() {
       <section className="relative pt-32 pb-24 sm:pt-40 sm:pb-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-brand-50/50 via-white to-white" />
         <div className="absolute top-0 right-0 w-1/2 h-full opacity-30">
-          <div className="absolute top-20 right-20 w-72 h-72 bg-brand-300 rounded-full blur-3xl" />
-          <div className="absolute top-40 right-60 w-96 h-96 bg-brand-400/30 rounded-full blur-3xl" />
+          <div className="absolute top-20 right-20 w-56 h-56 bg-brand-300 rounded-full blur-2xl" />
+          <div className="absolute top-40 right-60 w-72 h-72 bg-brand-400/30 rounded-full blur-2xl" />
         </div>
         <div className="absolute inset-0 bg-grid opacity-[0.03]" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -280,7 +295,7 @@ export default function HomePage() {
                 Fiscais do Brasil
               </span>
             </h1>
-            <p className="text-lg sm:text-xl text-slate-500 mb-10 max-w-2xl mx-auto leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            <p className="text-lg sm:text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
               Consulte, baixe e gerencie NF-e, NFC-e, NFS-e, CT-e, MDF-e e DC-e.
               Uma plataforma para todos os documentos fiscais eletrônicos do Brasil.
             </p>
@@ -333,7 +348,7 @@ export default function HomePage() {
                   <h3 className="text-lg font-bold text-slate-900">{doc.sigla}</h3>
                   <span className="text-xs font-medium text-brand-600">{doc.nome}</span>
                 </div>
-                <p className="text-sm text-slate-500 leading-relaxed">{doc.descricao}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{doc.descricao}</p>
               </GlassCard>
             ))}
           </div>
@@ -356,7 +371,7 @@ export default function HomePage() {
                   {func.icon}
                 </div>
                 <h3 className="text-base font-semibold text-slate-900 mb-2">{func.titulo}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{func.descricao}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{func.descricao}</p>
               </GlassCard>
             ))}
           </div>
@@ -451,11 +466,11 @@ Authorization: Bearer sua_api_key
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       ) : (
-                        <svg className="w-5 h-5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       )}
-                      <span className={recurso.inclui ? 'text-slate-700' : 'text-slate-400'}>{recurso.texto}</span>
+                       <span className={recurso.inclui ? 'text-slate-700' : 'text-slate-500'}>{recurso.texto}</span>
                     </li>
                   ))}
                 </ul>
@@ -497,7 +512,7 @@ Authorization: Bearer sua_api_key
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
             <div className="col-span-2 md:col-span-1">
               <img src="/logo-light.png" alt="DFeCentral" className="h-8 w-auto mb-4 brightness-0 invert" />
-              <p className="text-sm text-slate-500 leading-relaxed max-w-xs">
+               <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
                 A central de documentos fiscais do Brasil. Consulte, baixe e gerencie todos os documentos fiscais eletrônicos.
               </p>
             </div>
@@ -506,10 +521,10 @@ Authorization: Bearer sua_api_key
               <ul className="space-y-3">
                 {['Documentos', 'Funcionalidades', 'Preços'].map((item) => (
                   <li key={item}>
-                    <Link href={`#${item.toLowerCase()}`} className="text-sm hover:text-white transition-colors">{item}</Link>
+                    <Link href={`#${item.toLowerCase()}`} className="text-sm text-slate-400 hover:text-white transition-colors">{item}</Link>
                   </li>
                 ))}
-                <li><Link href="/documentacao" className="text-sm hover:text-white transition-colors">API Docs</Link></li>
+                <li><Link href="/documentacao" className="text-sm text-slate-400 hover:text-white transition-colors">API Docs</Link></li>
               </ul>
             </div>
             <div>
@@ -517,7 +532,7 @@ Authorization: Bearer sua_api_key
               <ul className="space-y-3">
                 {['NF-e', 'NFC-e', 'NFS-e', 'CT-e', 'MDF-e', 'DC-e'].map((doc) => (
                   <li key={doc}>
-                    <span className="text-sm text-slate-500">{doc}</span>
+                    <span className="text-sm text-slate-400">{doc}</span>
                   </li>
                 ))}
               </ul>
@@ -527,14 +542,14 @@ Authorization: Bearer sua_api_key
               <ul className="space-y-3">
                 {['Sobre', 'Contato', 'Privacidade', 'Termos'].map((item) => (
                   <li key={item}>
-                    <Link href={`/${item.toLowerCase()}`} className="text-sm hover:text-white transition-colors">{item}</Link>
+                    <Link href={`/${item.toLowerCase()}`} className="text-sm text-slate-400 hover:text-white transition-colors">{item}</Link>
                   </li>
                 ))}
               </ul>
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-500">
               &copy; 2026 DFeCentral. Todos os direitos reservados.
             </p>
             <div className="flex items-center gap-6">
@@ -543,7 +558,7 @@ Authorization: Bearer sua_api_key
                 ['Documentação', '/documentacao'],
                 ['Dashboard', '/dashboard'],
               ].map(([social, href]) => (
-                <Link key={social} href={href} className="text-sm text-slate-600 hover:text-white transition-colors">
+                <Link key={social} href={href} className="text-sm text-slate-400 hover:text-white transition-colors">
                   {social}
                 </Link>
               ))}

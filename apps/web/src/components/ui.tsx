@@ -38,9 +38,9 @@ type MetricCardProps = {
 export function MetricCard({ label, value, sub }: MetricCardProps) {
   return (
     <GlassCard className="rounded-3xl p-5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-white">{value}</p>
-      {sub ? <p className="mt-1 text-sm text-slate-300">{sub}</p> : null}
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+      {sub ? <p className="mt-1 text-sm text-slate-600">{sub}</p> : null}
     </GlassCard>
   );
 }

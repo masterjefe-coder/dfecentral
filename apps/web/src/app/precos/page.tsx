@@ -2,6 +2,7 @@ import { StaticPage } from '../../components/static-page';
 import { CheckoutAddonButton, CheckoutButton } from '../../components/checkout-button';
 
 const planos = [
+  { nome: 'Free', preco: 'R$ 0,00/mês', texto: '50 consultas/mês, 1 GB de XML incluso e consulta por chave', plano: 'starter' as const },
   { nome: 'Starter', preco: 'R$ 49,90/mês', texto: '50 consultas/mês, 5 GB de XML incluso e consulta por chave', plano: 'starter' as const },
   { nome: 'Pro', preco: 'R$ 119,90/mês', texto: '500 consultas/mês, 25 GB de XML incluso, API REST e webhooks', plano: 'pro' as const },
   { nome: 'Enterprise', preco: 'R$ 199,90/mês', texto: 'Ilimitado, 100 GB de XML incluso, multi-CNPJ e suporte prioritário', plano: 'enterprise' as const },
@@ -37,14 +38,16 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         {planos.map((plano) => (
           <div
             key={plano.nome}
             className={`rounded-3xl border p-5 shadow-2xl transition-all ${
               plano.nome === 'Pro'
                 ? 'border-cyan-400/30 bg-gradient-to-b from-white/10 to-white/5 shadow-cyan-500/10 ring-1 ring-cyan-400/15'
-                : 'border-white/10 bg-white/5'
+                : plano.nome === 'Free'
+                  ? 'border-emerald-400/20 bg-emerald-500/5'
+                  : 'border-white/10 bg-white/5'
             }`}
           >
             <div className="flex items-start justify-between gap-3">
@@ -53,16 +56,26 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
                 <span className="rounded-full bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
                   Mais escolhido
                 </span>
+              ) : plano.nome === 'Free' ? (
+                <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+                  Plano grátis
+                </span>
               ) : null}
             </div>
             <p className="mt-2 text-2xl font-bold text-white">{plano.preco}</p>
             <p className="mt-2 text-lg font-semibold text-white">{plano.texto}</p>
             <p className="mt-3 text-xs leading-5 text-slate-400">Checkout direto no site. Sem cadastro extra, sem desvio de fluxo.</p>
-            <CheckoutButton
-              plano={plano.plano}
-              label={plano.nome === 'Enterprise' ? 'Assinar Enterprise' : `Assinar ${plano.nome}`}
-              autoStart={planoAtivo === plano.plano}
-            />
+            {plano.nome === 'Free' ? (
+              <a href="/dashboard" className="mt-4 inline-flex w-full items-center justify-center rounded-full border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/20">
+                Acessar Free
+              </a>
+            ) : (
+              <CheckoutButton
+                plano={plano.plano}
+                label={plano.nome === 'Enterprise' ? 'Assinar Enterprise' : `Assinar ${plano.nome}`}
+                autoStart={planoAtivo === plano.plano}
+              />
+            )}
           </div>
         ))}
       </div>
@@ -98,13 +111,13 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
         <p className="mt-2 text-sm leading-6 text-slate-300">Você pode comprar espaço extra quando passar da cota incluída no plano.</p>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {arquivamento.map((item) => (
-            <div key={item.nome} className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
+            <div key={item.nome} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">{item.nome}</p>
-                <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold text-white">R2</span>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{item.nome}</p>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">R2</span>
               </div>
               <p className="mt-3 text-2xl font-bold text-white">{item.preco}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{item.texto}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-200">{item.texto}</p>
               {item.nome !== 'Enterprise' ? (
                 <CheckoutAddonButton
                   arquivamento={item.nome.toLowerCase() as 'starter' | 'pro'}
