@@ -109,24 +109,24 @@ REPO_GIT_DIR='$remoteGitDir'
 mkdir -p "`$REPO_DIR"
 git --git-dir="`$REPO_GIT_DIR" --work-tree="`$REPO_DIR" checkout -f '$Branch'
 git --git-dir="`$REPO_GIT_DIR" --work-tree="`$REPO_DIR" clean -fd
-APP_ROOT='$RemoteRoot' REPO_DIR="`$REPO_DIR" REPO_GIT_DIR="`$REPO_GIT_DIR" BRANCH='$Branch' bash "`$REPO_DIR/ops/oracle/setup-git-deploy-vm.sh"
+APP_ROOT='$RemoteRoot' REPO_DIR="`$REPO_DIR" REPO_GIT_DIR="`$REPO_GIT_DIR" BRANCH='$Branch' bash "`$REPO_DIR/ops/oracle/setup-git-deploy-vm.sh";
 "@
 
 if ($DeployMailserver) {
   $remoteCommand += @"
-APP_ROOT='$RemoteRoot' REPO_DIR="`$REPO_DIR" MAIL_ROOT="`$APP_ROOT/mailserver" bash "`$REPO_DIR/ops/oracle/setup-mailserver-vm.sh"
-cd "`$APP_ROOT/mailserver"
-sudo docker compose up -d
+APP_ROOT='$RemoteRoot' REPO_DIR="`$REPO_DIR" MAIL_ROOT="`$APP_ROOT/mailserver" bash "`$REPO_DIR/ops/oracle/setup-mailserver-vm.sh";
+cd "`$APP_ROOT/mailserver";
+sudo docker compose up -d;
 "@
   if ($MailboxPassword) {
     $remoteCommand += @"
-MAIL_ROOT="`$APP_ROOT/mailserver" MAILBOX='$Mailbox' PASSWORD='$MailboxPassword' bash "`$REPO_DIR/ops/oracle/setup-mailbox-vm.sh"
+MAIL_ROOT="`$APP_ROOT/mailserver" MAILBOX='$Mailbox' PASSWORD='$MailboxPassword' bash "`$REPO_DIR/ops/oracle/setup-mailbox-vm.sh";
 "@
   }
 }
 
 $remoteCommand += @"
-APP_ROOT='$RemoteRoot' REPO_DIR="`$REPO_DIR" bash "`$REPO_DIR/ops/oracle/deploy-web-vm.sh"
+APP_ROOT='$RemoteRoot' REPO_DIR="`$REPO_DIR" bash "`$REPO_DIR/ops/oracle/deploy-web-vm.sh";
 "@
 & ssh -i $KeyPath -o StrictHostKeyChecking=accept-new "$User@$ServerHost" $remoteCommand
 if ($LASTEXITCODE -ne 0) {
