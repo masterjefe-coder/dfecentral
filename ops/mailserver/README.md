@@ -13,6 +13,7 @@ Stack leve para `contato@dfecentral.com.br`.
 - `MX` apontando para `mail.dfecentral.com.br`.
 - `SPF`, `DKIM` e `DMARC`.
 - Portas liberadas na Oracle: `25`, `465`, `587`, `993`.
+- O Security List/NSG da OCI tambem precisa permitir essas portas.
 - Veja `DNS.md` para os valores sugeridos.
 
 ## Como subir

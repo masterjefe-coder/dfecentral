@@ -18,6 +18,19 @@ if ! docker compose version >/dev/null 2>&1; then
   sudo apt-get install -y docker-compose-plugin
 fi
 
+open_port() {
+  local port="$1"
+  if ! sudo iptables -C INPUT -p tcp -m tcp --dport "$port" -j ACCEPT >/dev/null 2>&1; then
+    sudo iptables -I INPUT 4 -p tcp -m tcp --dport "$port" -j ACCEPT
+  fi
+}
+
+echo ">>> Liberando portas do mailserver no firewall local..."
+open_port 25
+open_port 465
+open_port 587
+open_port 993
+
 sudo mkdir -p "$MAIL_ROOT/docker-data/dms"/mail-{data,state,logs} "$MAIL_ROOT/docker-data/dms"/{config,ssl}
 
 if [ ! -f "$MAIL_ROOT/mailserver.env" ]; then
