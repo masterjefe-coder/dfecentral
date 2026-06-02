@@ -120,7 +120,7 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
       };
     }
 
-    const procCTe = parsed?.procCTe?.CTe?.infCte ?? parsed?.CTe?.infCte;
+    const procCTe = parsed?.cteProc?.CTe?.infCte ?? parsed?.procCTe?.CTe?.infCte ?? parsed?.CTe?.infCte;
     if (procCTe) {
       return {
         chaveAcesso: String(procCTe.Id || '').replace(/^CTe/i, '') || '',
@@ -135,7 +135,7 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
         valorTotal: String(procCTe.vPrest?.vTPrest || procCTe.total?.vTPrest || procCTe.total?.vRec || '0'),
         status: 'autorizada',
         xml,
-        protocolo: parsed?.procCTe?.protCTe?.infProt?.nProt || parsed?.protCTe?.infProt?.nProt || undefined,
+        protocolo: parsed?.cteProc?.protCTe?.infProt?.nProt || parsed?.procCTe?.protCTe?.infProt?.nProt || parsed?.protCTe?.infProt?.nProt || undefined,
       };
     }
 
