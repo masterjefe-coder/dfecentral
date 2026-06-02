@@ -197,6 +197,13 @@ function montarConsultaPorChaveSoap(tipo: DocumentoFiscal['tipo'], chave: string
   envelope: string;
   resultadoRegex: RegExp;
 } | null {
+  const escaparXml = (valor: string) => valor
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
   if (tipo === 'bpe') {
     return {
       urlServico: '',
@@ -207,19 +214,21 @@ function montarConsultaPorChaveSoap(tipo: DocumentoFiscal['tipo'], chave: string
   }
 
   if (tipo === 'cteos') {
+    const payload = `<consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe>`;
     return {
       urlServico: '',
       action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4/cteConsultaCT',
-      envelope: `<cteConsultaCT xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4"><cteDadosMsg><consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe></cteDadosMsg></cteConsultaCT>`,
+      envelope: `<cteConsultaCT xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4"><cteDadosMsg>${escaparXml(payload)}</cteDadosMsg></cteConsultaCT>`,
       resultadoRegex: /<cteConsultaCTResult[^>]*>([\s\S]*?)<\/cteConsultaCTResult>/,
     };
   }
 
   if (tipo === 'cte') {
+    const payload = `<consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe>`;
     return {
       urlServico: '',
       action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4/cteConsultaCT',
-      envelope: `<cteConsultaCT xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4"><cteDadosMsg><consSitCTe xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chCTe>${chave}</chCTe></consSitCTe></cteDadosMsg></cteConsultaCT>`,
+      envelope: `<cteConsultaCT xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4"><cteDadosMsg>${escaparXml(payload)}</cteDadosMsg></cteConsultaCT>`,
       resultadoRegex: /<cteConsultaCTResult[^>]*>([\s\S]*?)<\/cteConsultaCTResult>/,
     };
   }
