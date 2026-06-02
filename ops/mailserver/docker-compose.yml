@@ -1,0 +1,24 @@
+services:
+  mailserver:
+    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    container_name: dfecentral-mailserver
+    hostname: mail
+    domainname: dfecentral.com.br
+    env_file:
+      - ./mailserver.env
+    ports:
+      - '25:25'
+      - '465:465'
+      - '587:587'
+      - '993:993'
+    volumes:
+      - ./docker-data/dms/mail-data/:/var/mail/
+      - ./docker-data/dms/mail-state/:/var/mail-state/
+      - ./docker-data/dms/mail-logs/:/var/log/mail/
+      - ./docker-data/dms/config/:/tmp/docker-mailserver/
+      - ./docker-data/dms/ssl/:/etc/dovecot/ssl/
+      - /etc/localtime:/etc/localtime:ro
+    cap_add:
+      - NET_ADMIN
+      - SYS_PTRACE
+    restart: unless-stopped
