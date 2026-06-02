@@ -17,6 +17,8 @@ services:
       - ./docker-data/dms/mail-logs/:/var/log/mail/
       - ./docker-data/dms/config/:/tmp/docker-mailserver/
       - ./docker-data/dms/ssl/:/etc/dovecot/ssl/
+      - /var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/mail.dfecentral.com.br/mail.dfecentral.com.br.crt:/tmp/dms/custom-certs/fullchain.pem:ro
+      - /var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/mail.dfecentral.com.br/mail.dfecentral.com.br.key:/tmp/dms/custom-certs/privkey.pem:ro
       - /etc/localtime:/etc/localtime:ro
     cap_add:
       - NET_ADMIN
