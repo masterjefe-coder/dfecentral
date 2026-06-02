@@ -28,7 +28,20 @@ if ($LASTEXITCODE -ne 0) {
 
 # 2. Deploy
 Write-Host ">> Iniciando deploy na VM Oracle..." -ForegroundColor Yellow
-& powershell -ExecutionPolicy Bypass -File "$PSScriptRoot/deploy-web-oracle.ps1" -Branch $Branch -KeyPath $KeyPath -DeployMailserver:$DeployMailserver -Mailbox $Mailbox -MailboxPassword $MailboxPassword
+$deployArgs = @(
+  '-ExecutionPolicy', 'Bypass',
+  '-File', "$PSScriptRoot/deploy-web-oracle.ps1",
+  '-Branch', $Branch,
+  '-KeyPath', $KeyPath
+)
+if ($DeployMailserver) {
+  $deployArgs += '-DeployMailserver'
+  $deployArgs += @('-Mailbox', $Mailbox)
+  if ($MailboxPassword) {
+    $deployArgs += @('-MailboxPassword', $MailboxPassword)
+  }
+}
+& powershell @deployArgs
 if ($LASTEXITCODE -ne 0) {
   throw "Deploy Oracle falhou."
 }
