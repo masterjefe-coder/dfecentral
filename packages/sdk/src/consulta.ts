@@ -335,10 +335,12 @@ async function consultarDocumentoOficialPorChave(
     );
 
     if (response.statusCode !== 200) {
-      const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/);
+      const fault = response.body.match(/<faultstring>([^<]+)<\/faultstring>/)
+        || response.body.match(/<soap:Text[^>]*>([^<]+)<\/soap:Text>/)
+        || response.body.match(/<Text[^>]*>([^<]+)<\/Text>/);
       return {
         sucesso: false,
-        erro: fault ? fault[1] : `HTTP ${response.statusCode}: ${response.body.slice(0, 200)}`,
+        erro: fault ? fault[1] : `HTTP ${response.statusCode}: ${response.body.slice(0, 500)}`,
         fonte: 'sefaz',
       };
     }
