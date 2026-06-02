@@ -350,7 +350,11 @@ async function consultarDocumentoOficialPorChave(
     const result = inner.match(consulta.resultadoRegex)?.[1] || inner;
     const doc = parseDocumentoFromXML(result, tipo);
     if (!doc) {
-      return { sucesso: false, erro: `Nao foi possivel interpretar o XML retornado pela ${tipo.toUpperCase()}`, fonte: 'sefaz' };
+      return {
+        sucesso: false,
+        erro: `Nao foi possivel interpretar o XML retornado pela ${tipo.toUpperCase()}: ${result.slice(0, 400)}`,
+        fonte: 'sefaz',
+      };
     }
 
     return { sucesso: true, documento: { ...doc, xml: result }, fonte: 'sefaz' };
