@@ -44,7 +44,8 @@ export function AuthPanel({ mode, token, redirectTo = '/dashboard', initialError
   const [form, setForm] = useState({ nome: '', email: '', senha: '', cnpj: '', confirmarSenha: '' });
 
   const meta = copy[mode];
-  const googleHref = `/api/auth/google/iniciar?next=${encodeURIComponent(redirectTo)}`;
+  const publicWebBase = process.env.WEB_BASE_URL || process.env.APP_BASE_URL || 'https://www.dfecentral.com.br';
+  const googleHref = `${publicWebBase.replace(/\/$/, '')}/api/auth/google/iniciar?next=${encodeURIComponent(redirectTo)}`;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
