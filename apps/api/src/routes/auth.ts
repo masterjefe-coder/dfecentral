@@ -118,6 +118,9 @@ function normalizarRedirect(valor: string | undefined, request?: RequestLike): s
   const base = new URL(baseWebUrl(request));
   try {
     const destino = new URL(valor || '/dashboard', base);
+    if (destino.hostname === 'localhost' || destino.hostname === '127.0.0.1') {
+      return `${base.origin}${destino.pathname}${destino.search}${destino.hash}`;
+    }
     if (destino.origin !== base.origin) return `${base.origin}/dashboard`;
     return destino.toString();
   } catch {
