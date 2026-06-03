@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '../../../../../lib/api';
 
+function publicWebBaseUrl(url: URL): string {
+  const configured = process.env.WEB_BASE_URL || process.env.APP_BASE_URL;
+  if (configured) return configured.replace(/\/$/, '');
+
+  if (url.hostname.endsWith('dfecentral.com.br')) {
+    const parts = url.hostname.split('.');
+    if (parts.length >= 4 && parts[1] === 'dfecentral' && parts[2] === 'com') {
+      parts[0] = 'www';
+      return `${url.protocol}//${parts.join('.')}`;
+    }
+  }
+
+  return process.env.NODE_ENV === 'production' ? 'https://www.dfecentral.com.br' : url.origin;
+}
+
 function publicApiBaseUrl(url: URL): string {
   const configured = process.env.API_PUBLIC_URL?.trim();
   if (configured) return configured.replace(/\/$/, '');
@@ -32,6 +47,6 @@ function publicApiBaseUrl(url: URL): string {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const next = url.searchParams.get('next') || '/dashboard';
-  const callback = `${url.origin}/api/auth/google/callback?next=${encodeURIComponent(next)}`;
+  const callback = `${publicWebBaseUrl(url)}/api/auth/google/callback?next=${encodeURIComponent(next)}`;
   return NextResponse.redirect(`${publicApiBaseUrl(url)}/api/v1/auth/google/iniciar?redirect=${encodeURIComponent(callback)}`);
 }
