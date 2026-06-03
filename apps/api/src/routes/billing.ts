@@ -132,8 +132,9 @@ export async function billingRoutes(app: FastifyInstance) {
         },
       };
     } catch (erro) {
-      request.log.error({ erro }, 'Erro ao criar checkout RecebeAqui');
-      return reply.status(502).send({ sucesso: false, erro: 'Nao foi possivel criar o checkout.' });
+      const mensagem = erro instanceof Error ? erro.message : String(erro);
+      request.log.error({ erro: mensagem }, 'Erro ao criar checkout RecebeAqui');
+      return reply.status(502).send({ sucesso: false, erro: mensagem || 'Nao foi possivel criar o checkout.' });
     }
   });
 
