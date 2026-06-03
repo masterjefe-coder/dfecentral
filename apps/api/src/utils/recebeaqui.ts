@@ -346,7 +346,7 @@ export async function criarCheckoutRecebeAqui(input: RecebeAquiCheckoutInput): P
       body = {
         value: planoInfo.amount / 100,
         maxInstallmentCount: 1,
-        billingType: 'PIX_BOLETO',
+        billingType: 'PIX',
         description: planoInfo.description,
         externalReference: montarReferenciaRecebeAqui(input.usuarioId, input.plano, metodoPagamento),
         customerName: input.nome,
@@ -378,7 +378,7 @@ export async function criarCheckoutRecebeAqui(input: RecebeAquiCheckoutInput): P
     body = {
       value: arquivamentoInfo.amount / 100,
       maxInstallmentCount: 1,
-      billingType: 'PIX_BOLETO',
+      billingType: 'PIX',
       description: arquivamentoInfo.description,
       externalReference: montarReferenciaRecebeAquiArquivamento(input.usuarioId, input.arquivamento),
       customerName: input.nome,
