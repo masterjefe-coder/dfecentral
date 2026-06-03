@@ -60,13 +60,13 @@ function extractAuthToken(authorization?: string, apiKey?: string): string | nul
 }
 
 app.addHook('onRequest', async (request, reply) => {
-  const pathname = new URL(request.url, 'http://localhost').pathname;
-  const isPublicRoute =
-    pathname === '/health' ||
-    pathname === '/api/v1/health' ||
-    pathname.startsWith('/docs') ||
-    pathname.startsWith('/api/v1/auth') ||
-    pathname.startsWith('/api/v1/billing/infinitepay/webhook');
+    const pathname = new URL(request.url, 'http://localhost').pathname;
+    const isPublicRoute =
+      pathname === '/health' ||
+      pathname === '/api/v1/health' ||
+      pathname.startsWith('/docs') ||
+      pathname.startsWith('/api/v1/auth') ||
+      pathname.startsWith('/api/v1/billing/recebeaqui/webhook');
 
   if (isPublicRoute) return;
 

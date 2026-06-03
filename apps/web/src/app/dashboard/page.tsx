@@ -279,29 +279,29 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen app-shell bg-slate-950 text-white">
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_28%)]" />
+    <div className="min-h-screen app-shell bg-slate-50 text-slate-900">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.10),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_28%)]" />
       <main className="relative mx-auto max-w-7xl px-4 py-6 sm:py-10">
-        <div className="mb-8 rounded-[2rem] border border-white/10 bg-white/5 p-5 sm:p-6 backdrop-blur shadow-2xl shadow-black/20">
+        <div className="mb-8 rounded-[2rem] border border-slate-200 bg-white/90 p-5 sm:p-6 backdrop-blur shadow-2xl shadow-slate-900/10">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Dashboard</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Dashboard</p>
               <h1 className="mt-2 text-3xl sm:text-5xl font-bold tracking-tight">Central de Documentos</h1>
-              <p className="mt-3 text-sm sm:text-base text-slate-300 max-w-2xl">
+              <p className="mt-3 text-sm sm:text-base text-slate-600 max-w-2xl">
                 Centralize importação, consulta e acompanhamento dos documentos fiscais com certificado digital.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 md:justify-end">
-              <Link href="/" className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
+              <Link href="/" className="inline-flex w-fit rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
                 Voltar ao site
               </Link>
-              <Link href="/empresa" className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
+              <Link href="/empresa" className="inline-flex w-fit rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
                 Empresa
               </Link>
-              <Link href="/relatorios" className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
+              <Link href="/relatorios" className="inline-flex w-fit rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
                 Relatórios
               </Link>
-              <button onClick={sair} className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
+              <button onClick={sair} className="inline-flex w-fit rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
                 Sair
               </button>
             </div>
@@ -319,51 +319,51 @@ export default function DashboardPage() {
             { label: 'Importações recentes', value: String(totalImportacoes || 0), sub: 'Entradas processadas nesta sessão' },
             { label: 'Status', value: 'Online', sub: 'Dashboard conectado' },
           ].map((item) => (
-            <div key={item.label} className="surface-card rounded-3xl p-5 text-white bg-white/5 backdrop-blur shadow-2xl shadow-black/20">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{item.label}</p>
-              <p className="mt-2 text-2xl font-bold text-white">{item.value}</p>
-              <p className="mt-1 text-sm text-slate-300">{item.sub}</p>
+            <div key={item.label} className="surface-card-strong rounded-3xl p-5 text-slate-900">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
+              <p className="mt-2 text-2xl font-bold text-slate-950">{item.value}</p>
+              <p className="mt-1 text-sm text-slate-600">{item.sub}</p>
             </div>
           ))}
         </section>
 
         <section className="mt-4 grid gap-4 md:grid-cols-3">
-            <div className="surface-card rounded-3xl p-5 text-white bg-white/5 backdrop-blur shadow-2xl shadow-black/20">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Conta</p>
-              <p className="mt-2 text-lg font-bold text-white">{conta?.vinculada ? conta.nome : 'Sem vínculo de conta'}</p>
-              <p className="mt-1 text-sm text-slate-300">{conta?.email || 'API key não vinculada a um usuário'}</p>
+            <div className="surface-card-strong rounded-3xl p-5 text-slate-900">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Conta</p>
+              <p className="mt-2 text-lg font-bold text-slate-950">{conta?.vinculada ? conta.nome : 'Sem vínculo de conta'}</p>
+              <p className="mt-1 text-sm text-slate-600">{conta?.email || 'API key não vinculada a um usuário'}</p>
             </div>
-          <div className="surface-card rounded-3xl p-5 text-white bg-white/5 backdrop-blur shadow-2xl shadow-black/20">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Plano</p>
-            <p className="mt-2 text-2xl font-bold text-white">{conta?.plano?.toUpperCase() || '-'}</p>
-            <p className="mt-1 text-sm text-slate-300">
+          <div className="surface-card-strong rounded-3xl p-5 text-slate-900">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Plano</p>
+            <p className="mt-2 text-2xl font-bold text-slate-950">{conta?.plano?.toUpperCase() || '-'}</p>
+            <p className="mt-1 text-sm text-slate-600">
               {carregandoConta ? 'Carregando...' : conta?.limiteMensal === null ? 'Uso ilimitado' : `Limite mensal: ${conta?.limiteMensal || 0}`}
             </p>
             <button
               type="button"
               onClick={() => void carregarConta()}
-              className="mt-4 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 transition-colors"
+              className="mt-4 inline-flex rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
             >
               {carregandoConta ? 'Atualizando...' : 'Recarregar plano'}
             </button>
           </div>
-          <div className="surface-card rounded-3xl p-5 text-white bg-white/5 backdrop-blur shadow-2xl shadow-black/20">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Uso do mês</p>
-            <p className="mt-2 text-2xl font-bold text-white">{conta?.usoMensal ?? 0}</p>
-            <p className="mt-1 text-sm text-slate-300">
+          <div className="surface-card-strong rounded-3xl p-5 text-slate-900">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Uso do mês</p>
+            <p className="mt-2 text-2xl font-bold text-slate-950">{conta?.usoMensal ?? 0}</p>
+            <p className="mt-1 text-sm text-slate-600">
               {conta?.restanteMensal === null ? 'Sem limite configurado' : `${conta?.restanteMensal ?? 0} restantes`}
             </p>
           </div>
         </section>
 
         {resumo ? (
-          <section className="mt-4 rounded-[2rem] border border-white/10 bg-white/5 p-5 sm:p-6 backdrop-blur shadow-2xl shadow-black/20">
+          <section className="mt-4 rounded-[2rem] border border-slate-200 bg-white/90 p-5 sm:p-6 backdrop-blur shadow-2xl shadow-slate-900/10">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Gráfico</p>
-                <h2 className="mt-2 text-xl font-bold text-white">Distribuição por tipo</h2>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Gráfico</p>
+                <h2 className="mt-2 text-xl font-bold text-slate-950">Distribuição por tipo</h2>
               </div>
-              <Link href="/relatorios" className="text-sm font-semibold text-slate-300 hover:text-white">Abrir relatórios</Link>
+              <Link href="/relatorios" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Abrir relatórios</Link>
             </div>
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {TIPOS_RESUMO.map((item) => {
@@ -372,15 +372,15 @@ export default function DashboardPage() {
                 const recebidasTotal = resumo.recebidas[item.tipo]?.total || 0;
                 const max = Math.max(1, ...TIPOS_RESUMO.map((t) => (resumo.emitidas[t.tipo]?.total || 0) + (resumo.recebidas[t.tipo]?.total || 0)));
                 return (
-                  <div key={item.tipo} className="rounded-3xl border border-white/10 bg-slate-950/40 p-4">
+                  <div key={item.tipo} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-white">{item.nome}</p>
-                      <span className="text-xs text-slate-400">{totalTipo}</span>
+                      <p className="text-sm font-semibold text-slate-900">{item.nome}</p>
+                      <span className="text-xs text-slate-500">{totalTipo}</span>
                     </div>
-                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
                       <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400" style={{ width: `${(totalTipo / max) * 100}%` }} />
                     </div>
-                    <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
+                    <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
                       <span>Saídas {emitidasTotal}</span>
                       <span>Entradas {recebidasTotal}</span>
                     </div>
@@ -537,52 +537,52 @@ export default function DashboardPage() {
           </div>
 
           <aside className="space-y-4">
-            <div className="surface-card rounded-[2rem] bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur text-white">
-              <p className="section-kicker text-slate-400">Centralizador</p>
-              <h3 className="mt-2 text-xl font-bold text-white">Fluxo de trabalho</h3>
-              <ul className="mt-4 space-y-3 text-sm text-slate-300">
+            <div className="surface-card-strong rounded-[2rem] p-6 shadow-2xl shadow-slate-900/10 backdrop-blur text-slate-900">
+              <p className="section-kicker text-slate-500">Centralizador</p>
+              <h3 className="mt-2 text-xl font-bold text-slate-950">Fluxo de trabalho</h3>
+              <ul className="mt-4 space-y-3 text-sm text-slate-600">
                 <li>1. Informe CNPJ, UF e NSU.</li>
                 <li>2. Importe por tipo ou tudo de uma vez.</li>
                 <li>3. Os documentos entram na base e aparecem na consulta.</li>
               </ul>
             </div>
 
-            <div className="surface-card rounded-[2rem] bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur text-white">
-              <p className="section-kicker text-slate-400">Próximo passo</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
+            <div className="surface-card-strong rounded-[2rem] p-6 shadow-2xl shadow-slate-900/10 backdrop-blur text-slate-900">
+              <p className="section-kicker text-slate-500">Próximo passo</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
                 O dashboard já centraliza a importação e agora traz resumos separados de saídas e entradas por tipo.
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-                <Link href="/assinatura" className="rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10">Assinatura</Link>
-                <Link href="/empresa" className="rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10">Empresa</Link>
-                <Link href="/entradas" className="rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10">Entradas</Link>
-                <Link href="/saidas" className="rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10">Saídas</Link>
-                <Link href="/exportar" className="rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10">Exportar</Link>
+                <Link href="/assinatura" className="rounded-full border border-slate-200 bg-white px-3 py-2 hover:bg-slate-100">Assinatura</Link>
+                <Link href="/empresa" className="rounded-full border border-slate-200 bg-white px-3 py-2 hover:bg-slate-100">Empresa</Link>
+                <Link href="/entradas" className="rounded-full border border-slate-200 bg-white px-3 py-2 hover:bg-slate-100">Entradas</Link>
+                <Link href="/saidas" className="rounded-full border border-slate-200 bg-white px-3 py-2 hover:bg-slate-100">Saídas</Link>
+                <Link href="/exportar" className="rounded-full border border-slate-200 bg-white px-3 py-2 hover:bg-slate-100">Exportar</Link>
               </div>
             </div>
 
-            <div className="surface-card rounded-[2rem] bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur text-white">
+            <div className="surface-card-strong rounded-[2rem] p-6 shadow-2xl shadow-slate-900/10 backdrop-blur text-slate-900">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="section-kicker text-slate-400">Atividade</p>
-                  <h3 className="mt-2 text-xl font-bold text-white">Importações recentes</h3>
+                  <p className="section-kicker text-slate-500">Atividade</p>
+                  <h3 className="mt-2 text-xl font-bold text-slate-950">Importações recentes</h3>
                 </div>
-                {carregandoAtividades && <span className="text-xs text-slate-400">carregando...</span>}
+                {carregandoAtividades && <span className="text-xs text-slate-500">carregando...</span>}
               </div>
 
               <div className="mt-4 space-y-3">
                 {atividades.length === 0 ? (
-                  <p className="text-sm text-slate-300">Sem importações recentes para este CNPJ.</p>
+                  <p className="text-sm text-slate-600">Sem importações recentes para este CNPJ.</p>
                 ) : atividades.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div key={item.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-semibold text-white">{item.tipo}</p>
+                      <p className="text-sm font-semibold text-slate-900">{item.tipo}</p>
                       <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${item.resultado.startsWith('sucesso') ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                         {item.resultado.startsWith('sucesso:') ? `${item.resultado.split(':')[1]} docs` : item.resultado}
                       </span>
                     </div>
-                    <p className="mt-1 truncate text-xs text-slate-300">{item.consulta}</p>
-                    <p className="mt-1 text-[11px] text-slate-400">{new Date(item.criadoEm).toLocaleString('pt-BR')}</p>
+                    <p className="mt-1 truncate text-xs text-slate-600">{item.consulta}</p>
+                    <p className="mt-1 text-[11px] text-slate-500">{new Date(item.criadoEm).toLocaleString('pt-BR')}</p>
                   </div>
                 ))}
               </div>
@@ -637,20 +637,21 @@ function CheckoutReturnBanner() {
     };
   }, []);
 
-  if (searchParams.get('checkout') !== 'infinitepay') return null;
+  const checkout = searchParams.get('checkout');
+  if (checkout !== 'recebeaqui') return null;
 
   return (
-    <div className={`mb-6 rounded-[1.5rem] border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-white shadow-2xl shadow-black/20`}>
+    <div className={`mb-6 rounded-[1.5rem] border border-slate-200 bg-white/90 px-4 py-4 text-sm text-slate-900 shadow-2xl shadow-slate-900/10`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Assinatura</p>
-          <p className="mt-1 text-sm text-slate-200">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Assinatura</p>
+          <p className="mt-1 text-sm text-slate-600">
             {planoAtivo ? (
-              <span className="font-semibold text-emerald-300">Plano {planoAtivo} ativo. Atualizando o dashboard...</span>
+              <span className="font-semibold text-emerald-700">Plano {planoAtivo} ativo. Atualizando o dashboard...</span>
             ) : carregando ? (
-              'Aguardando confirmação da InfinitePay...'
+              'Aguardando confirmação da RecebeAqui...'
             ) : (
-              'Checkout aberto na InfinitePay. Quando o pagamento for aprovado, o plano é atualizado automaticamente via webhook.'
+              'Checkout aberto na RecebeAqui. Quando o pagamento for aprovado, o plano é atualizado automaticamente via webhook.'
             )}
           </p>
         </div>

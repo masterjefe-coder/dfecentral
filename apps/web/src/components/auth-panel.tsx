@@ -97,22 +97,22 @@ export function AuthPanel({ mode, token, redirectTo = '/dashboard', initialError
 
   return (
     <div className="mx-auto w-full max-w-md">
-      <div className="surface-card rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 text-white shadow-2xl shadow-black/40 backdrop-blur sm:p-7">
+      <div className="surface-card-strong rounded-[2rem] border border-slate-200/80 bg-white/95 p-6 text-slate-900 shadow-2xl shadow-slate-900/10 backdrop-blur sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300">{mode === 'login' ? 'Acesso' : 'Conta'}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-700">{mode === 'login' ? 'Acesso' : 'Conta'}</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight">{meta.title}</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-200">{meta.description}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{meta.description}</p>
           </div>
-          <Link href="/" className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:bg-white/10 hover:text-white">
+          <Link href="/" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-950">
             Site
           </Link>
         </div>
 
         {mode === 'login' ? (
-          <div className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+          <div className="mt-5 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
             Ainda não tem conta?{' '}
-            <Link href="/auth/cadastrar" className="font-semibold underline decoration-cyan-300/60 underline-offset-4 hover:text-white">
+            <Link href="/auth/cadastrar" className="font-semibold underline decoration-cyan-400/60 underline-offset-4 hover:text-cyan-950">
               Criar conta grátis
             </Link>
           </div>
@@ -132,41 +132,41 @@ export function AuthPanel({ mode, token, redirectTo = '/dashboard', initialError
           ) : null}
 
           {erro ? (
-            <p className="rounded-2xl border border-red-400/20 bg-red-500/15 px-4 py-3 text-sm text-red-50">
+            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {erro}
               {erro === 'google_indisponivel' ? (
-                <span className="mt-1 block text-xs text-red-100/80">O Google OAuth ainda precisa de `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` na VM.</span>
+                <span className="mt-1 block text-xs text-red-700">O Google OAuth ainda precisa de `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` na VM.</span>
               ) : null}
             </p>
           ) : null}
-          {sucesso ? <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{sucesso}</p> : null}
+          {sucesso ? <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{sucesso}</p> : null}
 
-          {mode === 'login' ? <p className="text-xs leading-5 text-slate-300">Ao entrar, você acessa o dashboard, consultas, integrações e seu plano ativo.</p> : null}
+          {mode === 'login' ? <p className="text-xs leading-5 text-slate-500">Ao entrar, você acessa o dashboard, consultas, integrações e seu plano ativo.</p> : null}
 
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? 'Processando...' : meta.action}
           </button>
 
           {mode === 'login' || mode === 'register' ? (
-            <a href={googleHref} className="inline-flex w-full items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition-colors">
+            <a href={googleHref} className="inline-flex w-full items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:bg-cyan-600 transition-colors">
               Entrar com Google
             </a>
           ) : null}
 
           {mode === 'login' ? (
-            <Link href="/auth/cadastrar" className="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
+            <Link href="/auth/cadastrar" className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
               Criar conta
             </Link>
           ) : null}
         </form>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-300">
-          {mode !== 'login' ? <Link href="/auth/entrar" className="hover:text-white">Já tenho conta</Link> : <Link href="/auth/cadastrar" className="hover:text-white">Criar conta</Link>}
-          {mode === 'login' ? <Link href="/auth/esqueci-senha" className="hover:text-white">Esqueci minha senha</Link> : null}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
+          {mode !== 'login' ? <Link href="/auth/entrar" className="hover:text-slate-900">Já tenho conta</Link> : <Link href="/auth/cadastrar" className="hover:text-slate-900">Criar conta</Link>}
+          {mode === 'login' ? <Link href="/auth/esqueci-senha" className="hover:text-slate-900">Esqueci minha senha</Link> : null}
         </div>
       </div>
     </div>
@@ -176,12 +176,12 @@ export function AuthPanel({ mode, token, redirectTo = '/dashboard', initialError
 function Field({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-200">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-400/50"
+        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none ring-0 placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
       />
     </label>
   );

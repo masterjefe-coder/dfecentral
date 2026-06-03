@@ -301,22 +301,22 @@ export function ReportsPanel({
   }
 
   return (
-    <section className="surface-card rounded-[2rem] border border-white/10 bg-white/5 p-6 sm:p-8 backdrop-blur shadow-2xl shadow-black/20 text-white">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300">{mode === 'relatorios' ? 'Relatórios' : 'Exportação'}</p>
+    <section className="surface-card-strong rounded-[2rem] border border-slate-200 bg-white/90 p-6 sm:p-8 backdrop-blur shadow-2xl shadow-slate-900/10 text-slate-900">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-700">{mode === 'relatorios' ? 'Relatórios' : 'Exportação'}</p>
       <h1 className="mt-3 text-3xl font-bold tracking-tight">{title || (mode === 'relatorios' ? 'Visão consolidada' : 'Exportar documentos')}</h1>
-      <p className="mt-2 text-slate-300">{description || 'Filtre por CNPJ, período, movimento e tipo.'}</p>
+      <p className="mt-2 text-slate-600">{description || 'Filtre por CNPJ, período, movimento e tipo.'}</p>
 
       <div className="mt-6 grid gap-4 md:grid-cols-4">
         {porTipo.map((item) => (
-          <div key={item.codigo} className="rounded-3xl border border-white/10 bg-white/5 p-4">
+          <div key={item.codigo} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-white">{item.tipo}</p>
-              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-slate-300">{item.total}</span>
+              <p className="text-sm font-semibold text-slate-900">{item.tipo}</p>
+              <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600">{item.total}</span>
             </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
               <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400" style={{ width: `${(item.total / maxTipo) * 100}%` }} />
             </div>
-            <p className="mt-3 text-xs text-slate-300">Emitidas {item.emitidas} · Recebidas {item.recebidas}</p>
+            <p className="mt-3 text-xs text-slate-600">Emitidas {item.emitidas} · Recebidas {item.recebidas}</p>
           </div>
         ))}
       </div>
@@ -326,8 +326,8 @@ export function ReportsPanel({
         <Field label="Início" type="date" value={inicio} onChange={setInicio} />
         <Field label="Fim" type="date" value={fim} onChange={setFim} />
         <label className="block">
-          <span className="mb-2 block text-sm font-medium text-slate-200">Movimento</span>
-          <select value={movimento} onChange={(e) => setMovimento(e.target.value as Movimento)} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none">
+          <span className="mb-2 block text-sm font-medium text-slate-700">Movimento</span>
+          <select value={movimento} onChange={(e) => setMovimento(e.target.value as Movimento)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none">
             <option value="todas">Todas</option>
             <option value="emitidas">Saídas</option>
             <option value="recebidas">Entradas</option>
@@ -337,32 +337,32 @@ export function ReportsPanel({
 
       <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end">
         <label className="block">
-          <span className="mb-2 block text-sm font-medium text-slate-200">Tipo</span>
-          <select value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none">
+          <span className="mb-2 block text-sm font-medium text-slate-700">Tipo</span>
+          <select value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none">
             {TIPOS.map((item) => <option key={item.tipo} value={item.tipo}>{item.nome}</option>)}
           </select>
         </label>
 
-        <button onClick={carregar} disabled={carregando} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-slate-100 disabled:opacity-60">
+          <button onClick={carregar} disabled={carregando} className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
           {carregando ? 'Carregando...' : 'Carregar'}
         </button>
 
         {mode === 'exportar' ? (
           <div className="flex flex-wrap gap-3">
-            <button onClick={exportarCsv} disabled={!documentos.length} className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60">
+            <button onClick={exportarCsv} disabled={!documentos.length} className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60">
               Baixar CSV estruturado
             </button>
-            <button onClick={exportarXlsx} disabled={!documentos.length} className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:opacity-60">
+            <button onClick={exportarXlsx} disabled={!documentos.length} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60">
               Baixar Excel (.xlsx)
             </button>
-            <button onClick={exportarPdf} disabled={!documentos.length} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-slate-100 disabled:opacity-60">
+            <button onClick={exportarPdf} disabled={!documentos.length} className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
               Baixar PDF
             </button>
           </div>
         ) : null}
       </div>
 
-      {erro ? <p className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">{erro}</p> : null}
+      {erro ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{erro}</p> : null}
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <Metric label="Total" value={String(documentos.length)} />
@@ -373,26 +373,26 @@ export function ReportsPanel({
       <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/50 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Distribuição por tipo</p>
-            <p className="mt-1 text-sm text-slate-300">Visão rápida para análise e BI.</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Distribuição por tipo</p>
+            <p className="mt-1 text-sm text-slate-600">Visão rápida para análise e BI.</p>
           </div>
         </div>
         <div className="mt-4 grid gap-3">
           {porTipo.map((item) => (
             <div key={item.codigo} className="grid grid-cols-[72px_1fr_64px] items-center gap-3 text-sm">
-              <span className="font-semibold text-white">{item.codigo.toUpperCase()}</span>
-              <div className="h-3 overflow-hidden rounded-full bg-white/10">
+              <span className="font-semibold text-slate-900">{item.codigo.toUpperCase()}</span>
+              <div className="h-3 overflow-hidden rounded-full bg-slate-200">
                 <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-emerald-400" style={{ width: `${(item.total / maxTipo) * 100}%` }} />
               </div>
-              <span className="text-right text-slate-300">{item.total}</span>
+              <span className="text-right text-slate-600">{item.total}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-        <table className="min-w-full divide-y divide-white/10 text-sm">
-          <thead className="bg-white/5 text-slate-300">
+      <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+        <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <thead className="bg-slate-50 text-slate-600">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Chave</th>
               <th className="px-4 py-3 text-left font-semibold">Número</th>
@@ -401,11 +401,11 @@ export function ReportsPanel({
               <th className="px-4 py-3 text-left font-semibold">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10">
+          <tbody className="divide-y divide-slate-200">
             {documentosOrdenados.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">Nenhum documento carregado ainda.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Nenhum documento carregado ainda.</td></tr>
             ) : documentosOrdenados.map((doc) => (
-              <tr key={doc.chaveAcesso} className="text-slate-200">
+              <tr key={doc.chaveAcesso} className="text-slate-700">
                 <td className="px-4 py-3 font-mono text-xs">{doc.chaveAcesso}</td>
                 <td className="px-4 py-3">{doc.numero}</td>
                 <td className="px-4 py-3">{new Date(doc.dataEmissao).toLocaleDateString('pt-BR')}</td>
@@ -418,8 +418,8 @@ export function ReportsPanel({
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold">
-        <Link href="/dashboard" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:bg-white/10">Dashboard</Link>
-        <Link href="/empresa" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:bg-white/10">Empresa</Link>
+        <Link href="/dashboard" className="rounded-full border border-slate-200 bg-white px-4 py-2 hover:bg-slate-100">Dashboard</Link>
+        <Link href="/empresa" className="rounded-full border border-slate-200 bg-white px-4 py-2 hover:bg-slate-100">Empresa</Link>
       </div>
     </section>
   );
@@ -428,17 +428,17 @@ export function ReportsPanel({
 function Field({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-200">{label}</span>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none" />
+      <span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none" />
     </label>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-lg font-bold text-white">{value}</p>
+    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
+      <p className="mt-2 text-lg font-bold text-slate-950">{value}</p>
     </div>
   );
 }

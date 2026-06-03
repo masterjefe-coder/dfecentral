@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-  const upstream = await fetch(`${getApiBaseUrl()}/api/v1/billing/infinitepay/checkout`, {
+  const upstream = await fetch(`${getApiBaseUrl()}/api/v1/billing/recebeaqui/checkout`, {
     method: 'POST',
     headers,
     body: await request.text(),

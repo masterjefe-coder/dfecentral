@@ -56,13 +56,13 @@ export function SubscriptionPanel() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 text-white shadow-2xl shadow-black/20 backdrop-blur sm:p-8">
+      <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 text-slate-900 shadow-2xl shadow-slate-900/10 backdrop-blur sm:p-8">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Assinatura</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Assinatura</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight">Gerenciar plano</h1>
           </div>
-          <Link href="/empresa" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10">
+          <Link href="/empresa" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
             Empresa
           </Link>
         </div>
@@ -73,31 +73,31 @@ export function SubscriptionPanel() {
           <Card label="Renova em" value={assinatura?.assinaturaRenovaEm ? new Date(assinatura.assinaturaRenovaEm).toLocaleDateString('pt-BR') : '-'} />
         </div>
 
-        <div className="mt-4 rounded-3xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300">
+        <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
           {assinatura?.assinaturaCancelEm
             ? `Cancelamento agendado para ${new Date(assinatura.assinaturaCancelEm).toLocaleDateString('pt-BR')}. O acesso continua até lá.`
             : 'A assinatura está ativa. Você pode cancelar, reativar ou renovar pelo checkout.'}
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <button onClick={renovar} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-100">
+          <button onClick={renovar} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
             Renovar agora
           </button>
           {assinatura?.assinaturaStatus === 'cancelada' ? (
-            <button onClick={reativar} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10">
+            <button onClick={reativar} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               Reativar
             </button>
           ) : (
-            <button onClick={cancelar} className="rounded-full border border-rose-400/20 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-100 hover:bg-rose-500/20">
+            <button onClick={cancelar} className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">
               Cancelar assinatura
             </button>
           )}
-          <button onClick={() => void carregar()} disabled={carregando} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60">
+          <button onClick={() => void carregar()} disabled={carregando} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60">
             {carregando ? 'Carregando...' : 'Atualizar'}
           </button>
         </div>
 
-        {mensagem ? <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">{mensagem}</p> : null}
+        {mensagem ? <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{mensagem}</p> : null}
       </div>
     </div>
   );
@@ -105,9 +105,9 @@ export function SubscriptionPanel() {
 
 function Card({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-lg font-bold text-white">{value}</p>
+    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
+      <p className="mt-2 text-lg font-bold text-slate-950">{value}</p>
     </div>
   );
 }

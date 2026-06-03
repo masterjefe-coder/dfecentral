@@ -21,6 +21,7 @@ export default function EmpresaPage() {
   const [assinatura, setAssinatura] = useState<Assinatura | null>(null);
   const [contabilidadeEmail, setContabilidadeEmail] = useState('');
   const [contabilidadeAuto, setContabilidadeAuto] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState('');
   const [membros, setMembros] = useState<MembroEquipe[]>([]);
   const [convites, setConvites] = useState<ConviteEquipe[]>([]);
   const [novoConviteNome, setNovoConviteNome] = useState('');
@@ -67,6 +68,7 @@ export default function EmpresaPage() {
         const prefs = prefsData.dados.preferencias as Record<string, unknown>;
         if (typeof prefs.contabilidadeEmail === 'string') setContabilidadeEmail(prefs.contabilidadeEmail);
         if (typeof prefs.contabilidadeEnvioAutomatico === 'boolean') setContabilidadeAuto(prefs.contabilidadeEnvioAutomatico);
+        if (typeof prefs.recebeaquiWebhookUrl === 'string') setWebhookUrl(prefs.recebeaquiWebhookUrl);
       }
 
       const equipeData = await equipeRes.json();
@@ -118,6 +120,7 @@ export default function EmpresaPage() {
         body: JSON.stringify({
           contabilidadeEmail: contabilidadeEmail || null,
           contabilidadeEnvioAutomatico: contabilidadeAuto,
+          recebeaquiWebhookUrl: webhookUrl || null,
         }),
       });
 
@@ -335,18 +338,18 @@ export default function EmpresaPage() {
   }
 
   return (
-    <main className="min-h-screen app-shell bg-slate-950 px-4 py-10 text-white">
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_28%)]" />
+    <main className="min-h-screen app-shell bg-slate-50 px-4 py-10 text-slate-900">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.10),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_28%)]" />
       <div className="relative mx-auto max-w-4xl">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link href="/dashboard" className="text-sm font-semibold text-slate-300 hover:text-white">Voltar ao dashboard</Link>
-          <Link href="/auth/entrar" className="text-sm font-semibold text-slate-300 hover:text-white">Conta</Link>
+          <Link href="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Voltar ao dashboard</Link>
+          <Link href="/auth/entrar" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Conta</Link>
         </div>
 
-        <section className="surface-card rounded-[2rem] border border-white/10 bg-white/5 p-6 sm:p-8 backdrop-blur shadow-2xl shadow-black/20">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300">Configuração da empresa</p>
+        <section className="surface-card-strong rounded-[2rem] border border-slate-200 bg-white/90 p-6 sm:p-8 backdrop-blur shadow-2xl shadow-slate-900/10">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-700">Configuração da empresa</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight">Dados da conta</h1>
-          <p className="mt-2 text-sm text-slate-300">Atualize o nome exibido e o CNPJ principal usado na operação.</p>
+          <p className="mt-2 text-sm text-slate-600">Atualize o nome exibido e o CNPJ principal usado na operação.</p>
 
           <div className="mt-6 flex flex-wrap gap-2">
             {[
@@ -359,7 +362,7 @@ export default function EmpresaPage() {
                 type="button"
                 onClick={() => setAba(key as 'dados' | 'equipe' | 'contabilidade')}
                 className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                  aba === key ? 'bg-white text-slate-950' : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
+                  aba === key ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 {label}
@@ -368,37 +371,37 @@ export default function EmpresaPage() {
           </div>
 
           {aba === 'dados' ? (
-          <div className="mt-6 grid gap-4">
-            <Field label="Nome" value={nome} onChange={setNome} />
-            <Field label="CNPJ" value={cnpj} onChange={setCnpj} />
-            <div className="grid gap-4 md:grid-cols-2">
-              <Info label="E-mail" value={usuario?.email || '-'} />
-              <Info label="Plano" value={usuario?.plano?.toUpperCase() || '-'} />
-            </div>
+            <div className="mt-6 grid gap-4">
+              <Field label="Nome" value={nome} onChange={setNome} />
+              <Field label="CNPJ" value={cnpj} onChange={setCnpj} />
+              <div className="grid gap-4 md:grid-cols-2">
+                <Info label="E-mail" value={usuario?.email || '-'} />
+                <Info label="Plano" value={usuario?.plano?.toUpperCase() || '-'} />
+              </div>
 
-            <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Multiempresa local</p>
-              <p className="mt-2 text-sm text-slate-300">Lista auxiliar de CNPJs para uso rápido no dia a dia.</p>
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Multiempresa local</p>
+              <p className="mt-2 text-sm text-slate-600">Lista auxiliar de CNPJs para uso rápido no dia a dia.</p>
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
                 <Field label="Nome da empresa" value={novaEmpresaNome} onChange={setNovaEmpresaNome} />
                 <Field label="CNPJ" value={novaEmpresaCnpj} onChange={setNovaEmpresaCnpj} />
-                <button onClick={adicionarEmpresa} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-slate-950 hover:bg-slate-100">
+                <button onClick={adicionarEmpresa} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
                   Adicionar
                 </button>
               </div>
               <div className="mt-4 grid gap-3">
-                {empresas.length === 0 ? <p className="text-sm text-slate-400">Nenhuma empresa adicional cadastrada.</p> : null}
+                {empresas.length === 0 ? <p className="text-sm text-slate-500">Nenhuma empresa adicional cadastrada.</p> : null}
                 {empresas.map((empresa) => (
-                  <div key={empresa.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3">
+                  <div key={empresa.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
                     <div>
-                      <p className="text-sm font-semibold text-white">{empresa.nome}</p>
-                      <p className="font-mono text-xs text-slate-400">{empresa.cnpj}</p>
+                      <p className="text-sm font-semibold text-slate-900">{empresa.nome}</p>
+                      <p className="font-mono text-xs text-slate-500">{empresa.cnpj}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => void definirAtiva(empresa.cnpj)} className={`rounded-full px-3 py-1 text-xs font-semibold ${empresaAtiva === empresa.cnpj ? 'bg-emerald-400 text-slate-950' : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'}`}>
+                      <button onClick={() => void definirAtiva(empresa.cnpj)} className={`rounded-full px-3 py-1 text-xs font-semibold ${empresaAtiva === empresa.cnpj ? 'bg-emerald-500 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}>
                         {empresaAtiva === empresa.cnpj ? 'Ativa' : 'Ativar'}
                       </button>
-                      <button onClick={() => removerEmpresa(empresa.id)} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10">
+                      <button onClick={() => removerEmpresa(empresa.id)} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
                         Remover
                       </button>
                     </div>
@@ -407,36 +410,36 @@ export default function EmpresaPage() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Empresa ativa</p>
-              <p className="mt-2 text-sm text-slate-300">{empresaAtiva || 'Nenhuma selecionada'}</p>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Empresa ativa</p>
+              <p className="mt-2 text-sm text-slate-600">{empresaAtiva || 'Nenhuma selecionada'}</p>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Assinatura</p>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Assinatura</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-950">{assinatura?.plano?.toUpperCase() || usuario?.plano?.toUpperCase() || '-'}</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white">{assinatura?.assinaturaStatus?.toUpperCase() || 'ATIVA'}</span>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-950 ring-1 ring-slate-200">{assinatura?.plano?.toUpperCase() || usuario?.plano?.toUpperCase() || '-'}</span>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">{assinatura?.assinaturaStatus?.toUpperCase() || 'ATIVA'}</span>
               </div>
-              <p className="mt-3 text-sm text-slate-300">
+              <p className="mt-3 text-sm text-slate-600">
                 {assinatura?.assinaturaCancelEm
                   ? `Se cancelada, o acesso termina em ${new Date(assinatura.assinaturaCancelEm).toLocaleDateString('pt-BR')}.`
                   : 'A assinatura está ativa e libera o acesso conforme o plano.'}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button onClick={renovarAgora} className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-slate-100">
+                <button onClick={renovarAgora} className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800">
                   Renovar agora
                 </button>
                 {assinatura?.assinaturaStatus === 'cancelada' ? (
-                  <button onClick={restaurarAssinatura} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10">
+                  <button onClick={restaurarAssinatura} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
                     Reativar
                   </button>
                 ) : (
-                  <button onClick={cancelarAssinatura} className="rounded-full border border-rose-400/20 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-500/20">
+                  <button onClick={cancelarAssinatura} className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
                     Cancelar assinatura
                   </button>
                 )}
-                <Link href={`/precos?plano=${(assinatura?.plano || usuario?.plano || 'starter').toLowerCase()}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10">
+                <Link href={`/precos?plano=${(assinatura?.plano || usuario?.plano || 'starter').toLowerCase()}`} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
                   Ver planos
                 </Link>
               </div>
@@ -446,16 +449,16 @@ export default function EmpresaPage() {
 
           {aba === 'contabilidade' ? (
           <div className="mt-6 grid gap-4">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Contabilidade</p>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Contabilidade</p>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <Field label="E-mail da contabilidade" value={contabilidadeEmail} onChange={setContabilidadeEmail} />
-                <label className="block self-end rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3">
-                  <span className="mb-2 block text-sm font-medium text-slate-200">Enviar XML automaticamente</span>
+                <label className="block self-end rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <span className="mb-2 block text-sm font-medium text-slate-700">Enviar XML automaticamente</span>
                   <button
                     type="button"
                     onClick={() => setContabilidadeAuto((atual) => !atual)}
-                    className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${contabilidadeAuto ? 'bg-emerald-400 text-slate-950' : 'bg-white/5 text-white border border-white/10'}`}
+                    className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${contabilidadeAuto ? 'bg-emerald-500 text-white' : 'border border-slate-200 bg-white text-slate-700'}`}
                   >
                     {contabilidadeAuto ? 'Ativado' : 'Desativado'}
                   </button>
@@ -464,84 +467,95 @@ export default function EmpresaPage() {
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
                 <Field label="Chave do XML" value={xmlChave} onChange={setXmlChave} />
                 <Field label="E-mail opcional" value={xmlEmail} onChange={setXmlEmail} />
-                <button onClick={enviarXmlContabilidade} disabled={enviandoXml} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-slate-950 hover:bg-slate-100 disabled:opacity-60">
+                <button onClick={enviarXmlContabilidade} disabled={enviandoXml} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
                   {enviandoXml ? 'Enviando...' : 'Enviar XML'}
                 </button>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Pacote mensal</p>
-              <p className="mt-2 text-sm text-slate-300">Gera um ZIP com os XMLs emitidos no mes e, se quiser, inclui os XMLs de entrada.</p>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Pacote mensal</p>
+              <p className="mt-2 text-sm text-slate-600">Gera um ZIP com os XMLs emitidos no mes e, se quiser, inclui os XMLs de entrada.</p>
               <div className="mt-4 grid gap-3 md:grid-cols-[160px_1fr_auto]">
                 <Field label="Mês" value={pacoteMes} onChange={setPacoteMes} />
-                <label className="block self-end rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3">
-                  <span className="mb-2 block text-sm font-medium text-slate-200">Incluir entradas</span>
+                <label className="block self-end rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <span className="mb-2 block text-sm font-medium text-slate-700">Incluir entradas</span>
                   <button
                     type="button"
                     onClick={() => setPacoteIncluirEntradas((atual) => !atual)}
-                    className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${pacoteIncluirEntradas ? 'bg-emerald-400 text-slate-950' : 'bg-white/5 text-white border border-white/10'}`}
+                    className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${pacoteIncluirEntradas ? 'bg-emerald-500 text-white' : 'border border-slate-200 bg-white text-slate-700'}`}
                   >
                     {pacoteIncluirEntradas ? 'Sim' : 'Nao'}
                   </button>
                 </label>
-                <button onClick={enviarPacoteMensal} disabled={enviandoPacote} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-cyan-400 px-5 text-sm font-semibold text-slate-950 hover:bg-cyan-300 disabled:opacity-60">
+                <button onClick={enviarPacoteMensal} disabled={enviandoPacote} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-cyan-500 px-5 text-sm font-semibold text-white hover:bg-cyan-600 disabled:opacity-60">
                   {enviandoPacote ? 'Gerando...' : 'Enviar pacote ZIP'}
                 </button>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Fluxo contábil</p>
-              <p className="mt-2 text-sm text-slate-300">Defina o e-mail padrão da contabilidade e use esta aba para disparos manuais por chave ou pacote mensal.</p>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Webhook</p>
+              <p className="mt-2 text-sm text-slate-600">Aqui você pode cadastrar uma URL do seu sistema para receber notificações automáticas sempre que um pagamento for confirmado.</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                <Field label="URL do Webhook" value={webhookUrl} onChange={setWebhookUrl} placeholder="https://seusite.com/webhook" />
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs leading-5 text-slate-500">
+                  Recebe o evento `pagamento_confirmado` com provedor, tipo, valor e data.
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Fluxo contábil</p>
+              <p className="mt-2 text-sm text-slate-600">Defina o e-mail padrão da contabilidade e use esta aba para disparos manuais por chave ou pacote mensal.</p>
             </div>
           </div>
           ) : null}
 
           {aba === 'equipe' ? (
           <div className="mt-6 grid gap-4">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Equipe</p>
-              <p className="mt-2 text-sm text-slate-300">Convide pessoas por e-mail para acessar a mesma operação.</p>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Equipe</p>
+              <p className="mt-2 text-sm text-slate-600">Convide pessoas por e-mail para acessar a mesma operação.</p>
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_160px_auto]">
                 <Field label="Nome" value={novoConviteNome} onChange={setNovoConviteNome} />
                 <Field label="E-mail" value={novoConviteEmail} onChange={setNovoConviteEmail} />
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-200">Papel</span>
-                  <select value={novoConvitePapel} onChange={(e) => setNovoConvitePapel(e.target.value as any)} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none">
+                  <span className="mb-2 block text-sm font-medium text-slate-700">Papel</span>
+                  <select value={novoConvitePapel} onChange={(e) => setNovoConvitePapel(e.target.value as any)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none">
                     <option value="membro">Membro</option>
                     <option value="contabilidade">Contabilidade</option>
                     <option value="admin">Admin</option>
                   </select>
                 </label>
-                <button onClick={convidarMembro} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-slate-950 hover:bg-slate-100">Convidar</button>
+                <button onClick={convidarMembro} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">Convidar</button>
               </div>
 
               <div className="mt-4 grid gap-3">
-                {membros.length === 0 ? <p className="text-sm text-slate-400">Nenhum membro cadastrado.</p> : null}
+                {membros.length === 0 ? <p className="text-sm text-slate-500">Nenhum membro cadastrado.</p> : null}
                 {membros.map((membro) => (
-                  <div key={membro.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3">
+                  <div key={membro.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
                     <div>
-                      <p className="text-sm font-semibold text-white">{membro.nome}</p>
-                      <p className="font-mono text-xs text-slate-400">{membro.cnpj}</p>
+                      <p className="text-sm font-semibold text-slate-900">{membro.nome}</p>
+                      <p className="font-mono text-xs text-slate-500">{membro.cnpj}</p>
                     </div>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-white">Acesso</span>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Acesso</span>
                   </div>
                 ))}
               </div>
 
               <div className="mt-5 grid gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Convites pendentes</p>
-                {convites.length === 0 ? <p className="text-sm text-slate-400">Nenhum convite pendente.</p> : null}
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Convites pendentes</p>
+                {convites.length === 0 ? <p className="text-sm text-slate-500">Nenhum convite pendente.</p> : null}
                 {convites.map((convite) => (
-                  <div key={convite.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3">
+                  <div key={convite.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
                     <div>
-                      <p className="text-sm font-semibold text-white">{convite.nome}</p>
-                      <p className="font-mono text-xs text-slate-400">{convite.email}</p>
+                      <p className="text-sm font-semibold text-slate-900">{convite.nome}</p>
+                      <p className="font-mono text-xs text-slate-500">{convite.email}</p>
                     </div>
                     <div className="flex gap-2">
-                      <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-white">{convite.papel}</span>
-                      <button onClick={() => void removerConvite(convite.id)} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10">Remover</button>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{convite.papel}</span>
+                      <button onClick={() => void removerConvite(convite.id)} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">Remover</button>
                     </div>
                   </div>
                 ))}
@@ -550,8 +564,8 @@ export default function EmpresaPage() {
           </div>
           ) : null}
 
-          {mensagem ? <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">{mensagem}</p> : null}
-          <button onClick={salvar} disabled={salvando} className="inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-slate-100 disabled:opacity-60">
+          {mensagem ? <p className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{mensagem}</p> : null}
+          <button onClick={salvar} disabled={salvando} className="inline-flex w-fit rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
             {salvando ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </section>
@@ -560,20 +574,20 @@ export default function EmpresaPage() {
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-200">{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none focus:border-cyan-400/50" />
+      <span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>
+      <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100" />
     </label>
   );
 }
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-white">{value}</p>
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
     </div>
   );
 }

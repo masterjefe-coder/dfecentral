@@ -32,7 +32,7 @@ export function CheckoutButton(
         return;
       }
 
-      const response = await fetch('/api/billing/infinitepay/checkout', {
+      const response = await fetch('/api/billing/recebeaqui/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ produto: 'plano', plano }),
@@ -68,7 +68,7 @@ export function CheckoutButton(
         {loading ? 'Abrindo checkout...' : label}
       </button>
       <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
-        Pagamento seguro via InfinitePay
+        Pagamento seguro via RecebeAqui
       </p>
       {erro ? <p className="mt-2 text-sm text-rose-300">{erro}</p> : null}
     </div>
@@ -96,7 +96,7 @@ export function CheckoutAddonButton({
         return;
       }
 
-      const response = await fetch('/api/billing/infinitepay/checkout', {
+      const response = await fetch('/api/billing/recebeaqui/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ produto: 'arquivamento', arquivamento }),

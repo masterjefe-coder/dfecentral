@@ -499,7 +499,7 @@ Authorization: Bearer sua_api_key
             Escolha um plano e comece agora
           </h2>
           <p className="text-lg text-brand-200 mb-8 max-w-2xl mx-auto">
-            Starter, Pro e Enterprise para assinar pelo site, com checkout direto na InfinitePay.
+            Starter, Pro e Enterprise para assinar pelo site, com checkout direto na RecebeAqui.
           </p>
           <CTA href="/precos" variant="secondary" className="px-8 py-3.5 text-base text-brand-700 bg-white hover:bg-brand-50">
             Ver Planos

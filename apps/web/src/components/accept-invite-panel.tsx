@@ -39,16 +39,16 @@ export function AcceptInvitePanel({ token }: { token: string }) {
 
   return (
     <div className="mx-auto w-full max-w-md">
-      <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 text-white shadow-2xl shadow-black/20 backdrop-blur sm:p-7">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Acesso à empresa</p>
+      <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 text-slate-900 shadow-2xl shadow-slate-900/10 backdrop-blur sm:p-7">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Acesso à empresa</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight">Aceitar convite</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-300">{status === 'loading' ? 'Validando convite...' : mensagem}</p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">{status === 'loading' ? 'Validando convite...' : mensagem}</p>
         {status === 'error' ? (
-          <Link href="/auth/entrar" className="mt-6 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950">
+          <Link href="/auth/entrar" className="mt-6 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
             Entrar
           </Link>
         ) : (
-          <Link href="/dashboard" className="mt-6 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950">
+          <Link href="/dashboard" className="mt-6 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
             Ir ao dashboard
           </Link>
         )}

@@ -3,11 +3,11 @@ import { ReportsPanel } from '../../components/reports-panel';
 
 export default function EntradasPage() {
   return (
-    <main className="min-h-screen app-shell bg-slate-950 px-4 py-10 text-white">
+    <main className="min-h-screen app-shell bg-slate-50 px-4 py-10 text-slate-900">
       <div className="relative mx-auto max-w-5xl">
         <div className="mb-6 flex items-center justify-between">
-          <Link href="/dashboard" className="text-sm font-semibold text-slate-300 hover:text-white">Voltar</Link>
-          <Link href="/saidas" className="text-sm font-semibold text-slate-300 hover:text-white">Saídas</Link>
+          <Link href="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Voltar</Link>
+          <Link href="/saidas" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Saídas</Link>
         </div>
         <ReportsPanel
           mode="relatorios"
