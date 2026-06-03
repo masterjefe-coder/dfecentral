@@ -10,6 +10,7 @@ type Props = {
   mode: Mode;
   token?: string;
   redirectTo?: string;
+  initialError?: string;
 };
 
 const copy = {
@@ -35,10 +36,10 @@ const copy = {
   },
 } as const;
 
-export function AuthPanel({ mode, token, redirectTo = '/dashboard' }: Props) {
+export function AuthPanel({ mode, token, redirectTo = '/dashboard', initialError = '' }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState('');
+  const [erro, setErro] = useState(initialError);
   const [sucesso, setSucesso] = useState('');
   const [form, setForm] = useState({ nome: '', email: '', senha: '', cnpj: '', confirmarSenha: '' });
 
@@ -95,17 +96,26 @@ export function AuthPanel({ mode, token, redirectTo = '/dashboard' }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-md">
-      <div className="surface-card rounded-[2rem] border border-white/10 bg-white/5 p-6 text-white shadow-2xl shadow-black/20 backdrop-blur sm:p-7">
+      <div className="surface-card rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 text-white shadow-2xl shadow-black/40 backdrop-blur sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{mode === 'login' ? 'Acesso' : 'Conta'}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300">{mode === 'login' ? 'Acesso' : 'Conta'}</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight">{meta.title}</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-300">{meta.description}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-200">{meta.description}</p>
           </div>
-          <Link href="/" className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white">
+          <Link href="/" className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:bg-white/10 hover:text-white">
             Site
           </Link>
         </div>
+
+        {mode === 'login' ? (
+          <div className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+            Ainda não tem conta?{' '}
+            <Link href="/auth/cadastrar" className="font-semibold underline decoration-cyan-300/60 underline-offset-4 hover:text-white">
+              Criar conta grátis
+            </Link>
+          </div>
+        ) : null}
 
         <form className="mt-6 space-y-4" onSubmit={submit}>
           {mode === 'register' ? (
@@ -120,23 +130,36 @@ export function AuthPanel({ mode, token, redirectTo = '/dashboard' }: Props) {
             <Field label="Confirmar senha" type="password" value={form.confirmarSenha} onChange={(value) => setForm((prev) => ({ ...prev, confirmarSenha: value }))} />
           ) : null}
 
-          {erro ? <p className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">{erro}</p> : null}
+          {erro ? (
+            <p className="rounded-2xl border border-red-400/20 bg-red-500/15 px-4 py-3 text-sm text-red-50">
+              {erro}
+              {erro === 'google_indisponivel' ? (
+                <span className="mt-1 block text-xs text-red-100/80">O Google OAuth ainda precisa de `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` na VM.</span>
+              ) : null}
+            </p>
+          ) : null}
           {sucesso ? <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{sucesso}</p> : null}
 
-          {mode === 'login' ? <p className="text-xs leading-5 text-slate-400">Ao entrar, você acessa o dashboard, consultas e integrações.</p> : null}
+          {mode === 'login' ? <p className="text-xs leading-5 text-slate-300">Ao entrar, você acessa o dashboard, consultas, integrações e seu plano ativo.</p> : null}
 
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? 'Processando...' : meta.action}
           </button>
 
           {mode === 'login' || mode === 'register' ? (
-            <a href={googleHref} className="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
+            <a href={googleHref} className="inline-flex w-full items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition-colors">
               Entrar com Google
             </a>
+          ) : null}
+
+          {mode === 'login' ? (
+            <Link href="/auth/cadastrar" className="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
+              Criar conta
+            </Link>
           ) : null}
         </form>
 
