@@ -10,12 +10,14 @@ const planos = [
 
 const arquivamento = [
   {
-    nome: 'Starter',
+    codigo: 'starter' as const,
+    nome: 'XML Lite',
     preco: 'R$ 19,90/mês',
     texto: 'Amplia a cota total para 10 GB de XML arquivado.',
   },
   {
-    nome: 'Pro',
+    codigo: 'pro' as const,
+    nome: 'XML Plus',
     preco: 'R$ 39,90/mês',
     texto: 'Amplia a cota total para 50 GB de XML arquivado, com ZIP mensal e entradas opcionais.',
   },
@@ -83,7 +85,7 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
       <div className="mt-8 rounded-[2rem] border border-cyan-400/20 bg-cyan-500/5 p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">Add-on</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">Add-ons</p>
             <h2 className="mt-2 text-2xl font-bold text-white">Armazenamento em nuvem de XML em R2</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
               Opcional para guardar XMLs automaticamente em nuvem, com retenção, download mensal em ZIP e inclusão de XMLs de entrada quando habilitado.
@@ -106,7 +108,7 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
       </div>
 
       <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Precificação do add-on</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Precificação dos add-ons</p>
         <h2 className="mt-2 text-2xl font-bold text-white">Armazenamento em nuvem de XML</h2>
         <p className="mt-2 text-sm leading-6 text-slate-300">Você pode comprar mais espaço na nuvem quando passar da cota incluída no plano.</p>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -118,12 +120,7 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
               </div>
               <p className="mt-3 text-2xl font-bold text-white">{item.preco}</p>
               <p className="mt-2 text-sm leading-6 text-slate-200">{item.texto}</p>
-              {item.nome !== 'Enterprise' ? (
-                <CheckoutAddonButton
-                  arquivamento={item.nome.toLowerCase() as 'starter' | 'pro'}
-                  label={`Ativar ${item.nome}`}
-                />
-              ) : null}
+              {item.codigo ? <CheckoutAddonButton arquivamento={item.codigo} label={`Ativar ${item.nome}`} /> : null}
             </div>
           ))}
         </div>

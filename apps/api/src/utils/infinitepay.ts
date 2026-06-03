@@ -21,8 +21,8 @@ const ARQUIVAMENTO: Record<
     description: string;
   }
 > = {
-  starter: { amount: 1990, description: 'Add-on Armazenamento em nuvem de XML Starter DFeCentral' },
-  pro: { amount: 3990, description: 'Add-on Armazenamento em nuvem de XML Pro DFeCentral' },
+  starter: { amount: 1990, description: 'Add-on XML Lite DFeCentral' },
+  pro: { amount: 3990, description: 'Add-on XML Plus DFeCentral' },
 };
 
 export type PlanoCobrado = keyof typeof PLANOS;
