@@ -2,10 +2,10 @@ import { StaticPage } from '../../components/static-page';
 import { CheckoutAddonButton, CheckoutButton } from '../../components/checkout-button';
 
 const planos = [
-  { nome: 'Free', preco: 'R$ 0,00/mês', texto: '50 consultas/mês, 1 GB de XML incluso e consulta por chave', plano: 'starter' as const },
-  { nome: 'Starter', preco: 'R$ 49,90/mês', texto: '50 consultas/mês, 5 GB de XML incluso e consulta por chave', plano: 'starter' as const },
-  { nome: 'Pro', preco: 'R$ 119,90/mês', texto: '500 consultas/mês, 25 GB de XML incluso, API REST e webhooks', plano: 'pro' as const },
-  { nome: 'Enterprise', preco: 'R$ 199,90/mês', texto: 'Ilimitado, 100 GB de XML incluso, multi-CNPJ e suporte prioritário', plano: 'enterprise' as const },
+  { nome: 'Free', preco: 'R$ 0,00/mês', texto: '10 consultas/mês, consulta por chave e sem XML incluso', plano: 'starter' as const },
+  { nome: 'Starter', preco: 'R$ 49,90/mês', texto: '100 consultas/mês, 2 GB de XML incluso e certificado digital', plano: 'starter' as const },
+  { nome: 'Pro', preco: 'R$ 119,90/mês', texto: '500 consultas/mês, 10 GB de XML incluso, API REST, webhooks e certificado digital', plano: 'pro' as const },
+  { nome: 'Enterprise', preco: 'R$ 199,90/mês', texto: 'Ilimitado, 30 GB de XML incluso, multi-CNPJ, suporte prioritário e certificado digital', plano: 'enterprise' as const },
 ];
 
 const arquivamento = [
@@ -93,9 +93,9 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           {[
-            'Starter: 5 GB incluídos',
-            'Pro: 25 GB incluídos',
-            'Enterprise: 100 GB incluídos',
+            'Starter: 2 GB incluídos',
+            'Pro: 10 GB incluídos',
+            'Enterprise: 30 GB incluídos',
             'Ideal para quem precisa guardar XML por prazo fiscal',
           ].map((item) => (
             <div key={item} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">

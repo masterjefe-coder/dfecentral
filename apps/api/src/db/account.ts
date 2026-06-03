@@ -3,9 +3,9 @@ import { db } from './index.js';
 import { consultas, usuarios } from './schema.js';
 
 const LIMITES_POR_PLANO: Record<string, number | null> = {
-  free: 50,
-  starter: 500,
-  pro: 10000,
+  free: 10,
+  starter: 100,
+  pro: 500,
   enterprise: null,
 };
 
