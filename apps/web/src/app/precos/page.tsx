@@ -84,9 +84,9 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">Add-on</p>
-            <h2 className="mt-2 text-2xl font-bold text-white">Arquivamento XML em R2</h2>
+            <h2 className="mt-2 text-2xl font-bold text-white">Armazenamento em nuvem de XML em R2</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Opcional para guardar XMLs automaticamente com retenção em nuvem, download mensal em ZIP e inclusão de XMLs de entrada quando habilitado.
+              Opcional para guardar XMLs automaticamente em nuvem, com retenção, download mensal em ZIP e inclusão de XMLs de entrada quando habilitado.
             </p>
           </div>
           <p className="text-sm text-cyan-100/90">Cobrança separada por volume e retenção</p>
@@ -96,7 +96,7 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
             'Starter: 2 GB incluídos',
             'Pro: 10 GB incluídos',
             'Enterprise: 30 GB incluídos',
-            'Ideal para quem precisa guardar XML por prazo fiscal',
+            'Ideal para quem precisa guardar XML por prazo fiscal na nuvem',
           ].map((item) => (
             <div key={item} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
               {item}
@@ -107,8 +107,8 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
 
       <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Precificação do add-on</p>
-        <h2 className="mt-2 text-2xl font-bold text-white">Arquivamento XML</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-300">Você pode comprar espaço extra quando passar da cota incluída no plano.</p>
+        <h2 className="mt-2 text-2xl font-bold text-white">Armazenamento em nuvem de XML</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-300">Você pode comprar mais espaço na nuvem quando passar da cota incluída no plano.</p>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {arquivamento.map((item) => (
             <div key={item.nome} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
