@@ -7,6 +7,8 @@ import {
   jsonb,
   pgEnum,
   index,
+  text,
+  integer,
 } from 'drizzle-orm/pg-core';
 
 export const statusEnum = pgEnum('status_documento', [
@@ -108,6 +110,28 @@ export const empresasUsuario = pgTable(
   (table) => [
     index('idx_empresas_usuario_id').on(table.usuarioId),
     index('idx_empresas_cnpj').on(table.cnpj),
+  ]
+);
+
+export const certificadosDigitais = pgTable(
+  'certificados_digitais',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    usuarioId: uuid('usuario_id').references(() => usuarios.id).notNull(),
+    cnpj: varchar('cnpj', { length: 14 }).notNull(),
+    certificadoCnpj: varchar('certificado_cnpj', { length: 14 }).notNull(),
+    nomeArquivo: varchar('nome_arquivo', { length: 255 }).notNull(),
+    mimeType: varchar('mime_type', { length: 120 }).notNull(),
+    tamanhoBytes: integer('tamanho_bytes').notNull(),
+    validadeEm: timestamp('validade_em', { withTimezone: true }).notNull(),
+    arquivoCriptografado: text('arquivo_criptografado').notNull(),
+    senhaCriptografada: text('senha_criptografada').notNull(),
+    criadoEm: timestamp('criado_em', { withTimezone: true }).defaultNow().notNull(),
+    atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_certificados_digitais_usuario_id').on(table.usuarioId),
+    index('idx_certificados_digitais_cnpj').on(table.cnpj),
   ]
 );
 

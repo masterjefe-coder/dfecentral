@@ -8,6 +8,7 @@ import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
 import { gerarPdfDanfe } from '../utils/danfe.js';
 import { registrarConsulta } from '../db/audit.js';
 import { arquivarXmlEmR2, enviarXmlContabilidadeAutomatico } from '../utils/contabilidade.js';
+import { obterSdkConfigComCertificado } from '../utils/certificados.js';
 
 function tipoDaChave(chave: string) {
   const modelo = chave.slice(20, 22);
@@ -93,30 +94,34 @@ export async function nfeRoutes(app: FastifyInstance) {
       return reply.status(400).send({ sucesso: false, erro: `A chave informada corresponde a ${tipoEsperado.toUpperCase()}` });
     }
 
-    const config = getSdkConfig();
-    const resultado = await consultarComCache(chave, config);
     const usuarioId = (request as any).conta?.id;
+    const { config, cleanup } = await obterSdkConfigComCertificado({ usuarioId });
+    try {
+      const resultado = await consultarComCache(chave, config);
 
-    if (!resultado.sucesso) {
-      await registrarConsulta({ tipo: 'nfe', consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
-      return reply.status(404).send({ sucesso: false, erro: resultado.erro || 'NF-e nao encontrada' });
-    }
-
-    if (resultado.fonte !== 'cache' && resultado.documento?.xml && usuarioId) {
-      try {
-        await enviarXmlContabilidadeAutomatico({
-          usuarioId,
-          chave: resultado.documento.chaveAcesso,
-          xml: resultado.documento.xml,
-        });
-      } catch (error) {
-        console.error('[contabilidade] erro no envio automatico:', error);
+      if (!resultado.sucesso) {
+        await registrarConsulta({ tipo: 'nfe', consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
+        return reply.status(404).send({ sucesso: false, erro: resultado.erro || 'NF-e nao encontrada' });
       }
+
+      if (resultado.fonte !== 'cache' && resultado.documento?.xml && usuarioId) {
+        try {
+          await enviarXmlContabilidadeAutomatico({
+            usuarioId,
+            chave: resultado.documento.chaveAcesso,
+            xml: resultado.documento.xml,
+          });
+        } catch (error) {
+          console.error('[contabilidade] erro no envio automatico:', error);
+        }
+      }
+
+      await registrarConsulta({ tipo: 'nfe', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
+
+      return { sucesso: true, dados: { ...resultado.documento, fonte: resultado.fonte } };
+    } finally {
+      cleanup?.();
     }
-
-    await registrarConsulta({ tipo: 'nfe', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
-
-    return { sucesso: true, dados: { ...resultado.documento, fonte: resultado.fonte } };
   });
 
   app.get('/:chave/xml', async (request, reply) => {
@@ -150,42 +155,46 @@ export async function nfeRoutes(app: FastifyInstance) {
       return reply.type('application/xml').send(cache.xml);
     }
 
-    const config = getSdkConfig();
-    const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
-
-    if (!resultado.sucesso || !resultado.documento?.xml) {
-      await registrarConsulta({ tipo: 'nfe:xml', consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
-      return reply.status(404).send({ sucesso: false, erro: 'XML nao disponivel para esta chave' });
-    }
-
-    await salvarNoCache(resultado.documento);
+    const { config, cleanup } = await obterSdkConfigComCertificado({ usuarioId });
     try {
-      await enviarXmlContabilidadeAutomatico({
-        usuarioId,
-        chave: resultado.documento.chaveAcesso,
-        xml: resultado.documento.xml,
-      });
-      await arquivarXmlEmR2({
-        usuarioId,
-        chave: resultado.documento.chaveAcesso,
-        xml: resultado.documento.xml,
-        dataEmissao: new Date(resultado.documento.dataEmissao),
-        tipo: 'nfe',
-        direcao: 'emitidas',
-      });
-    } catch (error) {
-      console.error('[contabilidade] erro no envio automatico:', error);
-    }
-    await registrarConsulta({ tipo: 'nfe:xml', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
-    if (formato === 'danfe' || formato === 'pdf') {
-      const pdf = await gerarPdfDanfe(resultado.documento);
-      return reply
-        .header('Content-Type', 'application/pdf')
-        .header('Content-Disposition', `inline; filename="danfe-${chave}.pdf"`)
-        .send(pdf);
-    }
+      const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
 
-    return reply.type('application/xml').send(resultado.documento.xml);
+      if (!resultado.sucesso || !resultado.documento?.xml) {
+        await registrarConsulta({ tipo: 'nfe:xml', consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
+        return reply.status(404).send({ sucesso: false, erro: 'XML nao disponivel para esta chave' });
+      }
+
+      await salvarNoCache(resultado.documento);
+      try {
+        await enviarXmlContabilidadeAutomatico({
+          usuarioId,
+          chave: resultado.documento.chaveAcesso,
+          xml: resultado.documento.xml,
+        });
+        await arquivarXmlEmR2({
+          usuarioId,
+          chave: resultado.documento.chaveAcesso,
+          xml: resultado.documento.xml,
+          dataEmissao: new Date(resultado.documento.dataEmissao),
+          tipo: 'nfe',
+          direcao: 'emitidas',
+        });
+      } catch (error) {
+        console.error('[contabilidade] erro no envio automatico:', error);
+      }
+      await registrarConsulta({ tipo: 'nfe:xml', consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
+      if (formato === 'danfe' || formato === 'pdf') {
+        const pdf = await gerarPdfDanfe(resultado.documento);
+        return reply
+          .header('Content-Type', 'application/pdf')
+          .header('Content-Disposition', `inline; filename="danfe-${chave}.pdf"`)
+          .send(pdf);
+      }
+
+      return reply.type('application/xml').send(resultado.documento.xml);
+    } finally {
+      cleanup?.();
+    }
   });
 
   app.get('/', async (request, reply) => {

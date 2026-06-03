@@ -8,6 +8,7 @@ import { buscarNoCache, salvarNoCache, docParaFiscal } from '../db/cache.js';
 import { gerarPdfDanfe } from '../utils/danfe.js';
 import { registrarConsulta } from '../db/audit.js';
 import { arquivarXmlEmR2, enviarXmlContabilidadeAutomatico } from '../utils/contabilidade.js';
+import { obterSdkConfigComCertificado } from '../utils/certificados.js';
 
 function tipoDaChave(chave: string): TipoDocumento | null {
   const modelo = chave.slice(20, 22);
@@ -136,43 +137,47 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
           return reply.status(400).send({ sucesso: false, erro: 'Nao foi possivel identificar o tipo pela chave' });
         }
 
-        const config = getSdkConfig();
-        const resultado = await consultarComCache(chave, config, options.tipo as TipoDocumento);
         const usuarioId = (request as any).conta?.id;
+        const { config, cleanup } = await obterSdkConfigComCertificado({ usuarioId });
+        try {
+          const resultado = await consultarComCache(chave, config, options.tipo as TipoDocumento);
 
-        if (!resultado.sucesso) {
-          await registrarConsulta({ tipo: options.tipo, consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
-          return reply.status(404).send({ sucesso: false, erro: resultado.erro || `${options.label} nao encontrado` });
-        }
-
-        if (resultado.fonte !== 'cache' && resultado.documento?.xml && usuarioId) {
-          try {
-            const conta = (request as any).conta as { cnpj?: string | null } | undefined;
-            const direcao = conta?.cnpj && resultado.documento.cnpjDestinatario === conta.cnpj ? 'entradas' : 'emitidas';
-            await enviarXmlContabilidadeAutomatico({
-              usuarioId,
-              chave: resultado.documento.chaveAcesso,
-              xml: resultado.documento.xml,
-            });
-            await arquivarXmlEmR2({
-              usuarioId,
-              chave: resultado.documento.chaveAcesso,
-              xml: resultado.documento.xml,
-              dataEmissao: new Date(resultado.documento.dataEmissao),
-              tipo: options.tipo,
-              direcao,
-            });
-          } catch (error) {
-            console.error('[contabilidade] erro no envio automatico:', error);
+          if (!resultado.sucesso) {
+            await registrarConsulta({ tipo: options.tipo, consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
+            return reply.status(404).send({ sucesso: false, erro: resultado.erro || `${options.label} nao encontrado` });
           }
+
+          if (resultado.fonte !== 'cache' && resultado.documento?.xml && usuarioId) {
+            try {
+              const conta = (request as any).conta as { cnpj?: string | null } | undefined;
+              const direcao = conta?.cnpj && resultado.documento.cnpjDestinatario === conta.cnpj ? 'entradas' : 'emitidas';
+              await enviarXmlContabilidadeAutomatico({
+                usuarioId,
+                chave: resultado.documento.chaveAcesso,
+                xml: resultado.documento.xml,
+              });
+              await arquivarXmlEmR2({
+                usuarioId,
+                chave: resultado.documento.chaveAcesso,
+                xml: resultado.documento.xml,
+                dataEmissao: new Date(resultado.documento.dataEmissao),
+                tipo: options.tipo,
+                direcao,
+              });
+            } catch (error) {
+              console.error('[contabilidade] erro no envio automatico:', error);
+            }
+          }
+
+          await registrarConsulta({ tipo: options.tipo, consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
+
+          return {
+            sucesso: true,
+            dados: { ...resultado.documento, tipo: options.tipo, fonte: resultado.fonte },
+          };
+        } finally {
+          cleanup?.();
         }
-
-        await registrarConsulta({ tipo: options.tipo, consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
-
-        return {
-          sucesso: true,
-          dados: { ...resultado.documento, tipo: options.tipo, fonte: resultado.fonte },
-        };
       },
     );
 
@@ -207,36 +212,40 @@ export function createDocumentRoutes(options: DocumentRouteOptions) {
         return reply.type('application/xml').send(cache.xml);
       }
 
-      const config = getSdkConfig();
-      const resultado = await consultarNFeporChave({ chaveAcesso: chave, tipo: options.tipo as TipoDocumento }, config);
-
-    if (!resultado.sucesso || !resultado.documento?.xml) {
-      await registrarConsulta({ tipo: `${options.tipo}:xml`, consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
-      return reply.status(404).send({ sucesso: false, erro: 'XML nao disponivel' });
-    }
-
-    await salvarNoCache(resultado.documento);
-    if (usuarioId) {
+      const { config, cleanup } = await obterSdkConfigComCertificado({ usuarioId });
       try {
-        await enviarXmlContabilidadeAutomatico({
-          usuarioId,
-          chave: resultado.documento.chaveAcesso,
-          xml: resultado.documento.xml,
-        });
-      } catch (error) {
-        console.error('[contabilidade] erro no envio automatico:', error);
-      }
-    }
-    await registrarConsulta({ tipo: `${options.tipo}:xml`, consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
-      if (formato === 'danfe' || formato === 'pdf') {
-        const pdf = await gerarPdfDanfe(resultado.documento);
-        return reply
-          .header('Content-Type', 'application/pdf')
-          .header('Content-Disposition', `inline; filename="danfe-${chave}.pdf"`)
-          .send(pdf);
-      }
+        const resultado = await consultarNFeporChave({ chaveAcesso: chave, tipo: options.tipo as TipoDocumento }, config);
 
-      return reply.type('application/xml').send(resultado.documento.xml);
+        if (!resultado.sucesso || !resultado.documento?.xml) {
+          await registrarConsulta({ tipo: `${options.tipo}:xml`, consulta: chave, resultado: 'erro', ip: request.ip, usuarioId });
+          return reply.status(404).send({ sucesso: false, erro: 'XML nao disponivel' });
+        }
+
+        await salvarNoCache(resultado.documento);
+        if (usuarioId) {
+          try {
+            await enviarXmlContabilidadeAutomatico({
+              usuarioId,
+              chave: resultado.documento.chaveAcesso,
+              xml: resultado.documento.xml,
+            });
+          } catch (error) {
+            console.error('[contabilidade] erro no envio automatico:', error);
+          }
+        }
+        await registrarConsulta({ tipo: `${options.tipo}:xml`, consulta: chave, resultado: 'sucesso', ip: request.ip, usuarioId });
+        if (formato === 'danfe' || formato === 'pdf') {
+          const pdf = await gerarPdfDanfe(resultado.documento);
+          return reply
+            .header('Content-Type', 'application/pdf')
+            .header('Content-Disposition', `inline; filename="danfe-${chave}.pdf"`)
+            .send(pdf);
+        }
+
+        return reply.type('application/xml').send(resultado.documento.xml);
+      } finally {
+        cleanup?.();
+      }
     });
 
     app.get('/', async (request, reply) => {

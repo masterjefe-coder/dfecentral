@@ -24,6 +24,7 @@ import { contabilidadeRoutes } from './routes/contabilidade.js';
 import { authRoutes } from './routes/auth.js';
 import { relatoriosRoutes } from './routes/relatorios.js';
 import { empresasRoutes } from './routes/empresas.js';
+import { certificadosRoutes } from './routes/certificados.js';
 import { obterContaPorApiKey } from './db/account.js';
 import { processarCobrancasAssinaturaVencidas } from './services/assinaturas.js';
 
@@ -159,6 +160,7 @@ await app.register(contabilidadeRoutes, { prefix: '/api/v1/contabilidade' });
 await app.register(authRoutes, { prefix: '/api/v1/auth' });
 await app.register(relatoriosRoutes, { prefix: '/api/v1/relatorios' });
 await app.register(empresasRoutes, { prefix: '/api/v1/empresas' });
+await app.register(certificadosRoutes, { prefix: '/api/v1/certificados' });
 
 const cobrancasTimer = setInterval(() => {
   void processarCobrancasAssinaturaVencidas(app.log);

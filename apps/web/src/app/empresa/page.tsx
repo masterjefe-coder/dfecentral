@@ -8,6 +8,7 @@ type Empresa = { id: string; nome: string; cnpj: string };
 type MembroEquipe = { id: string; nome: string; cnpj: string; usuarioId: string; criadoEm: string };
 type ConviteEquipe = { id: string; nome: string; email: string; papel: string; status: string; token: string; criadoEm: string };
 type Assinatura = { plano: string; assinaturaStatus: string; assinaturaMetodoPagamento?: string; assinaturaCancelEm?: string | null; assinaturaRenovaEm?: string | null };
+type Certificado = { cnpj: string; certificadoCnpj: string; nomeArquivo: string; mimeType: string; tamanhoBytes: number; validadeEm: string; criadoEm: string; atualizadoEm: string };
 
 export default function EmpresaPage() {
   const [aba, setAba] = useState<'dados' | 'equipe' | 'contabilidade'>('dados');
@@ -19,6 +20,10 @@ export default function EmpresaPage() {
   const [novaEmpresaCnpj, setNovaEmpresaCnpj] = useState('');
   const [empresaAtiva, setEmpresaAtiva] = useState('');
   const [assinatura, setAssinatura] = useState<Assinatura | null>(null);
+  const [certificado, setCertificado] = useState<Certificado | null>(null);
+  const [certificadoArquivo, setCertificadoArquivo] = useState<File | null>(null);
+  const [certificadoSenha, setCertificadoSenha] = useState('');
+  const [enviandoCertificado, setEnviandoCertificado] = useState(false);
   const [contabilidadeEmail, setContabilidadeEmail] = useState('');
   const [contabilidadeAuto, setContabilidadeAuto] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('');
@@ -45,13 +50,14 @@ export default function EmpresaPage() {
 
   useEffect(() => {
     void (async () => {
-      const [meRes, empresasRes, ativaRes, prefsRes, equipeRes, assinaturaRes] = await Promise.all([
+      const [meRes, empresasRes, ativaRes, prefsRes, equipeRes, assinaturaRes, certificadoRes] = await Promise.all([
         fetch('/api/auth/me', { cache: 'no-store' }),
         fetch('/api/empresas', { cache: 'no-store' }),
         fetch('/api/empresas/ativa', { cache: 'no-store' }),
         fetch('/api/auth/prefs', { cache: 'no-store' }),
         fetch('/api/equipe', { cache: 'no-store' }),
         fetch('/api/billing/subscription', { cache: 'no-store' }),
+        fetch('/api/certificados', { cache: 'no-store' }),
       ]);
       const meData = await meRes.json();
       let cnpjCarregado = '';
@@ -96,6 +102,11 @@ export default function EmpresaPage() {
       const assinaturaData = await assinaturaRes.json();
       if (assinaturaData.sucesso) {
         setAssinatura(assinaturaData.dados?.assinatura || null);
+      }
+
+      const certificadoData = await certificadoRes.json();
+      if (certificadoData.sucesso) {
+        setCertificado(certificadoData.dados?.certificado || null);
       }
     })();
   }, []);
@@ -156,6 +167,74 @@ export default function EmpresaPage() {
     } finally {
       setSalvando(false);
     }
+  }
+
+  async function arquivoParaBase64(arquivo: File): Promise<string> {
+    const buffer = await arquivo.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binario = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binario += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return btoa(binario);
+  }
+
+  async function salvarCertificado() {
+    if (!certificadoArquivo) {
+      setMensagem('Selecione o arquivo .pfx/.p12 do certificado.');
+      return;
+    }
+    if (!certificadoSenha.trim()) {
+      setMensagem('Informe a senha do certificado.');
+      return;
+    }
+
+    const cnpjAlvo = (empresaAtiva || cnpj).replace(/\D/g, '').slice(0, 14);
+    if (cnpjAlvo.length !== 14) {
+      setMensagem('Defina um CNPJ ativo antes de enviar o certificado.');
+      return;
+    }
+
+    setEnviandoCertificado(true);
+    setMensagem('');
+    try {
+      const res = await fetch('/api/certificados', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cnpj: cnpjAlvo,
+          senha: certificadoSenha,
+          arquivoBase64: await arquivoParaBase64(certificadoArquivo),
+          nomeArquivo: certificadoArquivo.name,
+          mimeType: certificadoArquivo.type || 'application/x-pkcs12',
+        }),
+      });
+      const data = await res.json();
+      if (!data.sucesso) {
+        setMensagem(data.erro || 'Nao foi possivel salvar o certificado.');
+        return;
+      }
+
+      setCertificado(data.dados?.certificado || null);
+      setCertificadoArquivo(null);
+      setCertificadoSenha('');
+      setMensagem('Certificado salvo com segurança.');
+    } finally {
+      setEnviandoCertificado(false);
+    }
+  }
+
+  async function removerCertificado() {
+    const cnpjAlvo = (empresaAtiva || cnpj).replace(/\D/g, '').slice(0, 14);
+    const res = await fetch(`/api/certificados?cnpj=${encodeURIComponent(cnpjAlvo)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.sucesso) {
+      setMensagem(data.erro || 'Nao foi possivel remover o certificado.');
+      return;
+    }
+    setCertificado(null);
+    setMensagem('Certificado removido.');
   }
 
   async function convidarMembro() {
@@ -488,6 +567,43 @@ export default function EmpresaPage() {
                 </Link>
               </div>
             </div>
+
+            <div className="rounded-3xl border border-cyan-200 bg-cyan-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-700">Certificado digital</p>
+              <p className="mt-2 text-sm text-slate-700">
+                O certificado do CNPJ ativo fica criptografado no servidor e é usado para consultas oficiais e importação automática.
+              </p>
+              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-slate-700">Arquivo .pfx/.p12</span>
+                  <input
+                    type="file"
+                    accept=".pfx,.p12,application/x-pkcs12"
+                    onChange={(e) => setCertificadoArquivo(e.target.files?.[0] || null)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
+                  />
+                </label>
+                <Field label="Senha do certificado" value={certificadoSenha} onChange={setCertificadoSenha} type="password" />
+                <button onClick={salvarCertificado} disabled={enviandoCertificado} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-cyan-500 px-5 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-60">
+                  {enviandoCertificado ? 'Salvando...' : certificado ? 'Atualizar certificado' : 'Salvar certificado'}
+                </button>
+              </div>
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                {certificado ? (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-semibold text-slate-900">{certificado.nomeArquivo}</p>
+                      <p className="text-xs text-slate-500">CNPJ {certificado.certificadoCnpj} | Validade {new Date(certificado.validadeEm).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <button onClick={removerCertificado} className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
+                      Remover certificado
+                    </button>
+                  </div>
+                ) : (
+                  <p>Nenhum certificado salvo para este CNPJ ativo.</p>
+                )}
+              </div>
+            </div>
           </div>
           ) : null}
 
@@ -618,11 +734,11 @@ export default function EmpresaPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
+function Field({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; type?: string }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>
-      <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100" />
+      <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100" />
     </label>
   );
 }

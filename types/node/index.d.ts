@@ -30,6 +30,8 @@ declare module 'node:child_process' {
 }
 
 declare module 'node:crypto' {
+  export const createCipheriv: (...args: any[]) => any;
+  export const createDecipheriv: (...args: any[]) => any;
   export const createHash: (...args: any[]) => any;
   export const createPrivateKey: (...args: any[]) => any;
   export const createSign: (...args: any[]) => any;
