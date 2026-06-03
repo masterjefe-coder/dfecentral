@@ -6,6 +6,7 @@ import Link from 'next/link';
 type Assinatura = {
   plano: string;
   assinaturaStatus: string;
+  assinaturaMetodoPagamento?: string;
   assinaturaCancelEm?: string | null;
   assinaturaRenovaEm?: string | null;
 };
@@ -48,9 +49,17 @@ export function SubscriptionPanel() {
   }
 
   async function renovar() {
-    const res = await fetch('/api/billing/subscription/renew-checkout', { method: 'POST' });
+    const res = await fetch('/api/billing/subscription/renew-checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ metodoPagamento: assinatura?.assinaturaMetodoPagamento || 'cartao' }) });
     const data = await res.json();
     if (!data.sucesso) return setMensagem(data.erro || 'Nao foi possivel gerar a renovacao.');
+    window.location.href = data.dados.checkoutUrl;
+  }
+
+  async function trocarMetodo() {
+    const metodoNovo = assinatura?.assinaturaMetodoPagamento === 'pix_boleto' ? 'cartao' : 'pix_boleto';
+    const res = await fetch('/api/billing/subscription/renew-checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ metodoPagamento: metodoNovo }) });
+    const data = await res.json();
+    if (!data.sucesso) return setMensagem(data.erro || 'Nao foi possivel gerar a troca de cobrança.');
     window.location.href = data.dados.checkoutUrl;
   }
 
@@ -70,18 +79,22 @@ export function SubscriptionPanel() {
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <Card label="Plano" value={assinatura?.plano?.toUpperCase() || '-'} />
           <Card label="Status" value={assinatura?.assinaturaStatus?.toUpperCase() || '-'} />
+          <Card label="Cobrança" value={(assinatura?.assinaturaMetodoPagamento || '-').toUpperCase()} />
           <Card label="Renova em" value={assinatura?.assinaturaRenovaEm ? new Date(assinatura.assinaturaRenovaEm).toLocaleDateString('pt-BR') : '-'} />
         </div>
 
         <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
           {assinatura?.assinaturaCancelEm
             ? `Cancelamento agendado para ${new Date(assinatura.assinaturaCancelEm).toLocaleDateString('pt-BR')}. O acesso continua até lá.`
-            : 'A assinatura está ativa. Você pode cancelar, reativar ou renovar pelo checkout.'}
+            : `A assinatura é recorrente mensal e usa ${assinatura?.assinaturaMetodoPagamento === 'pix_boleto' ? 'PIX/Boleto' : 'cartão de crédito'}. Você pode cancelar, reativar ou mudar a cobrança.`}
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
           <button onClick={renovar} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
             Renovar agora
+          </button>
+          <button onClick={trocarMetodo} className="rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-100">
+            {assinatura?.assinaturaMetodoPagamento === 'pix_boleto' ? 'Trocar para cartão' : 'Trocar para PIX/Boleto'}
           </button>
           {assinatura?.assinaturaStatus === 'cancelada' ? (
             <button onClick={reativar} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">

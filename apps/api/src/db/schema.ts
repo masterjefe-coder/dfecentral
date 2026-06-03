@@ -68,6 +68,7 @@ export const usuarios = pgTable('usuarios', {
   cnpjAtivo: varchar('cnpj_ativo', { length: 14 }),
   plano: varchar('plano', { length: 20 }).notNull().default('free'),
   assinaturaStatus: varchar('assinatura_status', { length: 20 }).notNull().default('ativa'),
+  assinaturaMetodoPagamento: varchar('assinatura_metodo_pagamento', { length: 20 }).notNull().default('cartao'),
   assinaturaCancelEm: timestamp('assinatura_cancel_em', { withTimezone: true }),
   assinaturaRenovaEm: timestamp('assinatura_renova_em', { withTimezone: true }),
   apiKey: varchar('api_key', { length: 64 }).unique(),
@@ -107,6 +108,29 @@ export const empresasUsuario = pgTable(
   (table) => [
     index('idx_empresas_usuario_id').on(table.usuarioId),
     index('idx_empresas_cnpj').on(table.cnpj),
+  ]
+);
+
+export const assinaturasCobrancas = pgTable(
+  'assinaturas_cobrancas',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    usuarioId: uuid('usuario_id').references(() => usuarios.id).notNull(),
+    plano: varchar('plano', { length: 20 }).notNull(),
+    metodoPagamento: varchar('metodo_pagamento', { length: 20 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('pendente'),
+    origem: varchar('origem', { length: 20 }).notNull().default('assinatura'),
+    externalReference: varchar('external_reference', { length: 120 }).unique().notNull(),
+    checkoutUrl: varchar('checkout_url', { length: 500 }).notNull(),
+    venceEm: timestamp('vence_em', { withTimezone: true }).notNull(),
+    pagoEm: timestamp('pago_em', { withTimezone: true }),
+    criadoEm: timestamp('criado_em', { withTimezone: true }).defaultNow().notNull(),
+    atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_assinaturas_cobrancas_usuario_id').on(table.usuarioId),
+    index('idx_assinaturas_cobrancas_status').on(table.status),
+    index('idx_assinaturas_cobrancas_vence_em').on(table.venceEm),
   ]
 );
 

@@ -17,6 +17,7 @@ const ARQUIVAMENTO = {
 export type PlanoRecebeAqui = keyof typeof PLANOS;
 export type ArquivamentoRecebeAqui = keyof typeof ARQUIVAMENTO;
 export type ProdutoRecebeAqui = 'plano' | 'arquivamento';
+export type MetodoPagamentoAssinatura = 'cartao' | 'pix_boleto';
 
 export type RecebeAquiCheckoutInput = {
   usuarioId: string;
@@ -25,6 +26,8 @@ export type RecebeAquiCheckoutInput = {
   produto: ProdutoRecebeAqui;
   plano?: PlanoRecebeAqui;
   arquivamento?: ArquivamentoRecebeAqui;
+  metodoPagamento?: MetodoPagamentoAssinatura;
+  taxId?: string;
 };
 
 export type RecebeAquiWebhookPayload = {
@@ -66,8 +69,52 @@ type ParsedReference = {
   produto: ProdutoRecebeAqui;
   plano?: PlanoRecebeAqui;
   arquivamento?: ArquivamentoRecebeAqui;
+  metodoPagamento: MetodoPagamentoAssinatura;
   exp: number;
 };
+
+const REFERENCE_PREFIX = 'ra1.';
+const REFERENCE_PAYLOAD_BYTES = 31;
+const REFERENCE_DATA_BYTES = 23;
+const REFERENCE_TAG_BYTES = 8;
+
+const PLANO_CODES: Record<PlanoRecebeAqui, number> = {
+  starter: 0,
+  pro: 1,
+  enterprise: 2,
+};
+
+const ARQUIVAMENTO_CODES: Record<ArquivamentoRecebeAqui, number> = {
+  starter: 0,
+  pro: 1,
+};
+
+const PLANOS_BY_CODE: PlanoRecebeAqui[] = ['starter', 'pro', 'enterprise'];
+const ARQUIVAMENTOS_BY_CODE: ArquivamentoRecebeAqui[] = ['starter', 'pro'];
+const METODOS_PAGAMENTO_BY_CODE: MetodoPagamentoAssinatura[] = ['cartao', 'pix_boleto'];
+
+function uuidToBytes(uuid: string): Uint8Array | null {
+  const hex = uuid.replace(/-/g, '').trim();
+  if (!/^[0-9a-f]{32}$/i.test(hex)) return null;
+  return Buffer.from(hex, 'hex');
+}
+
+function bytesToUuid(bytes: Uint8Array): string {
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+function assinaturaReferencia(data: Uint8Array): Uint8Array {
+  return createHash('sha256').update(`${segredo()}|`).update(data).digest().subarray(0, REFERENCE_TAG_BYTES);
+}
+
+function buffersIguais(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
 
 function segredo(): string {
   return process.env.RECEBEAQUI_WEBHOOK_SECRET || process.env.AUTH_SECRET || process.env.API_KEY || 'dfecentral-auth-secret';
@@ -100,39 +147,56 @@ function getArquivamento(codigo: string): (typeof ARQUIVAMENTO)[ArquivamentoRece
 }
 
 function signReference(input: ParsedReference): string {
-  const base = `${input.usuarioId}|${input.produto}|${input.plano || ''}|${input.arquivamento || ''}|${input.exp}`;
-  const sig = createHash('sha256').update(`${segredo()}|${base}`).digest('base64url');
-  return `ra1.${input.produto}.${input.plano || '-'}${input.arquivamento ? `.${input.arquivamento}` : '.-'}.${input.usuarioId}.${input.exp}.${sig}`;
+  const uuidBytes = uuidToBytes(input.usuarioId);
+  if (!uuidBytes) throw new Error('Usuario invalido para referencia RecebeAqui');
+
+  const payload = new Uint8Array(REFERENCE_PAYLOAD_BYTES);
+  payload.set(uuidBytes, 0);
+  payload[16] = input.produto === 'plano' ? 0 : 1;
+  payload[17] = input.produto === 'plano' ? PLANO_CODES[input.plano || 'starter'] : ARQUIVAMENTO_CODES[input.arquivamento || 'starter'];
+  payload[18] = input.metodoPagamento === 'pix_boleto' ? 1 : 0;
+  new DataView(payload.buffer, payload.byteOffset, payload.byteLength).setUint32(19, Math.floor(input.exp / 1000), false);
+  payload.set(assinaturaReferencia(payload.subarray(0, REFERENCE_DATA_BYTES)), REFERENCE_DATA_BYTES);
+
+  return `${REFERENCE_PREFIX}${Buffer.from(payload).toString('base64url')}`;
 }
 
 function parseReference(reference?: string): ParsedReference | null {
-  if (!reference) return null;
-  const parts = reference.split('.');
-  if ((parts.length !== 6 && parts.length !== 7) || parts[0] !== 'ra1') return null;
+  if (!reference?.startsWith(REFERENCE_PREFIX)) return null;
 
-  const produto = parts[1] as ProdutoRecebeAqui;
-  const planoPart = parts[2];
-  const arquivamentoPart = parts[3];
-  const usuarioId = parts[4];
-  const exp = Number(parts[5]);
-  const sig = parts[6];
+  try {
+    const payload = Buffer.from(reference.slice(REFERENCE_PREFIX.length), 'base64url');
+    if (payload.length !== REFERENCE_PAYLOAD_BYTES) return null;
 
-  if (!usuarioId || !Number.isFinite(exp)) return null;
-  if (!['plano', 'arquivamento'].includes(produto)) return null;
+    const data = payload.subarray(0, REFERENCE_DATA_BYTES);
+    const sig = payload.subarray(REFERENCE_DATA_BYTES, REFERENCE_PAYLOAD_BYTES);
+    const expected = assinaturaReferencia(data);
+    if (!buffersIguais(expected, sig)) return null;
 
-  const plano = planoPart && planoPart !== '-' ? (planoPart as PlanoRecebeAqui) : undefined;
-  const arquivamento = arquivamentoPart && arquivamentoPart !== '-' ? (arquivamentoPart as ArquivamentoRecebeAqui) : undefined;
+    const usuarioId = bytesToUuid(payload.subarray(0, 16));
+    const produto = payload[16];
+    const codigo = payload[17];
+    const metodoPagamento = METODOS_PAGAMENTO_BY_CODE[payload[18]] || 'cartao';
+    const exp = new DataView(payload.buffer, payload.byteOffset, payload.byteLength).getUint32(19, false) * 1000;
 
-  if (produto === 'plano' && !plano) return null;
-  if (produto === 'arquivamento' && !arquivamento) return null;
-  if (plano && !PLANOS[plano]) return null;
-  if (arquivamento && !ARQUIVAMENTO[arquivamento]) return null;
+    if (Date.now() > exp) return null;
 
-  const expected = createHash('sha256').update(`${segredo()}|${usuarioId}|${produto}|${plano || ''}|${arquivamento || ''}|${exp}`).digest('base64url');
-  if (expected !== sig) return null;
-  if (Date.now() > exp) return null;
+    if (produto === 0) {
+      const plano = PLANOS_BY_CODE[codigo];
+      if (!plano) return null;
+      return { usuarioId, produto: 'plano', plano, metodoPagamento, exp };
+    }
 
-  return { usuarioId, produto, plano, arquivamento, exp };
+    if (produto === 1) {
+      const arquivamento = ARQUIVAMENTOS_BY_CODE[codigo];
+      if (!arquivamento) return null;
+      return { usuarioId, produto: 'arquivamento', arquivamento, metodoPagamento, exp };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 function getPaymentLink(payload: unknown): string | null {
@@ -223,20 +287,20 @@ function campoStatus(body: RecebeAquiWebhookPayload): string {
   return String(body.EventType || body.eventType || body.Payment?.Status || body.payment?.status || '').toLowerCase();
 }
 
-export function montarReferenciaRecebeAqui(usuarioId: string, plano: PlanoRecebeAqui): string {
+export function montarReferenciaRecebeAqui(usuarioId: string, plano: PlanoRecebeAqui, metodoPagamento: MetodoPagamentoAssinatura = 'cartao'): string {
   const exp = Date.now() + 1000 * 60 * 60 * 24;
-  return signReference({ usuarioId, produto: 'plano', plano, exp });
+  return signReference({ usuarioId, produto: 'plano', plano, metodoPagamento, exp });
 }
 
 export function montarReferenciaRecebeAquiArquivamento(usuarioId: string, arquivamento: ArquivamentoRecebeAqui): string {
   const exp = Date.now() + 1000 * 60 * 60 * 24;
-  return signReference({ usuarioId, produto: 'arquivamento', arquivamento, exp });
+  return signReference({ usuarioId, produto: 'arquivamento', arquivamento, metodoPagamento: 'cartao', exp });
 }
 
-export function extrairReferenciaRecebeAqui(reference?: string): { usuarioId: string; plano: PlanoRecebeAqui } | null {
+export function extrairReferenciaRecebeAqui(reference?: string): { usuarioId: string; plano: PlanoRecebeAqui; metodoPagamento: MetodoPagamentoAssinatura } | null {
   const parsed = parseReference(reference);
   if (!parsed || parsed.produto !== 'plano' || !parsed.plano) return null;
-  return { usuarioId: parsed.usuarioId, plano: parsed.plano };
+  return { usuarioId: parsed.usuarioId, plano: parsed.plano, metodoPagamento: parsed.metodoPagamento };
 }
 
 export function extrairReferenciaRecebeAquiArquivamento(reference?: string): { usuarioId: string; arquivamento: ArquivamentoRecebeAqui } | null {
@@ -267,27 +331,47 @@ export function obterPrecoArquivamentoRecebeAqui(arquivamento: ArquivamentoReceb
   return getArquivamento(arquivamento).amount;
 }
 
-export async function criarCheckoutRecebeAqui(input: RecebeAquiCheckoutInput): Promise<{ checkoutUrl: string; payload: unknown }> {
+export async function criarCheckoutRecebeAqui(input: RecebeAquiCheckoutInput): Promise<{ checkoutUrl: string; externalReference: string; payload: unknown }> {
   const sucesso = `${baseWebUrl()}/dashboard?checkout=recebeaqui`;
   const erro = `${baseWebUrl()}/precos?erro=checkout_recebeaqui`;
   let body: Record<string, unknown>;
+  const metodoPagamento = input.metodoPagamento || 'cartao';
 
   if (input.produto === 'plano') {
     if (!input.plano) throw new Error('Plano nao informado');
     const planoInfo = getPlano(input.plano);
-    body = {
-      value: planoInfo.amount / 100,
-      maxInstallmentCount: 12,
-      billingType: 'CREDITO',
-      recurrent: 'MENSAL',
-      description: planoInfo.description,
-      externalReference: montarReferenciaRecebeAqui(input.usuarioId, input.plano),
-      customerName: input.nome,
-      customerEmail: input.email,
-      antifraud: true,
-      successCallback: sucesso,
-      errorCallback: erro,
-    };
+    if (metodoPagamento === 'pix_boleto') {
+      if (!input.taxId) throw new Error('TaxId nao informado para PIX/Boleto');
+      const vencimento = new Date(Date.now() + 1000 * 60 * 60 * 24 * 5);
+      body = {
+        value: planoInfo.amount / 100,
+        maxInstallmentCount: 1,
+        billingType: 'CREDITO_PIX_BOLETO',
+        description: planoInfo.description,
+        externalReference: montarReferenciaRecebeAqui(input.usuarioId, input.plano, metodoPagamento),
+        customerName: input.nome,
+        customerEmail: input.email,
+        taxId: input.taxId,
+        dueDate: vencimento.toISOString(),
+        fine: 2,
+        interest: 1,
+        antifraud: true,
+      };
+    } else {
+      body = {
+        value: planoInfo.amount / 100,
+        maxInstallmentCount: 12,
+        billingType: 'CREDITO',
+        recurrent: 'MENSAL',
+        description: planoInfo.description,
+        externalReference: montarReferenciaRecebeAqui(input.usuarioId, input.plano, metodoPagamento),
+        customerName: input.nome,
+        customerEmail: input.email,
+        antifraud: true,
+        successCallback: sucesso,
+        errorCallback: erro,
+      };
+    }
   } else {
     if (!input.arquivamento) throw new Error('Arquivamento nao informado');
     const arquivamentoInfo = getArquivamento(input.arquivamento);
@@ -329,7 +413,11 @@ export async function criarCheckoutRecebeAqui(input: RecebeAquiCheckoutInput): P
     throw new Error('Nao foi possivel localizar a URL do checkout');
   }
 
-  return { checkoutUrl, payload };
+  const externalReference = typeof payload === 'object' && payload && 'externalReference' in payload && typeof (payload as any).externalReference === 'string'
+    ? String((payload as any).externalReference)
+    : '';
+
+  return { checkoutUrl, externalReference, payload };
 }
 
 export async function resolverReferenciaRecebeAquiWebhook(body: RecebeAquiWebhookPayload): Promise<string | null> {

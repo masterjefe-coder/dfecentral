@@ -120,22 +120,21 @@ export async function atualizarPlanoUsuario(usuarioId: string, plano: string): P
 
 export async function atualizarAssinaturaUsuario(
   usuarioId: string,
-  input: { status?: string; cancelEm?: Date | null; renovaEm?: Date | null },
+  input: { status?: string; metodoPagamento?: string; cancelEm?: Date | null; renovaEm?: Date | null },
 ): Promise<void> {
-  await db
-    .update(usuarios)
-    .set({
-      assinaturaStatus: input.status || 'ativa',
-      assinaturaCancelEm: input.cancelEm ?? null,
-      assinaturaRenovaEm: input.renovaEm ?? null,
-      atualizadoEm: new Date(),
-    })
-    .where(eq(usuarios.id, usuarioId));
+  const updates: Partial<typeof usuarios.$inferInsert> = { atualizadoEm: new Date() };
+  if (input.status) updates.assinaturaStatus = input.status;
+  if (input.metodoPagamento) updates.assinaturaMetodoPagamento = input.metodoPagamento;
+  if (input.cancelEm !== undefined) updates.assinaturaCancelEm = input.cancelEm;
+  if (input.renovaEm !== undefined) updates.assinaturaRenovaEm = input.renovaEm;
+
+  await db.update(usuarios).set(updates).where(eq(usuarios.id, usuarioId));
 }
 
 export async function obterAssinaturaUsuario(usuarioId: string): Promise<{
   plano: string;
   assinaturaStatus: string;
+  assinaturaMetodoPagamento: string;
   assinaturaCancelEm: Date | null;
   assinaturaRenovaEm: Date | null;
 } | null> {
@@ -143,6 +142,7 @@ export async function obterAssinaturaUsuario(usuarioId: string): Promise<{
     .select({
       plano: usuarios.plano,
       assinaturaStatus: usuarios.assinaturaStatus,
+      assinaturaMetodoPagamento: usuarios.assinaturaMetodoPagamento,
       assinaturaCancelEm: usuarios.assinaturaCancelEm,
       assinaturaRenovaEm: usuarios.assinaturaRenovaEm,
     })
@@ -156,6 +156,7 @@ export async function obterAssinaturaUsuario(usuarioId: string): Promise<{
   return {
     plano: item.plano,
     assinaturaStatus: item.assinaturaStatus,
+    assinaturaMetodoPagamento: item.assinaturaMetodoPagamento,
     assinaturaCancelEm: item.assinaturaCancelEm || null,
     assinaturaRenovaEm: item.assinaturaRenovaEm || null,
   };

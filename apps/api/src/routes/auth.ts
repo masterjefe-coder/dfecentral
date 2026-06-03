@@ -129,10 +129,13 @@ function normalizarRedirect(valor: string | undefined, request?: RequestLike): s
 }
 
 function respostaUsuario(usuario: Awaited<ReturnType<typeof criarUsuario>>) {
+  const cnpj = usuario.cnpj || usuario.cnpjAtivo || null;
   return {
     id: usuario.id,
     nome: usuario.nome,
     email: usuario.email,
+    cnpj,
+    cnpjAtivo: usuario.cnpjAtivo || cnpj,
     plano: usuario.plano,
     apiKey: usuario.apiKey,
   };

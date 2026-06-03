@@ -28,9 +28,10 @@ const arquivamento = [
   },
 ];
 
-export default async function PrecosPage({ searchParams }: { searchParams?: Promise<{ plano?: string }> }) {
+export default async function PrecosPage({ searchParams }: { searchParams?: Promise<{ plano?: string; metodo?: string }> }) {
   const params = await searchParams;
   const planoAtivo = params?.plano;
+  const metodoAtivo = params?.metodo === 'pix_boleto' ? 'pix_boleto' : 'cartao';
 
   return (
     <StaticPage tone="light" kicker="Planos" title="Preços simples" description="Escolha um plano que acompanhe o volume fiscal da sua operação.">
@@ -39,6 +40,27 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
           Plano selecionado: <span className="font-semibold uppercase">{planoAtivo}</span>. Se precisar, o checkout abre sozinho após o login.
         </div>
       ) : null}
+
+      <div className="mb-5 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Forma de cobrança</p>
+            <p className="mt-2 text-sm text-slate-600">Escolha como a assinatura vai ser cobrada daqui para frente.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a href={`/precos${planoAtivo ? `?plano=${encodeURIComponent(planoAtivo)}` : ''}${planoAtivo ? '&' : '?'}metodo=cartao`} className={`rounded-full px-4 py-2 text-sm font-semibold ${metodoAtivo === 'cartao' ? 'bg-slate-950 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}>
+              Cartão
+            </a>
+            <a href={`/precos${planoAtivo ? `?plano=${encodeURIComponent(planoAtivo)}` : ''}${planoAtivo ? '&' : '?'}metodo=pix_boleto`} className={`rounded-full px-4 py-2 text-sm font-semibold ${metodoAtivo === 'pix_boleto' ? 'bg-cyan-500 text-slate-950' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}>
+              PIX / Boleto
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        Assinatura de qualquer plano exige CNPJ ativo. O método de cobrança pode ser alterado depois.
+      </div>
 
       <div className="grid gap-4 md:grid-cols-4">
         {planos.map((plano) => (
@@ -76,6 +98,7 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
                 plano={plano.plano}
                 label={plano.nome === 'Enterprise' ? 'Assinar Enterprise' : `Assinar ${plano.nome}`}
                 autoStart={planoAtivo === plano.plano}
+                metodoPagamento={metodoAtivo}
               />
             )}
           </div>

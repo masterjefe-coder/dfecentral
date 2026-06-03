@@ -4,9 +4,31 @@ import { useEffect, useRef, useState } from 'react';
 
 type PlanoCheckout = 'starter' | 'pro' | 'enterprise';
 type ArquivamentoCheckout = 'starter' | 'pro';
+type MetodoPagamentoCheckout = 'cartao' | 'pix_boleto';
+
+async function obterCnpjAtivo(): Promise<string | null> {
+  const [meRes, empresaRes] = await Promise.all([
+    fetch('/api/auth/me', { cache: 'no-store' }),
+    fetch('/api/empresas/ativa', { cache: 'no-store' }),
+  ]);
+
+  if (empresaRes.ok) {
+    const empresaData = await empresaRes.json();
+    const cnpjAtivo = empresaData?.dados?.cnpjAtivo;
+    if (typeof cnpjAtivo === 'string' && cnpjAtivo.trim()) return cnpjAtivo.trim();
+  }
+
+  if (meRes.ok) {
+    const meData = await meRes.json();
+    const cnpj = meData?.dados?.usuario?.cnpj;
+    if (typeof cnpj === 'string' && cnpj.trim()) return cnpj.trim();
+  }
+
+  return null;
+}
 
 export function CheckoutButton(
-  { plano, label, autoStart = false }: { plano: PlanoCheckout; label: string; autoStart?: boolean },
+  { plano, label, autoStart = false, metodoPagamento = 'cartao' }: { plano: PlanoCheckout; label: string; autoStart?: boolean; metodoPagamento?: MetodoPagamentoCheckout },
 ) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
@@ -14,12 +36,14 @@ export function CheckoutButton(
 
   useEffect(() => {
     if (autoStartDone.current) return;
-    const planoDaUrl = new URLSearchParams(window.location.search).get('plano') as PlanoCheckout | null;
-    if (autoStart || planoDaUrl === plano) {
+    const params = new URLSearchParams(window.location.search);
+    const planoDaUrl = params.get('plano') as PlanoCheckout | null;
+    const metodoDaUrl = (params.get('metodo') as MetodoPagamentoCheckout | null) || 'cartao';
+    if (autoStart || (planoDaUrl === plano && metodoDaUrl === metodoPagamento)) {
       autoStartDone.current = true;
       void iniciarCheckout();
     }
-  }, [autoStart, plano]);
+  }, [autoStart, plano, metodoPagamento]);
 
   async function iniciarCheckout() {
     setLoading(true);
@@ -28,20 +52,26 @@ export function CheckoutButton(
     try {
       const me = await fetch('/api/auth/session', { cache: 'no-store' });
       if (!me.ok) {
-        window.location.href = `/auth/entrar?redirect=${encodeURIComponent(`/precos?plano=${plano}`)}`;
+        window.location.href = `/auth/entrar?redirect=${encodeURIComponent(`/precos?plano=${plano}&metodo=${metodoPagamento}`)}`;
+        return;
+      }
+
+      const cnpjAtivo = await obterCnpjAtivo();
+      if (!cnpjAtivo) {
+        window.location.href = `/empresa?aba=dados&erro=cnpj_assinatura`;
         return;
       }
 
       const response = await fetch('/api/billing/recebeaqui/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ produto: 'plano', plano }),
+        body: JSON.stringify({ produto: 'plano', plano, metodoPagamento }),
       });
       const data = await response.json();
 
       if (!response.ok || !data?.sucesso) {
         if (response.status === 401) {
-          window.location.href = `/auth/entrar?redirect=${encodeURIComponent(`/precos?plano=${plano}`)}`;
+          window.location.href = `/auth/entrar?redirect=${encodeURIComponent(`/precos?plano=${plano}&metodo=${metodoPagamento}`)}`;
           return;
         }
         setErro(data?.erro || 'Nao foi possivel iniciar o checkout.');
@@ -68,7 +98,7 @@ export function CheckoutButton(
         {loading ? 'Abrindo checkout...' : label}
       </button>
       <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
-        Pagamento seguro via RecebeAqui
+        {metodoPagamento === 'pix_boleto' ? 'Pagamento via PIX ou boleto na RecebeAqui' : 'Pagamento recorrente via cartão na RecebeAqui'}
       </p>
       {erro ? <p className="mt-2 text-sm text-rose-300">{erro}</p> : null}
     </div>
@@ -93,6 +123,12 @@ export function CheckoutAddonButton({
       const me = await fetch('/api/auth/session', { cache: 'no-store' });
       if (!me.ok) {
         window.location.href = `/auth/entrar?redirect=${encodeURIComponent('/precos')}`;
+        return;
+      }
+
+      const cnpjAtivo = await obterCnpjAtivo();
+      if (!cnpjAtivo) {
+        window.location.href = `/empresa?aba=dados&erro=cnpj_assinatura`;
         return;
       }
 

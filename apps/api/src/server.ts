@@ -25,6 +25,7 @@ import { authRoutes } from './routes/auth.js';
 import { relatoriosRoutes } from './routes/relatorios.js';
 import { empresasRoutes } from './routes/empresas.js';
 import { obterContaPorApiKey } from './db/account.js';
+import { processarCobrancasAssinaturaVencidas } from './services/assinaturas.js';
 
 const app = Fastify({
   logger: {
@@ -158,6 +159,12 @@ await app.register(contabilidadeRoutes, { prefix: '/api/v1/contabilidade' });
 await app.register(authRoutes, { prefix: '/api/v1/auth' });
 await app.register(relatoriosRoutes, { prefix: '/api/v1/relatorios' });
 await app.register(empresasRoutes, { prefix: '/api/v1/empresas' });
+
+const cobrancasTimer = setInterval(() => {
+  void processarCobrancasAssinaturaVencidas(app.log);
+}, 60 * 60 * 1000);
+(cobrancasTimer as any).unref?.();
+void processarCobrancasAssinaturaVencidas(app.log);
 
 // Start
 const port = Number(process.env.API_PORT || 3004);

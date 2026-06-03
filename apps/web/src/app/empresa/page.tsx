@@ -7,7 +7,7 @@ type Usuario = { nome: string; email: string; cnpj?: string | null; plano?: stri
 type Empresa = { id: string; nome: string; cnpj: string };
 type MembroEquipe = { id: string; nome: string; cnpj: string; usuarioId: string; criadoEm: string };
 type ConviteEquipe = { id: string; nome: string; email: string; papel: string; status: string; token: string; criadoEm: string };
-type Assinatura = { plano: string; assinaturaStatus: string; assinaturaCancelEm?: string | null; assinaturaRenovaEm?: string | null };
+type Assinatura = { plano: string; assinaturaStatus: string; assinaturaMetodoPagamento?: string; assinaturaCancelEm?: string | null; assinaturaRenovaEm?: string | null };
 
 export default function EmpresaPage() {
   const [aba, setAba] = useState<'dados' | 'equipe' | 'contabilidade'>('dados');
@@ -37,6 +37,13 @@ export default function EmpresaPage() {
   const [mensagem, setMensagem] = useState('');
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('erro') === 'cnpj_assinatura') {
+      setMensagem('Cadastre ou selecione um CNPJ ativo antes de assinar um plano.');
+    }
+  }, []);
+
+  useEffect(() => {
     void (async () => {
       const [meRes, empresasRes, ativaRes, prefsRes, equipeRes, assinaturaRes] = await Promise.all([
         fetch('/api/auth/me', { cache: 'no-store' }),
@@ -47,11 +54,12 @@ export default function EmpresaPage() {
         fetch('/api/billing/subscription', { cache: 'no-store' }),
       ]);
       const meData = await meRes.json();
+      let cnpjCarregado = '';
       if (meData.sucesso) {
         const info = meData.dados?.usuario as Usuario;
         setUsuario(info);
         setNome(info?.nome || '');
-        setCnpj(info?.cnpj || '');
+        cnpjCarregado = info?.cnpj || '';
       }
 
       const empresasData = await empresasRes.json();
@@ -60,8 +68,12 @@ export default function EmpresaPage() {
       }
       const ativaData = await ativaRes.json();
       if (ativaData.sucesso) {
-        setEmpresaAtiva(ativaData.dados?.cnpjAtivo || '');
+        const cnpjAtivo = ativaData.dados?.cnpjAtivo || '';
+        setEmpresaAtiva(cnpjAtivo);
+        if (!cnpjCarregado) cnpjCarregado = cnpjAtivo;
       }
+
+      setCnpj(cnpjCarregado);
 
       const prefsData = await prefsRes.json();
       if (prefsData.sucesso && prefsData.dados?.preferencias) {
@@ -280,10 +292,29 @@ export default function EmpresaPage() {
   }
 
   async function renovarAgora() {
-    const res = await fetch('/api/billing/subscription/renew-checkout', { method: 'POST' });
+    const res = await fetch('/api/billing/subscription/renew-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ metodoPagamento: assinatura?.assinaturaMetodoPagamento || 'cartao' }),
+    });
     const data = await res.json();
     if (!data.sucesso) {
       setMensagem(data.erro || 'Nao foi possivel gerar o checkout de renovacao.');
+      return;
+    }
+    window.location.href = data.dados.checkoutUrl;
+  }
+
+  async function trocarMetodoAssinatura() {
+    const metodoNovo = assinatura?.assinaturaMetodoPagamento === 'pix_boleto' ? 'cartao' : 'pix_boleto';
+    const res = await fetch('/api/billing/subscription/renew-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ metodoPagamento: metodoNovo }),
+    });
+    const data = await res.json();
+    if (!data.sucesso) {
+      setMensagem(data.erro || 'Nao foi possivel gerar a troca de cobrança.');
       return;
     }
     window.location.href = data.dados.checkoutUrl;
@@ -420,15 +451,19 @@ export default function EmpresaPage() {
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-950 ring-1 ring-slate-200">{assinatura?.plano?.toUpperCase() || usuario?.plano?.toUpperCase() || '-'}</span>
                 <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">{assinatura?.assinaturaStatus?.toUpperCase() || 'ATIVA'}</span>
+                <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800">{(assinatura?.assinaturaMetodoPagamento || 'cartao').toUpperCase()}</span>
               </div>
               <p className="mt-3 text-sm text-slate-600">
                 {assinatura?.assinaturaCancelEm
                   ? `Se cancelada, o acesso termina em ${new Date(assinatura.assinaturaCancelEm).toLocaleDateString('pt-BR')}.`
-                  : 'A assinatura está ativa e libera o acesso conforme o plano.'}
+                  : `A assinatura está ativa e libera o acesso conforme o plano. Cobrança atual: ${(assinatura?.assinaturaMetodoPagamento || 'cartao') === 'pix_boleto' ? 'PIX/Boleto' : 'cartão de crédito'}.`}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button onClick={renovarAgora} className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800">
                   Renovar agora
+                </button>
+                <button onClick={trocarMetodoAssinatura} className="rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100">
+                  {(assinatura?.assinaturaMetodoPagamento || 'cartao') === 'pix_boleto' ? 'Trocar para cartão' : 'Trocar para PIX/Boleto'}
                 </button>
                 {assinatura?.assinaturaStatus === 'cancelada' ? (
                   <button onClick={restaurarAssinatura} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
