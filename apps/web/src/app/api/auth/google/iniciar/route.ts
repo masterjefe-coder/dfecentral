@@ -6,14 +6,10 @@ function publicWebBaseUrl(url: URL): string {
   if (configured) return configured.replace(/\/$/, '');
 
   if (url.hostname.endsWith('dfecentral.com.br')) {
-    const parts = url.hostname.split('.');
-    if (parts.length >= 4 && parts[1] === 'dfecentral' && parts[2] === 'com') {
-      parts[0] = 'www';
-      return `${url.protocol}//${parts.join('.')}`;
-    }
+    return 'https://www.dfecentral.com.br';
   }
 
-  return process.env.NODE_ENV === 'production' ? 'https://www.dfecentral.com.br' : url.origin;
+  return 'https://www.dfecentral.com.br';
 }
 
 function publicApiBaseUrl(url: URL): string {
@@ -34,14 +30,10 @@ function publicApiBaseUrl(url: URL): string {
   }
 
   if (url.hostname.endsWith('dfecentral.com.br')) {
-    const parts = url.hostname.split('.');
-    if (parts.length >= 4 && parts[1] === 'dfecentral' && parts[2] === 'com') {
-      parts[0] = 'api';
-      return `${url.protocol}//${parts.join('.')}`;
-    }
+    return 'https://api.dfecentral.com.br';
   }
 
-  return process.env.NODE_ENV === 'production' ? 'https://api.dfecentral.com.br' : getApiBaseUrl();
+  return 'https://api.dfecentral.com.br';
 }
 
 export async function GET(request: Request) {
