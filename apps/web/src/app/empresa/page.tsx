@@ -70,7 +70,7 @@ export default function EmpresaPage() {
       if (ativaData.sucesso) {
         const cnpjAtivo = ativaData.dados?.cnpjAtivo || '';
         setEmpresaAtiva(cnpjAtivo);
-        if (!cnpjCarregado) cnpjCarregado = cnpjAtivo;
+        if (cnpjAtivo) cnpjCarregado = cnpjAtivo;
       }
 
       setCnpj(cnpjCarregado);
@@ -137,12 +137,14 @@ export default function EmpresaPage() {
       });
 
       if (cnpj.replace(/\D/g, '').length === 14) {
+        const cnpjLimpo = cnpj.replace(/\D/g, '').slice(0, 14);
         await fetch('/api/empresas/ativa', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cnpjAtivo: cnpj }),
+          body: JSON.stringify({ cnpjAtivo: cnpjLimpo }),
         });
-        setEmpresaAtiva(cnpj.replace(/\D/g, '').slice(0, 14));
+        setEmpresaAtiva(cnpjLimpo);
+        setCnpj(cnpjLimpo);
       }
     } finally {
       setSalvando(false);
