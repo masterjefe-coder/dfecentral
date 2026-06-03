@@ -64,7 +64,11 @@ export default function EmpresaPage() {
 
       const empresasData = await empresasRes.json();
       if (empresasData.sucesso) {
-        setEmpresas(empresasData.dados?.empresas || []);
+        const listaEmpresas = empresasData.dados?.empresas || [];
+        setEmpresas(listaEmpresas);
+        if (!cnpjCarregado && listaEmpresas[0]?.cnpj) {
+          cnpjCarregado = listaEmpresas[0].cnpj;
+        }
       }
       const ativaData = await ativaRes.json();
       if (ativaData.sucesso) {
@@ -124,6 +128,9 @@ export default function EmpresaPage() {
       }
       const info = data.dados?.usuario as Usuario;
       setUsuario(info);
+      if (typeof info?.cnpj === 'string' && info.cnpj.trim()) {
+        setCnpj(info.cnpj);
+      }
       setMensagem('Dados atualizados.');
 
       await fetch('/api/auth/prefs', {
