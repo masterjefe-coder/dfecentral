@@ -17,7 +17,7 @@ const ARQUIVAMENTO = {
 export type PlanoRecebeAqui = keyof typeof PLANOS;
 export type ArquivamentoRecebeAqui = keyof typeof ARQUIVAMENTO;
 export type ProdutoRecebeAqui = 'plano' | 'arquivamento';
-export type MetodoPagamentoAssinatura = 'cartao' | 'pix_boleto';
+export type MetodoPagamentoAssinatura = 'cartao' | 'pix';
 
 export type RecebeAquiCheckoutInput = {
   usuarioId: string;
@@ -91,7 +91,7 @@ const ARQUIVAMENTO_CODES: Record<ArquivamentoRecebeAqui, number> = {
 
 const PLANOS_BY_CODE: PlanoRecebeAqui[] = ['starter', 'pro', 'enterprise'];
 const ARQUIVAMENTOS_BY_CODE: ArquivamentoRecebeAqui[] = ['starter', 'pro'];
-const METODOS_PAGAMENTO_BY_CODE: MetodoPagamentoAssinatura[] = ['cartao', 'pix_boleto'];
+const METODOS_PAGAMENTO_BY_CODE: MetodoPagamentoAssinatura[] = ['cartao', 'pix'];
 
 function uuidToBytes(uuid: string): Uint8Array | null {
   const hex = uuid.replace(/-/g, '').trim();
@@ -154,7 +154,7 @@ function signReference(input: ParsedReference): string {
   payload.set(uuidBytes, 0);
   payload[16] = input.produto === 'plano' ? 0 : 1;
   payload[17] = input.produto === 'plano' ? PLANO_CODES[input.plano || 'starter'] : ARQUIVAMENTO_CODES[input.arquivamento || 'starter'];
-  payload[18] = input.metodoPagamento === 'pix_boleto' ? 1 : 0;
+  payload[18] = input.metodoPagamento === 'pix' ? 1 : 0;
   new DataView(payload.buffer, payload.byteOffset, payload.byteLength).setUint32(19, Math.floor(input.exp / 1000), false);
   payload.set(assinaturaReferencia(payload.subarray(0, REFERENCE_DATA_BYTES)), REFERENCE_DATA_BYTES);
 
@@ -176,7 +176,7 @@ function parseReference(reference?: string): ParsedReference | null {
     const usuarioId = bytesToUuid(payload.subarray(0, 16));
     const produto = payload[16];
     const codigo = payload[17];
-    const metodoPagamento = METODOS_PAGAMENTO_BY_CODE[payload[18]] || 'cartao';
+      const metodoPagamento = METODOS_PAGAMENTO_BY_CODE[payload[18]] || 'cartao';
     const exp = new DataView(payload.buffer, payload.byteOffset, payload.byteLength).getUint32(19, false) * 1000;
 
     if (Date.now() > exp) return null;
@@ -340,8 +340,8 @@ export async function criarCheckoutRecebeAqui(input: RecebeAquiCheckoutInput): P
   if (input.produto === 'plano') {
     if (!input.plano) throw new Error('Plano nao informado');
     const planoInfo = getPlano(input.plano);
-    if (metodoPagamento === 'pix_boleto') {
-      if (!input.taxId) throw new Error('TaxId nao informado para PIX/Boleto');
+    if (metodoPagamento === 'pix') {
+      if (!input.taxId) throw new Error('TaxId nao informado para PIX');
       const vencimento = new Date(Date.now() + 1000 * 60 * 60 * 24 * 5);
       body = {
         value: planoInfo.amount / 100,

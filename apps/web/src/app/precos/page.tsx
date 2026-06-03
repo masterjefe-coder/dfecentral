@@ -31,7 +31,7 @@ const arquivamento = [
 export default async function PrecosPage({ searchParams }: { searchParams?: Promise<{ plano?: string; metodo?: string }> }) {
   const params = await searchParams;
   const planoAtivo = params?.plano;
-  const metodoAtivo = params?.metodo === 'pix_boleto' ? 'pix_boleto' : 'cartao';
+  const metodoAtivo = params?.metodo === 'pix' ? 'pix' : 'cartao';
 
   return (
     <StaticPage tone="light" kicker="Planos" title="Preços simples" description="Escolha um plano que acompanhe o volume fiscal da sua operação.">
@@ -51,8 +51,8 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
             <a href={`/precos${planoAtivo ? `?plano=${encodeURIComponent(planoAtivo)}` : ''}${planoAtivo ? '&' : '?'}metodo=cartao`} className={`rounded-full px-4 py-2 text-sm font-semibold ${metodoAtivo === 'cartao' ? 'bg-slate-950 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}>
               Cartão
             </a>
-            <a href={`/precos${planoAtivo ? `?plano=${encodeURIComponent(planoAtivo)}` : ''}${planoAtivo ? '&' : '?'}metodo=pix_boleto`} className={`rounded-full px-4 py-2 text-sm font-semibold ${metodoAtivo === 'pix_boleto' ? 'bg-cyan-500 text-slate-950' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}>
-              PIX / Boleto
+            <a href={`/precos${planoAtivo ? `?plano=${encodeURIComponent(planoAtivo)}` : ''}${planoAtivo ? '&' : '?'}metodo=pix`} className={`rounded-full px-4 py-2 text-sm font-semibold ${metodoAtivo === 'pix' ? 'bg-cyan-500 text-slate-950' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}>
+              PIX
             </a>
           </div>
         </div>

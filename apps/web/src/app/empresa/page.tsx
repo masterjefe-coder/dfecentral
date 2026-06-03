@@ -315,7 +315,7 @@ export default function EmpresaPage() {
   }
 
   async function trocarMetodoAssinatura() {
-    const metodoNovo = assinatura?.assinaturaMetodoPagamento === 'pix_boleto' ? 'cartao' : 'pix_boleto';
+    const metodoNovo = assinatura?.assinaturaMetodoPagamento === 'pix' ? 'cartao' : 'pix';
     const res = await fetch('/api/billing/subscription/renew-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -465,14 +465,14 @@ export default function EmpresaPage() {
               <p className="mt-3 text-sm text-slate-600">
                 {assinatura?.assinaturaCancelEm
                   ? `Se cancelada, o acesso termina em ${new Date(assinatura.assinaturaCancelEm).toLocaleDateString('pt-BR')}.`
-                  : `A assinatura está ativa e libera o acesso conforme o plano. Cobrança atual: ${(assinatura?.assinaturaMetodoPagamento || 'cartao') === 'pix_boleto' ? 'PIX/Boleto' : 'cartão de crédito'}.`}
+                  : `A assinatura está ativa e libera o acesso conforme o plano. Cobrança atual: ${(assinatura?.assinaturaMetodoPagamento || 'cartao') === 'pix' ? 'PIX' : 'cartão de crédito'}.`}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button onClick={renovarAgora} className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800">
                   Renovar agora
                 </button>
                 <button onClick={trocarMetodoAssinatura} className="rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100">
-                  {(assinatura?.assinaturaMetodoPagamento || 'cartao') === 'pix_boleto' ? 'Trocar para cartão' : 'Trocar para PIX/Boleto'}
+                  {(assinatura?.assinaturaMetodoPagamento || 'cartao') === 'pix' ? 'Trocar para cartão' : 'Trocar para PIX'}
                 </button>
                 {assinatura?.assinaturaStatus === 'cancelada' ? (
                   <button onClick={restaurarAssinatura} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">

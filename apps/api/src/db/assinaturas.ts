@@ -2,7 +2,7 @@ import { and, asc, desc, eq, lte } from 'drizzle-orm';
 import { db } from './index.js';
 import { assinaturasCobrancas, usuarios } from './schema.js';
 
-export type MetodoPagamentoAssinatura = 'cartao' | 'pix_boleto';
+export type MetodoPagamentoAssinatura = 'cartao' | 'pix';
 export type OrigemCobrancaAssinatura = 'assinatura' | 'renovacao' | 'troca_metodo';
 
 export type CobrancaAssinatura = typeof assinaturasCobrancas.$inferSelect;

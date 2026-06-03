@@ -19,13 +19,13 @@ const checkoutSchema = z.discriminatedUnion('produto', [
   z.object({
     produto: z.literal('plano'),
     plano: z.enum(['starter', 'pro', 'enterprise']),
-    metodoPagamento: z.enum(['cartao', 'pix_boleto']).optional(),
+    metodoPagamento: z.enum(['cartao', 'pix']).optional(),
   }),
   z.object({ produto: z.literal('arquivamento'), arquivamento: z.enum(['starter', 'pro']) }),
 ]);
 
 const renewCheckoutSchema = z.object({
-  metodoPagamento: z.enum(['cartao', 'pix_boleto']).optional(),
+  metodoPagamento: z.enum(['cartao', 'pix']).optional(),
 });
 
 function adicionarDias(base: Date, dias: number): Date {
@@ -49,7 +49,7 @@ async function notificarWebhookCliente(usuarioId: string, payload: Record<string
 }
 
 function normalizarMetodoPagamento(valor?: string | null): MetodoPagamentoAssinatura {
-  return valor === 'pix_boleto' ? 'pix_boleto' : 'cartao';
+  return valor === 'pix' || valor === 'pix_boleto' ? 'pix' : 'cartao';
 }
 
 export async function billingRoutes(app: FastifyInstance) {

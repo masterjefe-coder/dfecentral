@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 type PlanoCheckout = 'starter' | 'pro' | 'enterprise';
 type ArquivamentoCheckout = 'starter' | 'pro';
-type MetodoPagamentoCheckout = 'cartao' | 'pix_boleto';
+type MetodoPagamentoCheckout = 'cartao' | 'pix';
 
 async function obterCnpjAtivo(): Promise<string | null> {
   const [meRes, empresaRes] = await Promise.all([
@@ -98,7 +98,7 @@ export function CheckoutButton(
         {loading ? 'Abrindo checkout...' : label}
       </button>
       <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
-        {metodoPagamento === 'pix_boleto' ? 'Pagamento via PIX ou boleto na RecebeAqui' : 'Pagamento recorrente via cartão na RecebeAqui'}
+        {metodoPagamento === 'pix' ? 'Pagamento via PIX na RecebeAqui' : 'Pagamento recorrente via cartão na RecebeAqui'}
       </p>
       {erro ? <p className="mt-2 text-sm text-rose-300">{erro}</p> : null}
     </div>

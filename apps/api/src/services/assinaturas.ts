@@ -82,7 +82,7 @@ export async function processarCobrancasAssinaturaVencidas(log?: { info?: (data:
       cnpjAtivo: usuarios.cnpjAtivo,
     })
     .from(usuarios)
-    .where(and(eq(usuarios.assinaturaStatus, 'ativa'), eq(usuarios.assinaturaMetodoPagamento, 'pix_boleto'), lte(usuarios.assinaturaRenovaEm, agora)));
+    .where(and(eq(usuarios.assinaturaStatus, 'ativa'), eq(usuarios.assinaturaMetodoPagamento, 'pix'), lte(usuarios.assinaturaRenovaEm, agora)));
 
   for (const usuario of usuariosVencidos) {
     const pendente = await obterCobrancaAssinaturaPendente(usuario.id);
@@ -101,7 +101,7 @@ export async function processarCobrancasAssinaturaVencidas(log?: { info?: (data:
         assinaturaRenovaEm: usuario.assinaturaRenovaEm,
       },
       plano: usuario.plano as PlanoRecebeAqui,
-      metodoPagamento: 'pix_boleto',
+      metodoPagamento: 'pix',
       origem: 'renovacao',
       venceEm: proxima,
     });
