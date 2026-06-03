@@ -1,0 +1,11 @@
+[Unit]
+Description=DFeCentral timer mensal de pacote XML
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+RandomizedDelaySec=1h
+Unit=dfecentral-contabilidade-mensal.service
+
+[Install]
+WantedBy=timers.target

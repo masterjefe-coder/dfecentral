@@ -112,6 +112,8 @@ sudo cp "$REPO_DIR/ops/oracle/dfecentral-web.service" /etc/systemd/system/dfecen
 sudo cp "$REPO_DIR/ops/oracle/dfecentral-api.service" /etc/systemd/system/dfecentral-api.service
 sudo cp "$REPO_DIR/ops/oracle/dfecentral-consulta.service" /etc/systemd/system/dfecentral-consulta.service
 sudo cp "$REPO_DIR/ops/oracle/dfecentral-scraper.service" /etc/systemd/system/dfecentral-scraper.service
+sudo cp "$REPO_DIR/ops/oracle/dfecentral-contabilidade-mensal.service" /etc/systemd/system/dfecentral-contabilidade-mensal.service
+sudo cp "$REPO_DIR/ops/oracle/dfecentral-contabilidade-mensal.timer" /etc/systemd/system/dfecentral-contabilidade-mensal.timer
 
 echo "Instalando Caddyfile..."
 sudo cp "$REPO_DIR/ops/oracle/dfecentral.Caddyfile" /etc/caddy/sites-enabled/dfecentral.Caddyfile
@@ -122,6 +124,7 @@ sudo systemctl enable dfecentral-web >/dev/null 2>&1 || true
 sudo systemctl enable dfecentral-api >/dev/null 2>&1 || true
 sudo systemctl enable dfecentral-consulta >/dev/null 2>&1 || true
 sudo systemctl enable dfecentral-scraper >/dev/null 2>&1 || true
+sudo systemctl enable dfecentral-contabilidade-mensal.timer >/dev/null 2>&1 || true
 sudo systemctl reload caddy >/dev/null 2>&1 || sudo systemctl restart caddy
 
 echo "=== DFeCentral: Setup Git Deploy concluido ==="

@@ -1,5 +1,8 @@
 import JSZip from 'jszip';
-import { obterPreferenciasUsuario } from '../db/auth.js';
+import { and, eq, gte, lt, or } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import { documentos } from '../db/schema.js';
+import { obterEmpresaAtiva, obterPreferenciasUsuario } from '../db/auth.js';
 import { enviarEmailComAnexo } from './mailer.js';
 import { enviarArquivoParaR2, r2EstaConfigurado } from './r2.js';
 
@@ -11,6 +14,52 @@ export interface DocumentoXmlPacote {
   dataEmissao: Date;
   xml: string;
   direcao: DirecaoXml;
+}
+
+export function normalizarMesPacote(valor?: string): string {
+  if (valor && /^\d{4}-\d{2}$/.test(valor)) return valor;
+  const agora = new Date();
+  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function inicioMes(mes: string): Date {
+  const [ano, numeroMes] = mes.split('-').map(Number);
+  return new Date(Date.UTC(ano, numeroMes - 1, 1, 0, 0, 0, 0));
+}
+
+function inicioProximoMes(mes: string): Date {
+  const [ano, numeroMes] = mes.split('-').map(Number);
+  return new Date(Date.UTC(ano, numeroMes, 1, 0, 0, 0, 0));
+}
+
+export async function obterDocumentosXmlMes(usuarioId: string, mes: string, incluirEntradas: boolean): Promise<DocumentoXmlPacote[]> {
+  const cnpj = await obterEmpresaAtiva(usuarioId);
+  if (!cnpj) return [];
+
+  const condicoes: any[] = [gte(documentos.dataEmissao, inicioMes(mes)), lt(documentos.dataEmissao, inicioProximoMes(mes))];
+  condicoes.push(
+    incluirEntradas
+      ? or(eq(documentos.cnpjEmitente, cnpj), eq(documentos.cnpjDestinatario, cnpj))
+      : eq(documentos.cnpjEmitente, cnpj),
+  );
+
+  const selecionados = await db.select().from(documentos).where(and(...condicoes));
+  const vistos = new Set<string>();
+
+  return selecionados
+    .filter((doc) => doc.xmlCompleto)
+    .filter((doc) => {
+      if (vistos.has(doc.chaveAcesso)) return false;
+      vistos.add(doc.chaveAcesso);
+      return true;
+    })
+    .map((doc) => ({
+      chaveAcesso: doc.chaveAcesso,
+      tipo: doc.tipo,
+      dataEmissao: new Date(doc.dataEmissao),
+      xml: typeof doc.xmlCompleto === 'string' ? doc.xmlCompleto : JSON.stringify(doc.xmlCompleto, null, 2),
+      direcao: doc.cnpjEmitente === cnpj ? ('emitidas' as const) : ('entradas' as const),
+    }));
 }
 
 export function obterEmailContabilidade(preferencias: unknown): string | null {
@@ -156,4 +205,10 @@ export async function enviarPacoteXmlMensal(opcoes: {
   });
 
   return { nomeArquivo: pacote.nomeArquivo, total: pacote.total, r2 };
+}
+
+export function mesAnterior(valor: Date = new Date()): string {
+  const ano = valor.getUTCMonth() === 0 ? valor.getUTCFullYear() - 1 : valor.getUTCFullYear();
+  const mes = valor.getUTCMonth() === 0 ? 12 : valor.getUTCMonth();
+  return `${ano}-${String(mes).padStart(2, '0')}`;
 }

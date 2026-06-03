@@ -1,10 +1,17 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq, gte, lt, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index.js';
+import { encontrarUsuarioPorApiKey } from '../db/auth.js';
 import { documentos } from '../db/schema.js';
-import { encontrarUsuarioPorApiKey, obterEmpresaAtiva } from '../db/auth.js';
-import { criarPacoteXmlMensal, enviarPacoteXmlMensal, enviarXmlContabilidadeAutomatico, obterEmailContabilidade } from '../utils/contabilidade.js';
+import {
+  criarPacoteXmlMensal,
+  enviarPacoteXmlMensal,
+  enviarXmlContabilidadeAutomatico,
+  obterDocumentosXmlMes,
+  obterEmailContabilidade,
+  normalizarMesPacote,
+} from '../utils/contabilidade.js';
 import { enviarEmailComAnexo } from '../utils/mailer.js';
 
 function extrairToken(authorization?: string, apiKey?: string): string | null {
@@ -25,52 +32,6 @@ const pacoteSchema = z.object({
   incluirEntradas: z.boolean().optional(),
   email: z.string().email().optional(),
 });
-
-function normalizarMes(valor?: string): string {
-  if (valor && /^\d{4}-\d{2}$/.test(valor)) return valor;
-  const agora = new Date();
-  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function inicioMes(mes: string): Date {
-  const [ano, numeroMes] = mes.split('-').map(Number);
-  return new Date(Date.UTC(ano, numeroMes - 1, 1, 0, 0, 0, 0));
-}
-
-function inicioProximoMes(mes: string): Date {
-  const [ano, numeroMes] = mes.split('-').map(Number);
-  return new Date(Date.UTC(ano, numeroMes, 1, 0, 0, 0, 0));
-}
-
-async function carregarDocumentosMes(usuarioId: string, mes: string, incluirEntradas: boolean) {
-  const cnpjAtivo = await obterEmpresaAtiva(usuarioId);
-  if (!cnpjAtivo) return [];
-
-  const condicoes: any[] = [gte(documentos.dataEmissao, inicioMes(mes)), lt(documentos.dataEmissao, inicioProximoMes(mes))];
-  condicoes.push(
-    incluirEntradas
-      ? or(eq(documentos.cnpjEmitente, cnpjAtivo), eq(documentos.cnpjDestinatario, cnpjAtivo))
-      : eq(documentos.cnpjEmitente, cnpjAtivo),
-  );
-
-  const selecionados = await db.select().from(documentos).where(and(...condicoes));
-  const vistos = new Set<string>();
-
-  return selecionados
-    .filter((doc) => doc.xmlCompleto)
-    .filter((doc) => {
-      if (vistos.has(doc.chaveAcesso)) return false;
-      vistos.add(doc.chaveAcesso);
-      return true;
-    })
-    .map((doc) => ({
-      chaveAcesso: doc.chaveAcesso,
-      tipo: doc.tipo,
-      dataEmissao: new Date(doc.dataEmissao),
-      xml: typeof doc.xmlCompleto === 'string' ? doc.xmlCompleto : JSON.stringify(doc.xmlCompleto, null, 2),
-      direcao: doc.cnpjEmitente === cnpjAtivo ? ('emitidas' as const) : ('entradas' as const),
-    }));
-}
 
 export async function contabilidadeRoutes(app: FastifyInstance) {
   app.post('/xml', async (request, reply) => {
@@ -118,14 +79,14 @@ export async function contabilidadeRoutes(app: FastifyInstance) {
     if (!usuario) return reply.status(401).send({ sucesso: false, erro: 'Autenticacao invalida' });
 
     const body = pacoteSchema.parse(request.body);
-    const mes = normalizarMes(body.mes);
+    const mes = normalizarMesPacote(body.mes);
     const incluirEntradas = Boolean(body.incluirEntradas);
     const destino = body.email || obterEmailContabilidade(usuario.preferencias) || null;
     if (!destino) {
       return reply.status(400).send({ sucesso: false, erro: 'Informe o e-mail da contabilidade nas preferencias ou no envio.' });
     }
 
-    const documentosMes = await carregarDocumentosMes(usuario.id, mes, incluirEntradas);
+    const documentosMes = await obterDocumentosXmlMes(usuario.id, mes, incluirEntradas);
     if (documentosMes.length === 0) {
       return reply.status(404).send({ sucesso: false, erro: 'Nao ha XMLs disponiveis para o mes informado.' });
     }
@@ -159,9 +120,9 @@ export async function contabilidadeRoutes(app: FastifyInstance) {
     if (!usuario) return reply.status(401).send({ sucesso: false, erro: 'Autenticacao invalida' });
 
     const body = pacoteSchema.parse(request.body);
-    const mes = normalizarMes(body.mes);
+    const mes = normalizarMesPacote(body.mes);
     const incluirEntradas = Boolean(body.incluirEntradas);
-    const documentosMes = await carregarDocumentosMes(usuario.id, mes, incluirEntradas);
+    const documentosMes = await obterDocumentosXmlMes(usuario.id, mes, incluirEntradas);
     if (documentosMes.length === 0) {
       return reply.status(404).send({ sucesso: false, erro: 'Nao ha XMLs disponiveis para o mes informado.' });
     }

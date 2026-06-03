@@ -1,0 +1,14 @@
+[Unit]
+Description=DFeCentral Disparo mensal de pacote XML
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/apps/dfecentral/repo/apps/api
+EnvironmentFile=/opt/apps/dfecentral/shared/app.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env npx tsx src/tasks/enviar-pacote-mensal.ts
+StandardOutput=journal
+StandardError=journal

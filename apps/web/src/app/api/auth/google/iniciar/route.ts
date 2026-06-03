@@ -2,8 +2,21 @@ import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '../../../../../lib/api';
 
 function publicApiBaseUrl(url: URL): string {
-  const configured = process.env.API_PUBLIC_URL;
-  if (configured) return configured;
+  const configured = process.env.API_PUBLIC_URL?.trim();
+  if (configured) return configured.replace(/\/$/, '');
+
+  const webBase = process.env.WEB_BASE_URL || process.env.APP_BASE_URL;
+  if (webBase) {
+    try {
+      const base = new URL(webBase);
+      if (base.hostname.endsWith('dfecentral.com.br')) {
+        base.hostname = base.hostname.startsWith('www.') ? base.hostname.replace(/^www\./, 'api.') : 'api.dfecentral.com.br';
+      }
+      return base.origin;
+    } catch {
+      // Mantem os fallbacks abaixo.
+    }
+  }
 
   if (url.hostname.endsWith('dfecentral.com.br')) {
     const parts = url.hostname.split('.');
@@ -13,7 +26,7 @@ function publicApiBaseUrl(url: URL): string {
     }
   }
 
-  return getApiBaseUrl();
+  return process.env.NODE_ENV === 'production' ? 'https://api.dfecentral.com.br' : getApiBaseUrl();
 }
 
 export async function GET(request: Request) {
