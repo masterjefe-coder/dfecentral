@@ -277,7 +277,7 @@ export async function criarCheckoutRecebeAqui(input: RecebeAquiCheckoutInput): P
     const planoInfo = getPlano(input.plano);
     body = {
       value: planoInfo.amount / 100,
-      maxInstallmentCount: 1,
+      maxInstallmentCount: 12,
       billingType: 'CREDITO',
       recurrent: 'MENSAL',
       description: planoInfo.description,
