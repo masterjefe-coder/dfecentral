@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { carregarCertificado } from '@dfecentral/sdk';
 import { encontrarUsuarioPorApiKey, obterEmpresaAtiva } from '../db/auth.js';
@@ -77,7 +77,7 @@ export async function certificadosRoutes(app: FastifyInstance) {
     const cnpj = normalizarCnpj(body?.cnpj || (await obterEmpresaAtiva(usuario.id)) || usuario.cnpj || '');
     const senha = String(body?.senha || '').trim();
     const arquivoBase64 = String(body?.arquivoBase64 || '').trim();
-    const nomeArquivo = String(body?.nomeArquivo || 'certificado.pfx').trim();
+    const nomeArquivo = basename(String(body?.nomeArquivo || 'certificado.pfx').trim()) || 'certificado.pfx';
     const mimeType = String(body?.mimeType || 'application/x-pkcs12').trim() || 'application/x-pkcs12';
 
     if (cnpj.length !== 14) {
@@ -97,13 +97,6 @@ export async function certificadosRoutes(app: FastifyInstance) {
     try {
       writeFileSync(caminho, arquivo);
       const certificado = carregarCertificado(caminho, senha);
-
-      if (certificado.cnpj !== cnpj) {
-        return reply.status(400).send({
-          sucesso: false,
-          erro: `O CNPJ do certificado (${certificado.cnpj}) nao confere com o CNPJ ativo (${cnpj}).`,
-        });
-      }
 
       const salvo = await salvarCertificadoDigital({
         usuarioId: usuario.id,

@@ -4,6 +4,7 @@ export { consultarNFeporChave } from './consulta.js';
 export { parseDocumentoFiscalXml, decodificarDocZip } from './consulta.js';
 export { consultarNfePublicaConsultadanfe, gerarPdfConsultadanfe, gerarPdfNFepelaChaveConsultadanfe } from './consultadanfe.js';
 export { montarEndpoints, getServiceUrl } from './endpoints.js';
+export { normalizarUfAutor, obterUfAutorEnv } from './uf.js';
 export { parseChaveAcesso } from './types.js';
 export type {
   Ambiente,

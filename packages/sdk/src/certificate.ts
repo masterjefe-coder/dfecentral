@@ -15,6 +15,13 @@ interface CertData {
 }
 
 function extractCNPJdoSubject(subject: string): string {
+  const cnMatch = subject.match(/CN=([^,]+)/);
+  if (cnMatch) {
+    const cnValue = cnMatch[1].trim();
+    const cnCnpj = cnValue.match(/:(\d{14})$/) || cnValue.match(/(\d{14})$/);
+    if (cnCnpj) return cnCnpj[1];
+  }
+
   const cnpjMatch = subject.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
   if (cnpjMatch) return cnpjMatch[1].replace(/\D/g, '');
   const cnpjPlain = subject.match(/CNPJ[=:](\d{14})/);

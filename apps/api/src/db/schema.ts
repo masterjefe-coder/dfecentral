@@ -135,6 +135,29 @@ export const certificadosDigitais = pgTable(
   ]
 );
 
+export const distribuicoesDfe = pgTable(
+  'distribuicoes_dfe',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    usuarioId: uuid('usuario_id').references(() => usuarios.id).notNull(),
+    cnpj: varchar('cnpj', { length: 14 }).notNull(),
+    tipo: varchar('tipo', { length: 20 }).notNull().default('nfe'),
+    ufIndice: integer('uf_indice').notNull().default(0),
+    ultNsu: varchar('ult_nsu', { length: 15 }).notNull().default('000000000000000'),
+    ultimoCStat: varchar('ultimo_cstat', { length: 10 }),
+    ultimoXMotivo: varchar('ultimo_xmotivo', { length: 255 }),
+    proximaExecucaoEm: timestamp('proxima_execucao_em', { withTimezone: true }),
+    criadoEm: timestamp('criado_em', { withTimezone: true }).defaultNow().notNull(),
+    atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_distribuicoes_dfe_usuario_id').on(table.usuarioId),
+    index('idx_distribuicoes_dfe_cnpj').on(table.cnpj),
+    index('idx_distribuicoes_dfe_tipo').on(table.tipo),
+    index('idx_distribuicoes_dfe_proxima_execucao_em').on(table.proximaExecucaoEm),
+  ]
+);
+
 export const assinaturasCobrancas = pgTable(
   'assinaturas_cobrancas',
   {

@@ -1,5 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { basename } from 'node:path';
 import { db } from './index.js';
 import { certificadosDigitais } from './schema.js';
 
@@ -69,6 +70,17 @@ export async function obterCertificadoDigitalUsuario(usuarioId: string, cnpj?: s
   return resultado[0] || null;
 }
 
+export async function obterCertificadoDigitalPorCnpj(cnpj: string): Promise<CertificadoDigital | null> {
+  const resultado = await db
+    .select()
+    .from(certificadosDigitais)
+    .where(eq(certificadosDigitais.cnpj, cnpj.replace(/\D/g, '').slice(0, 14)))
+    .orderBy(desc(certificadosDigitais.atualizadoEm))
+    .limit(1);
+
+  return resultado[0] || null;
+}
+
 export async function salvarCertificadoDigital(input: {
   usuarioId: string;
   cnpj: string;
@@ -85,7 +97,7 @@ export async function salvarCertificadoDigital(input: {
     usuarioId: input.usuarioId,
     cnpj: input.cnpj.replace(/\D/g, '').slice(0, 14),
     certificadoCnpj: input.certificadoCnpj.replace(/\D/g, '').slice(0, 14),
-    nomeArquivo: input.nomeArquivo.trim(),
+    nomeArquivo: basename(input.nomeArquivo.trim()) || 'certificado.pfx',
     mimeType: input.mimeType.trim() || 'application/x-pkcs12',
     tamanhoBytes: input.tamanhoBytes,
     validadeEm: input.validadeEm,

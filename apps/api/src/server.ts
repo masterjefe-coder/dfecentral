@@ -27,6 +27,7 @@ import { empresasRoutes } from './routes/empresas.js';
 import { certificadosRoutes } from './routes/certificados.js';
 import { obterContaPorApiKey } from './db/account.js';
 import { processarCobrancasAssinaturaVencidas } from './services/assinaturas.js';
+import { importarDistribuicaoLenta } from './routes/importacoes.js';
 
 const app = Fastify({
   logger: {
@@ -167,6 +168,12 @@ const cobrancasTimer = setInterval(() => {
 }, 60 * 60 * 1000);
 (cobrancasTimer as any).unref?.();
 void processarCobrancasAssinaturaVencidas(app.log);
+
+const distribuicaoTimer = setInterval(() => {
+  void importarDistribuicaoLenta(app.log);
+}, 5 * 60 * 1000);
+(distribuicaoTimer as any).unref?.();
+void importarDistribuicaoLenta(app.log);
 
 // Start
 const port = Number(process.env.API_PORT || 3004);

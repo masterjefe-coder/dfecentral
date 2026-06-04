@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { gunzipSync } from 'node:zlib';
 import { carregarCertificado } from './certificate.js';
 import { montarEndpoints, getServiceUrl } from './endpoints.js';
+import { normalizarUfAutor, obterUfAutorEnv } from './uf.js';
 import { enviarSOAPComCert, montarEnvelope, requestComCert } from './soap.js';
 import { parseChaveAcesso } from './types.js';
 import type {
@@ -270,7 +271,7 @@ async function consultarDocumentoOficialPorChave(
         <cteDadosMsg>
           <distDFeInt xmlns="http://www.portalfiscal.inf.br/cte" versao="1.00">
             <tpAmb>${config.ambiente}</tpAmb>
-            <cUFAutor>${info?.uf || uf}</cUFAutor>
+            <cUFAutor>${normalizarUfAutor(info?.uf || config.ufPadrao || 'PR').codigo}</cUFAutor>
             <CNPJ>${cert.cnpj}</CNPJ>
             <consChCTe>
               <chCTe>${chave}</chCTe>
@@ -561,6 +562,8 @@ export async function consultarNFeporChave(
 
   try {
     const cert = carregarCertificado(config.certificado.caminho, config.certificado.senha);
+    const cnpjFiscal = config.cnpjFiscal || cert.cnpj;
+    const cUFAutor = obterUfAutorEnv().codigo;
     const endpoints = montarEndpoints(config.ambiente);
 
     const distDFeUrl = getServiceUrl(endpoints, uf, 'nfeDistDFeInteresse');
@@ -576,8 +579,8 @@ export async function consultarNFeporChave(
       <nfeDadosMsg>
         <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
           <tpAmb>${config.ambiente}</tpAmb>
-          <cUFAutor>${info.uf}</cUFAutor>
-          <CNPJ>${cert.cnpj}</CNPJ>
+          <cUFAutor>${cUFAutor}</cUFAutor>
+          <CNPJ>${cnpjFiscal}</CNPJ>
           <consChNFe>
             <chNFe>${params.chaveAcesso}</chNFe>
           </consChNFe>

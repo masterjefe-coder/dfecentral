@@ -140,7 +140,7 @@ export async function enviarSOAP(
     headers['Content-Type'] = `application/soap+xml; charset=utf-8; action="${action}"`;
   } else {
     headers['Content-Type'] = 'text/xml; charset=utf-8';
-    headers.SOAPAction = action;
+    headers.SOAPAction = `"${action}"`;
   }
 
   return requestComCert({
@@ -166,7 +166,7 @@ export async function enviarSOAPComCert(
     headers['Content-Type'] = `application/soap+xml; charset=utf-8; action="${action}"`;
   } else {
     headers['Content-Type'] = 'text/xml; charset=utf-8';
-    headers.SOAPAction = action;
+    headers.SOAPAction = `"${action}"`;
   }
 
   return requestComCert({

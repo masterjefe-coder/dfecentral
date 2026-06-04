@@ -27,6 +27,7 @@ export interface CertificadoConfig {
 export interface SdkConfig {
   ambiente: Ambiente;
   certificado?: CertificadoConfig;
+  cnpjFiscal?: string;
   ufPadrao?: string;
   timeout?: number;
 }

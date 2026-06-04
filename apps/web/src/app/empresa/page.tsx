@@ -219,7 +219,7 @@ export default function EmpresaPage() {
       setCertificado(data.dados?.certificado || null);
       setCertificadoArquivo(null);
       setCertificadoSenha('');
-      setMensagem('Certificado salvo com segurança.');
+      setMensagem(data.dados?.aviso || 'Certificado salvo com segurança.');
     } finally {
       setEnviandoCertificado(false);
     }

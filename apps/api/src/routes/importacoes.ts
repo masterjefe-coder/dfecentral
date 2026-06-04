@@ -1,49 +1,19 @@
 import type { FastifyInstance } from 'fastify';
-import { carregarCertificado, montarEndpoints, getServiceUrl, enviarSOAPComCert, montarEnvelope, parseDocumentoFiscalXml, decodificarDocZip, type TipoDocumento, type SdkConfig } from '@dfecentral/sdk';
+import { carregarCertificado, decodificarDocZip, enviarSOAPComCert, getServiceUrl, montarEnvelope, montarEndpoints, obterUfAutorEnv, parseDocumentoFiscalXml, type TipoDocumento } from '@dfecentral/sdk';
 import { salvarNoCache } from '../db/cache.js';
 import { registrarConsulta } from '../db/audit.js';
+import { obterDistribuicaoDfe, salvarDistribuicaoDfe } from '../db/distribuicoes.js';
 import { obterSdkConfigComCertificado } from '../utils/certificados.js';
-
-function getSdkConfig(): SdkConfig {
-  return {
-    ambiente: (Number(process.env.SEFAZ_AMBIENTE) || 1) as 1 | 2,
-    certificado:
-      process.env.SEFAZ_CERT_PATH && process.env.SEFAZ_CERT_PASS
-        ? { caminho: process.env.SEFAZ_CERT_PATH, senha: process.env.SEFAZ_CERT_PASS }
-        : undefined,
-    timeout: 45000,
-  };
-}
 
 type Importavel = 'nfe' | 'nfce' | 'cte' | 'mdfe';
 
 const SUPORTADOS = new Set<Importavel>(['nfe', 'nfce', 'cte', 'mdfe']);
 
 const CONFIG: Record<Importavel, { urlKey: string; requestTag: string; serviceNamespace: string; action: string }> = {
-  nfe: {
-    urlKey: 'nfeDistDFeInteresse',
-    requestTag: 'nfeDistDFeInteresse',
-    serviceNamespace: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe',
-    action: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse',
-  },
-  nfce: {
-    urlKey: 'nfceDistDFeInteresse',
-    requestTag: 'nfeDistDFeInteresse',
-    serviceNamespace: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe',
-    action: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse',
-  },
-  cte: {
-    urlKey: 'cteDistDFeInteresse',
-    requestTag: 'cteDistDFeInteresse',
-    serviceNamespace: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeDistribuicaoDFe',
-    action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeDistribuicaoDFe/cteDistDFeInteresse',
-  },
-  mdfe: {
-    urlKey: 'mdfeDistDFeInteresse',
-    requestTag: 'mdfeDistDFeInteresse',
-    serviceNamespace: 'http://www.portalfiscal.inf.br/mdfe/wsdl/MDFeDistribuicaoDFe',
-    action: 'http://www.portalfiscal.inf.br/mdfe/wsdl/MDFeDistribuicaoDFe/mdfeDistDFeInteresse',
-  },
+  nfe: { urlKey: 'nfeDistDFeInteresse', requestTag: 'nfeDistDFeInteresse', serviceNamespace: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe', action: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse' },
+  nfce: { urlKey: 'nfceDistDFeInteresse', requestTag: 'nfeDistDFeInteresse', serviceNamespace: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe', action: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse' },
+  cte: { urlKey: 'cteDistDFeInteresse', requestTag: 'cteDistDFeInteresse', serviceNamespace: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeDistribuicaoDFe', action: 'http://www.portalfiscal.inf.br/cte/wsdl/CTeDistribuicaoDFe/cteDistDFeInteresse' },
+  mdfe: { urlKey: 'mdfeDistDFeInteresse', requestTag: 'mdfeDistDFeInteresse', serviceNamespace: 'http://www.portalfiscal.inf.br/mdfe/wsdl/MDFeDistribuicaoDFe', action: 'http://www.portalfiscal.inf.br/mdfe/wsdl/MDFeDistribuicaoDFe/mdfeDistDFeInteresse' },
 };
 
 const MSG_TAG: Record<Importavel, string> = {
@@ -52,6 +22,10 @@ const MSG_TAG: Record<Importavel, string> = {
   cte: 'cteDadosMsg',
   mdfe: 'mdfeDadosMsg',
 };
+
+const INTERVALO_NORMAL_MS = 5 * 60 * 1000;
+const INTERVALO_ERRO_MS = 15 * 60 * 1000;
+const INTERVALO_656_MS = 60 * 60 * 1000;
 
 function parseDocZipTags(body: string): string[] {
   return [...body.matchAll(/<docZip[^>]*>([^<]+)<\/docZip>/g)].map((match) => match[1]);
@@ -67,31 +41,39 @@ function parseMaxNSU(body: string): string {
   return match ? match[1] : '0';
 }
 
-async function importarPorTipo(tipo: Importavel, cnpj: string, uf: string, ultNSUInicial = '000000000000000', usuarioId?: string) {
+function parseCStat(body: string): string {
+  const match = body.match(/<cStat>(\d+)<\/cStat>/);
+  return match ? match[1] : '0';
+}
+
+function parseXMotivo(body: string): string {
+  const match = body.match(/<xMotivo>([^<]+)<\/xMotivo>/);
+  return match ? match[1] : '';
+}
+
+async function executarImportacaoDistribuicao(tipo: Importavel, cnpj: string, uf: string, ultNSUInicial = '000000000000000', usuarioId?: string) {
   const { config, cleanup } = await obterSdkConfigComCertificado({ usuarioId, cnpj });
-  if (!config.certificado) {
-    throw new Error('Certificado digital nao configurado');
-  }
+  if (!config.certificado) throw new Error('Certificado digital nao configurado');
+  const cUFAutor = obterUfAutorEnv().codigo;
 
   try {
     carregarCertificado(config.certificado.caminho, config.certificado.senha);
 
     const endpoints = montarEndpoints(config.ambiente);
     const serviceUrl = getServiceUrl(endpoints, uf, CONFIG[tipo].urlKey);
-    if (!serviceUrl) {
-      throw new Error(`Endpoint indisponivel para ${uf}`);
-    }
+    if (!serviceUrl) throw new Error(`Endpoint indisponivel para ${uf}`);
 
     let ultNSU = ultNSUInicial;
     const importados: Array<{ chaveAcesso: string; tipo: TipoDocumento }> = [];
-    const maxIteracoes = 10;
+    let cStat = '0';
+    let xMotivo = '';
 
-    for (let i = 0; i < maxIteracoes; i++) {
+    for (let i = 0; i < 10; i++) {
       const body = `<${CONFIG[tipo].requestTag} xmlns="${CONFIG[tipo].serviceNamespace}">
       <${MSG_TAG[tipo]}>
         <distDFeInt xmlns="http://www.portalfiscal.inf.br/${tipo === 'cte' ? 'cte' : tipo === 'mdfe' ? 'mdfe' : 'nfe'}" versao="1.01">
           <tpAmb>${config.ambiente}</tpAmb>
-          <cUFAutor>${uf}</cUFAutor>
+          <cUFAutor>${cUFAutor}</cUFAutor>
           <CNPJ>${cnpj}</CNPJ>
           <distNSU>
             <ultNSU>${ultNSU}</ultNSU>
@@ -108,6 +90,7 @@ async function importarPorTipo(tipo: Importavel, cnpj: string, uf: string, ultNS
         config.certificado.caminho,
         config.certificado.senha,
         config.timeout || 60000,
+        '1.1',
       );
 
       if (resposta.statusCode !== 200) {
@@ -119,9 +102,10 @@ async function importarPorTipo(tipo: Importavel, cnpj: string, uf: string, ultNS
         || resposta.body.match(/<cteDistDFeInteresseResult[^>]*>([\s\S]*?)<\/cteDistDFeInteresseResult>/)
         || resposta.body.match(/<mdfeDistDFeInteresseResult[^>]*>([\s\S]*?)<\/mdfeDistDFeInteresseResult>/);
       const resultXml = resultMatch ? resultMatch[1] : '';
-      const docZipList = parseDocZipTags(resultXml);
+      cStat = parseCStat(resultXml);
+      xMotivo = parseXMotivo(resultXml);
 
-      for (const docZipB64 of docZipList) {
+      for (const docZipB64 of parseDocZipTags(resultXml)) {
         const xml = decodificarDocZip(docZipB64);
         const documento = parseDocumentoFiscalXml(xml, tipo);
         if (!documento) continue;
@@ -131,17 +115,88 @@ async function importarPorTipo(tipo: Importavel, cnpj: string, uf: string, ultNS
 
       const novoUltNSU = parseUltNSU(resultXml);
       const maxNSU = parseMaxNSU(resultXml);
-      if (!novoUltNSU || novoUltNSU === ultNSU || novoUltNSU === maxNSU) {
+      if (!novoUltNSU || novoUltNSU === ultNSU || novoUltNSU === maxNSU || ['137', '139'].includes(cStat)) {
         ultNSU = novoUltNSU || ultNSU;
         break;
       }
       ultNSU = novoUltNSU;
     }
 
-    return { importados, ultNSU };
+    return { importados, ultNSU, cStat, xMotivo };
   } finally {
     cleanup?.();
   }
+}
+
+export async function importarPorTipo(tipo: Importavel, cnpj: string, uf: string, ultNSUInicial = '000000000000000', usuarioId?: string) {
+  return executarImportacaoDistribuicao(tipo, cnpj, uf, ultNSUInicial, usuarioId);
+}
+
+export async function importarDistribuicaoLenta(log?: { info?: (data: unknown, message?: string) => void; warn?: (data: unknown, message?: string) => void }) {
+  const { db } = await import('../db/index.js');
+  const { certificadosDigitais } = await import('../db/schema.js');
+  const agora = new Date();
+  const ufAutor = obterUfAutorEnv('SC');
+  const certificados = await db.select().from(certificadosDigitais).orderBy(certificadosDigitais.atualizadoEm);
+  const porCnpj = new Map<string, typeof certificados>();
+
+  for (const cert of certificados) {
+    if (!porCnpj.has(cert.cnpj)) porCnpj.set(cert.cnpj, [] as typeof certificados);
+    porCnpj.get(cert.cnpj)!.push(cert);
+  }
+
+  const resultados: Array<{ cnpj: string; uf: string; importados: number; cStat: string; xMotivo: string }> = [];
+
+  for (const [cnpj, rows] of porCnpj) {
+    const cert = rows[0];
+    const cursor = await obterDistribuicaoDfe(cert.usuarioId, cnpj, 'nfe');
+    if (cursor?.proximaExecucaoEm && new Date(cursor.proximaExecucaoEm).getTime() > agora.getTime()) {
+      continue;
+    }
+
+    const ultNSU = cursor?.ultNsu || '000000000000000';
+
+    try {
+      const resultado = await executarImportacaoDistribuicao('nfe', cnpj, ufAutor.sigla, ultNSU, cert.usuarioId);
+      const proximaExecucaoEm = new Date(
+        agora.getTime() + (
+          resultado.cStat === '656'
+            ? INTERVALO_656_MS
+            : resultado.cStat === '138'
+              ? 60 * 1000
+              : INTERVALO_NORMAL_MS
+        )
+      );
+
+      await salvarDistribuicaoDfe({
+        usuarioId: cert.usuarioId,
+        cnpj,
+        tipo: 'nfe',
+        ufIndice: 0,
+        ultNsu: resultado.ultNSU,
+        ultimoCStat: resultado.cStat,
+        ultimoXMotivo: resultado.xMotivo,
+        proximaExecucaoEm,
+      });
+
+      resultados.push({ cnpj, uf: ufAutor.sigla, importados: resultado.importados.length, cStat: resultado.cStat, xMotivo: resultado.xMotivo });
+      log?.info?.({ cnpj, uf: ufAutor.sigla, importados: resultado.importados.length, cStat: resultado.cStat }, 'Distribuicao DFe executada');
+    } catch (error: any) {
+      await salvarDistribuicaoDfe({
+        usuarioId: cert.usuarioId,
+        cnpj,
+        tipo: 'nfe',
+        ufIndice: 0,
+        ultNsu: ultNSU,
+        ultimoCStat: 'erro',
+        ultimoXMotivo: error?.message || 'Falha na distribuicao DFe',
+        proximaExecucaoEm: new Date(agora.getTime() + INTERVALO_ERRO_MS),
+      });
+      log?.warn?.({ cnpj, uf: ufAutor.sigla, erro: error?.message }, 'Falha na distribuicao DFe');
+    }
+  }
+
+  return resultados;
 }
 
 export async function importacoesRoutes(app: FastifyInstance) {
@@ -166,19 +221,22 @@ export async function importacoesRoutes(app: FastifyInstance) {
 
     try {
       const usuarioId = (request as any).conta?.id;
-      const resultado = await importarPorTipo(tipo as Importavel, cnpj, uf, ultNSU, usuarioId);
+      const resultado = await executarImportacaoDistribuicao(tipo as Importavel, cnpj, uf, ultNSU, usuarioId);
       await registrarConsulta({
         tipo: `importacao:${tipo}`,
         consulta: cnpj,
-        resultado: `sucesso:${resultado.importados.length}`,
+        resultado: `sucesso:${resultado.importados.length}:${resultado.cStat}`,
         ip: request.ip,
         usuarioId,
       });
+
       return {
         sucesso: true,
         tipo,
         importados: resultado.importados.length,
         ultNSU: resultado.ultNSU,
+        cStat: resultado.cStat,
+        xMotivo: resultado.xMotivo,
         documentos: resultado.importados,
       };
     } catch (error: any) {
@@ -192,5 +250,11 @@ export async function importacoesRoutes(app: FastifyInstance) {
       });
       return reply.status(500).send({ sucesso: false, erro: error?.message || 'Falha ao importar documentos' });
     }
+  });
+
+  app.post('/sincronizar', async (request) => {
+    const usuarioId = (request as any).conta?.id;
+    const resultados = await importarDistribuicaoLenta(app.log);
+    return { sucesso: true, usuarioId, resultados };
   });
 }
