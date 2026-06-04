@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -60,6 +60,13 @@ type XmlImportacaoResultado = {
   documentos: XmlImportado[];
 };
 
+type ArquivoImportacaoPreview = {
+  nome: string;
+  tipo: 'xml' | 'zip';
+  status: 'ok' | 'warn' | 'erro';
+  detalhe?: string;
+};
+
 const TIPOS_IMPORT: Array<{ tipo: TipoImport; nome: string; cor: string; descricao: string }> = [
   { tipo: 'nfe', nome: 'NF-e', cor: 'from-blue-500 to-indigo-600', descricao: 'Saídas e entradas da nota fiscal eletrônica.' },
   { tipo: 'nfce', nome: 'NFC-e', cor: 'from-emerald-500 to-teal-600', descricao: 'Consumidor final e operação de balcão.' },
@@ -113,6 +120,28 @@ function mascaraCNPJ(valor: string) {
     .replace(/(\d{4})(\d)/, '$1-$2');
 }
 
+function nomeArquivo(file: File) {
+  return file.webkitRelativePath || file.name;
+}
+
+function tipoArquivo(file: File): 'xml' | 'zip' {
+  return file.name.toLowerCase().endsWith('.zip') ? 'zip' : 'xml';
+}
+
+function pareceXmlDocumento(texto: string) {
+  return /<(?:nfeProc|NFe|procNFe|resNFe|resNFCe|cteProc|CTe|procCTe|mdfeProc|MDFe|procMDFe|procBPe|BPe|procDCe|DCe|resCTe|resMDFe|resBPe|resDCe)\b/i.test(texto);
+}
+
+async function arquivoParaBase64(file: File) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binario = '';
+  const bloco = 0x8000;
+  for (let i = 0; i < bytes.length; i += bloco) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + bloco));
+  }
+  return btoa(binario);
+}
+
 export default function DashboardPage() {
   const [cnpj, setCnpj] = useState('');
   const [uf, setUf] = useState('SP');
@@ -129,8 +158,10 @@ export default function DashboardPage() {
   const [conta, setConta] = useState<ContaResumo | null>(null);
   const [erroImportacao, setErroImportacao] = useState('');
   const [erroResumo, setErroResumo] = useState('');
-  const [xmlArquivos, setXmlArquivos] = useState<File[]>([]);
+  const [arquivosImportacao, setArquivosImportacao] = useState<File[]>([]);
+  const [previewsImportacao, setPreviewsImportacao] = useState<ArquivoImportacaoPreview[]>([]);
   const [importandoXml, setImportandoXml] = useState(false);
+  const [arrastando, setArrastando] = useState(false);
   const xmlInputRef = useRef<HTMLInputElement | null>(null);
   const pastaInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -142,6 +173,33 @@ export default function DashboardPage() {
     pastaInputRef.current?.setAttribute('webkitdirectory', '');
     pastaInputRef.current?.setAttribute('directory', '');
   }, []);
+
+  const prevalidarArquivos = useCallback(async (arquivos: File[]) => {
+    const resultados = await Promise.all(arquivos.map(async (arquivo) => {
+      const nome = nomeArquivo(arquivo);
+      const tipo = tipoArquivo(arquivo);
+
+      if (tipo === 'zip') {
+        return { nome, tipo, status: 'warn' as const, detalhe: 'ZIP será expandido na importação.' };
+      }
+
+      const texto = await arquivo.text();
+      if (!texto.trim()) return { nome, tipo, status: 'erro' as const, detalhe: 'Arquivo vazio.' };
+      if (!pareceXmlDocumento(texto)) return { nome, tipo, status: 'warn' as const, detalhe: 'XML não parece ser um documento fiscal padrão.' };
+      return { nome, tipo, status: 'ok' as const, detalhe: 'XML válido.' };
+    }));
+
+    setPreviewsImportacao(resultados);
+    return resultados;
+  }, []);
+
+  const atualizarArquivosImportacao = useCallback(async (arquivos: FileList | File[] | null) => {
+    const selecionados = Array.from(arquivos || []).filter((arquivo) => /\.(xml|zip)$/i.test(arquivo.name));
+    setArquivosImportacao(selecionados);
+    setErroImportacao('');
+    setResultadoXml(null);
+    await prevalidarArquivos(selecionados);
+  }, [prevalidarArquivos]);
 
   const carregarResumoMovimento = useCallback(async (movimento: Movimento) => {
     const respostas = await Promise.all(
@@ -295,15 +353,8 @@ export default function DashboardPage() {
     }
   };
 
-  const atualizarXmlArquivos = (arquivos: FileList | null) => {
-    const selecionados = Array.from(arquivos || []).filter((arquivo) => arquivo.name.toLowerCase().endsWith('.xml'));
-    setXmlArquivos(selecionados);
-    setErroImportacao('');
-    setResultadoXml(null);
-  };
-
   const importarXmlSelecionados = async () => {
-    if (xmlArquivos.length === 0) {
+    if (arquivosImportacao.length === 0) {
       setErroImportacao('Selecione ao menos um XML ou uma pasta com XMLs.');
       return;
     }
@@ -314,10 +365,14 @@ export default function DashboardPage() {
 
     try {
       const arquivos = await Promise.all(
-        xmlArquivos.map(async (arquivo) => ({
-          nome: arquivo.webkitRelativePath || arquivo.name,
-          xml: await arquivo.text(),
-        })),
+        arquivosImportacao.map(async (arquivo) => {
+          const nome = nomeArquivo(arquivo);
+          if (tipoArquivo(arquivo) === 'zip') {
+            return { nome, tipo: 'zip' as const, base64: await arquivoParaBase64(arquivo) };
+          }
+
+          return { nome, tipo: 'xml' as const, xml: await arquivo.text() };
+        }),
       );
 
       const res = await fetch('/api/importacoes/xml', {
@@ -344,6 +399,12 @@ export default function DashboardPage() {
     } finally {
       setImportandoXml(false);
     }
+  };
+
+  const onDropArquivos = async (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setArrastando(false);
+    await atualizarArquivosImportacao(event.dataTransfer.files);
   };
 
   const sair = async () => {
@@ -562,12 +623,18 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <div className="mt-4 rounded-3xl border border-dashed border-cyan-300 bg-cyan-50/70 p-4">
+            <div
+              className={`mt-4 rounded-3xl border border-dashed p-4 transition-colors ${arrastando ? 'border-cyan-500 bg-cyan-100/80' : 'border-cyan-300 bg-cyan-50/70'}`}
+              onDragEnter={(e) => { e.preventDefault(); setArrastando(true); }}
+              onDragOver={(e) => { e.preventDefault(); setArrastando(true); }}
+              onDragLeave={() => setArrastando(false)}
+              onDrop={(e) => void onDropArquivos(e)}
+            >
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Importação manual de XML</p>
-                  <h3 className="mt-2 text-lg font-bold text-slate-950">Saídas por arquivo ou pasta</h3>
-                  <p className="mt-1 text-sm text-slate-600">Selecione um XML ou uma pasta inteira. O sistema identifica o tipo e salva cada documento na base.</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Importação manual de XML e ZIP</p>
+                  <h3 className="mt-2 text-lg font-bold text-slate-950">Saídas por arquivo, pasta ou pacote</h3>
+                  <p className="mt-1 text-sm text-slate-600">Arraste os arquivos para cá ou selecione uma pasta. XMLs são validados antes do envio e ZIPs são expandidos na API.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -575,7 +642,7 @@ export default function DashboardPage() {
                     onClick={() => xmlInputRef.current?.click()}
                     className="rounded-full border border-cyan-200 bg-white px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-100"
                   >
-                    Selecionar XMLs
+                    Selecionar arquivos
                   </button>
                   <button
                     type="button"
@@ -587,7 +654,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => void importarXmlSelecionados()}
-                    disabled={importandoXml || xmlArquivos.length === 0}
+                    disabled={importandoXml || arquivosImportacao.length === 0}
                     className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
                   >
                     {importandoXml ? 'Importando...' : 'Importar selecionados'}
@@ -598,30 +665,44 @@ export default function DashboardPage() {
               <input
                 ref={xmlInputRef}
                 type="file"
-                accept=".xml,application/xml,text/xml"
+                accept=".xml,.zip,application/xml,text/xml,application/zip"
                 multiple
                 className="hidden"
-                onChange={(e) => atualizarXmlArquivos(e.target.files)}
+                onChange={(e) => void atualizarArquivosImportacao(e.target.files)}
               />
               <input
                 ref={pastaInputRef}
                 type="file"
-                accept=".xml,application/xml,text/xml"
+                accept=".xml,.zip,application/xml,text/xml,application/zip"
                 multiple
                 className="hidden"
-                onChange={(e) => atualizarXmlArquivos(e.target.files)}
+                onChange={(e) => void atualizarArquivosImportacao(e.target.files)}
               />
 
               <div className="mt-4 rounded-2xl border border-cyan-200 bg-white px-4 py-3 text-sm text-slate-700">
-                {xmlArquivos.length === 0 ? (
-                  <p>Nenhum XML selecionado.</p>
+                {arquivosImportacao.length === 0 ? (
+                  <p>Nenhum arquivo selecionado.</p>
                 ) : (
                   <div>
-                    <p className="font-semibold text-slate-900">{xmlArquivos.length} arquivo(s) selecionado(s)</p>
-                    <p className="mt-1 text-xs text-slate-500">{xmlArquivos.slice(0, 3).map((arquivo) => arquivo.webkitRelativePath || arquivo.name).join(' | ')}{xmlArquivos.length > 3 ? ' ...' : ''}</p>
+                    <p className="font-semibold text-slate-900">{arquivosImportacao.length} arquivo(s) selecionado(s)</p>
+                    <p className="mt-1 text-xs text-slate-500">{arquivosImportacao.slice(0, 3).map((arquivo) => nomeArquivo(arquivo)).join(' | ')}{arquivosImportacao.length > 3 ? ' ...' : ''}</p>
                   </div>
                 )}
               </div>
+
+              {previewsImportacao.length > 0 && (
+                <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                  {previewsImportacao.slice(0, 6).map((item) => (
+                    <div key={`${item.nome}-${item.tipo}`} className={`rounded-2xl px-3 py-2 text-xs ring-1 ${item.status === 'erro' ? 'bg-rose-50 ring-rose-200 text-rose-900' : item.status === 'warn' ? 'bg-amber-50 ring-amber-200 text-amber-900' : 'bg-emerald-50 ring-emerald-200 text-emerald-900'}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold truncate">{item.nome}</span>
+                        <span className="font-mono">{item.tipo.toUpperCase()}</span>
+                      </div>
+                      <p className="mt-1">{item.detalhe}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {resultadoXml?.erros?.length ? (
                 <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

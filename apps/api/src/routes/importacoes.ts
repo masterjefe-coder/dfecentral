@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { carregarCertificado, decodificarDocZip, enviarSOAPComCert, getServiceUrl, inferirTipoDocumentoXml, montarEnvelope, montarEndpoints, obterUfAutorEnv, parseDocumentoFiscalXml, type TipoDocumento } from '@dfecentral/sdk';
+import JSZip from 'jszip';
 import { salvarNoCache } from '../db/cache.js';
 import { registrarConsulta } from '../db/audit.js';
 import { obterDistribuicaoDfe, salvarDistribuicaoDfe } from '../db/distribuicoes.js';
@@ -51,14 +52,54 @@ function parseXMotivo(body: string): string {
   return match ? match[1] : '';
 }
 
-type XmlUploadItem = { nome?: string; xml: string };
+type XmlUploadItem = {
+  nome?: string;
+  tipo?: 'xml' | 'zip';
+  xml?: string;
+  base64?: string;
+};
+
+function nomeArquivo(item: XmlUploadItem): string {
+  return String(item.nome || 'xml').trim() || 'xml';
+}
+
+async function expandirItensXml(itens: XmlUploadItem[]): Promise<Array<{ nome: string; xml: string }>> {
+  const saida: Array<{ nome: string; xml: string }> = [];
+
+  for (const item of itens) {
+    const nome = nomeArquivo(item);
+    if ((item.tipo || 'xml') === 'zip') {
+      const conteudoBase64 = String(item.base64 || '').trim();
+      if (!conteudoBase64) continue;
+
+      const zip = await JSZip.loadAsync(Buffer.from(conteudoBase64, 'base64'));
+      const entradas = Object.values(zip.files);
+
+      for (const entrada of entradas) {
+        if (entrada.dir) continue;
+        if (!/\.xml$/i.test(entrada.name)) continue;
+
+        const xml = await entrada.async('string');
+        saida.push({ nome: `${nome}/${entrada.name}`, xml });
+      }
+
+      continue;
+    }
+
+    const xml = String(item.xml || '').trim();
+    if (xml) saida.push({ nome, xml });
+  }
+
+  return saida;
+}
 
 async function importarXmlManual(itens: XmlUploadItem[], usuarioId?: string) {
+  const expandido = await expandirItensXml(itens);
   const importados: Array<{ nome: string; tipo: TipoDocumento; chaveAcesso: string }> = [];
   const erros: Array<{ nome: string; erro: string }> = [];
 
-  for (const item of itens) {
-    const nome = String(item.nome || 'xml').trim() || 'xml';
+  for (const item of expandido) {
+    const nome = item.nome;
     const xml = String(item.xml || '').trim();
     if (!xml) {
       erros.push({ nome, erro: 'XML vazio' });
