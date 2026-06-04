@@ -485,6 +485,81 @@ export function parseDocumentoFiscalXml(xml: string, tipo: DocumentoFiscal['tipo
   return parseDocumentoFromXML(xml, tipo);
 }
 
+function tipoPorModelo(modelo: string): DocumentoFiscal['tipo'] | null {
+  switch (modelo) {
+    case '55': return 'nfe';
+    case '65': return 'nfce';
+    case '57': return 'cte';
+    case '58': return 'mdfe';
+    case '63': return 'bpe';
+    case '67': return 'cteos';
+    default: return null;
+  }
+}
+
+function tipoPorChave(chave: string): DocumentoFiscal['tipo'] | null {
+  const info = parseChaveAcesso(chave.replace(/\D/g, ''));
+  return info?.tipo && info.tipo !== 'desconhecido' ? info.tipo : null;
+}
+
+export function inferirTipoDocumentoXml(xml: string): DocumentoFiscal['tipo'] | null {
+  try {
+    const parsed = parser.parse(xml);
+
+    const chaveNfe = String(
+      parsed?.nfeProc?.NFe?.infNFe?.Id
+      || parsed?.NFe?.infNFe?.Id
+      || parsed?.resNFe?.chNFe
+      || parsed?.resNFCe?.chNFe
+      || '',
+    );
+    const tipoNfe = tipoPorChave(chaveNfe) || tipoPorModelo(String(parsed?.nfeProc?.NFe?.infNFe?.ide?.mod || parsed?.NFe?.infNFe?.ide?.mod || ''));
+    if (tipoNfe === 'nfe' || tipoNfe === 'nfce') return tipoNfe;
+
+    const chaveCte = String(
+      parsed?.cteProc?.CTe?.infCte?.Id
+      || parsed?.procCTe?.CTe?.infCte?.Id
+      || parsed?.CTe?.infCte?.Id
+      || parsed?.resCTe?.chCTe
+      || '',
+    );
+    const tipoCte = tipoPorChave(chaveCte) || tipoPorModelo(String(parsed?.cteProc?.CTe?.infCte?.ide?.mod || parsed?.procCTe?.CTe?.infCte?.ide?.mod || parsed?.CTe?.infCte?.ide?.mod || ''));
+    if (tipoCte === 'cte' || tipoCte === 'cteos') return tipoCte;
+
+    const chaveMdfe = String(
+      parsed?.mdfeProc?.MDFe?.infMDFe?.Id
+      || parsed?.procMDFe?.MDFe?.infMDFe?.Id
+      || parsed?.MDFe?.infMDFe?.Id
+      || parsed?.resMDFe?.chMDFe
+      || '',
+    );
+    const tipoMdfe = tipoPorChave(chaveMdfe) || tipoPorModelo(String(parsed?.mdfeProc?.MDFe?.infMDFe?.ide?.mod || parsed?.procMDFe?.MDFe?.infMDFe?.ide?.mod || parsed?.MDFe?.infMDFe?.ide?.mod || ''));
+    if (tipoMdfe === 'mdfe') return tipoMdfe;
+
+    const chaveBpe = String(
+      parsed?.procBPe?.BPe?.infBPe?.Id
+      || parsed?.BPe?.infBPe?.Id
+      || parsed?.resBPe?.chBPe
+      || '',
+    );
+    const tipoBpe = tipoPorChave(chaveBpe) || tipoPorModelo(String(parsed?.procBPe?.BPe?.infBPe?.ide?.mod || parsed?.BPe?.infBPe?.ide?.mod || ''));
+    if (tipoBpe === 'bpe') return tipoBpe;
+
+    const chaveDce = String(
+      parsed?.procDCe?.DCe?.infDCe?.Id
+      || parsed?.DCe?.infDCe?.Id
+      || parsed?.resDCe?.chDCe
+      || '',
+    );
+    const tipoDce = tipoPorChave(chaveDce) || tipoPorModelo(String(parsed?.procDCe?.DCe?.infDCe?.ide?.mod || parsed?.DCe?.infDCe?.ide?.mod || ''));
+    if (tipoDce === 'dce') return tipoDce;
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function detectarTipoLivre(chaveAcesso: string): DocumentoFiscal['tipo'] | 'desconhecido' {
   const chave = chaveAcesso.replace(/\s/g, '');
   if (/^\d{44}$/.test(chave)) {

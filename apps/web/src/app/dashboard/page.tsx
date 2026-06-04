@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -46,6 +46,18 @@ type ContaResumo = {
   limiteMensal?: number | null;
   usoMensal?: number;
   restanteMensal?: number | null;
+};
+
+type XmlImportado = {
+  nome: string;
+  tipo: string;
+  chaveAcesso: string;
+};
+
+type XmlImportacaoResultado = {
+  importados: number;
+  erros: Array<{ nome: string; erro: string }>;
+  documentos: XmlImportado[];
 };
 
 const TIPOS_IMPORT: Array<{ tipo: TipoImport; nome: string; cor: string; descricao: string }> = [
@@ -111,15 +123,25 @@ export default function DashboardPage() {
   const [carregandoAtividades, setCarregandoAtividades] = useState(false);
   const [carregandoConta, setCarregandoConta] = useState(false);
   const [resultado, setResultado] = useState<{ tipo: string; importados: number; ultNSU?: string; erro?: string } | null>(null);
+  const [resultadoXml, setResultadoXml] = useState<XmlImportacaoResultado | null>(null);
   const [resumo, setResumo] = useState<Record<Movimento, ResumoMovimento> | null>(null);
   const [atividades, setAtividades] = useState<AtividadeRecente[]>([]);
   const [conta, setConta] = useState<ContaResumo | null>(null);
   const [erroImportacao, setErroImportacao] = useState('');
   const [erroResumo, setErroResumo] = useState('');
+  const [xmlArquivos, setXmlArquivos] = useState<File[]>([]);
+  const [importandoXml, setImportandoXml] = useState(false);
+  const xmlInputRef = useRef<HTMLInputElement | null>(null);
+  const pastaInputRef = useRef<HTMLInputElement | null>(null);
 
   const cnpjLimpo = useMemo(() => cnpj.replace(/\D/g, '').slice(0, 14), [cnpj]);
   const totalResumido = useMemo(() => somarResumo(resumo), [resumo]);
   const totalImportacoes = useMemo(() => atividades.filter((item) => item.tipo.startsWith('importacao:') && item.resultado.startsWith('sucesso')).length, [atividades]);
+
+  useEffect(() => {
+    pastaInputRef.current?.setAttribute('webkitdirectory', '');
+    pastaInputRef.current?.setAttribute('directory', '');
+  }, []);
 
   const carregarResumoMovimento = useCallback(async (movimento: Movimento) => {
     const respostas = await Promise.all(
@@ -270,6 +292,57 @@ export default function DashboardPage() {
       setErroImportacao(error?.message || 'Nao foi possivel importar todos os documentos.');
     } finally {
       setCarregando(null);
+    }
+  };
+
+  const atualizarXmlArquivos = (arquivos: FileList | null) => {
+    const selecionados = Array.from(arquivos || []).filter((arquivo) => arquivo.name.toLowerCase().endsWith('.xml'));
+    setXmlArquivos(selecionados);
+    setErroImportacao('');
+    setResultadoXml(null);
+  };
+
+  const importarXmlSelecionados = async () => {
+    if (xmlArquivos.length === 0) {
+      setErroImportacao('Selecione ao menos um XML ou uma pasta com XMLs.');
+      return;
+    }
+
+    setImportandoXml(true);
+    setErroImportacao('');
+    setResultadoXml(null);
+
+    try {
+      const arquivos = await Promise.all(
+        xmlArquivos.map(async (arquivo) => ({
+          nome: arquivo.webkitRelativePath || arquivo.name,
+          xml: await arquivo.text(),
+        })),
+      );
+
+      const res = await fetch('/api/importacoes/xml', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arquivos }),
+      });
+      const data = await res.json();
+
+      if (!data.sucesso) {
+        setErroImportacao(data.erro || 'Falha ao importar XMLs.');
+        return;
+      }
+
+      setResultadoXml({
+        importados: Number(data.importados || 0),
+        erros: Array.isArray(data.erros) ? data.erros : [],
+        documentos: Array.isArray(data.documentos) ? data.documentos : [],
+      });
+      await carregarResumo();
+      await carregarAtividades();
+    } catch {
+      setErroImportacao('Nao foi possivel importar os XMLs.');
+    } finally {
+      setImportandoXml(false);
     }
   };
 
@@ -466,6 +539,101 @@ export default function DashboardPage() {
                 <strong>{resultado.importados}</strong> documentos importados ({resultado.tipo}). Ult. NSU: {resultado.ultNSU || '-'}
               </div>
             )}
+
+            {resultadoXml && (
+              <div className="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <strong>{resultadoXml.importados} XML(s) importado(s)</strong>
+                  <span>{resultadoXml.erros.length} com aviso/erro</span>
+                </div>
+                {resultadoXml.documentos.length > 0 && (
+                  <div className="mt-3 space-y-2 text-xs text-cyan-950">
+                    {resultadoXml.documentos.slice(0, 5).map((doc) => (
+                      <div key={`${doc.nome}-${doc.chaveAcesso}`} className="rounded-xl bg-white/80 px-3 py-2 ring-1 ring-cyan-200">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">{doc.nome}</span>
+                          <span className="font-mono">{doc.tipo.toUpperCase()}</span>
+                        </div>
+                        <p className="mt-1 truncate font-mono text-[11px]">{doc.chaveAcesso}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-4 rounded-3xl border border-dashed border-cyan-300 bg-cyan-50/70 p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Importação manual de XML</p>
+                  <h3 className="mt-2 text-lg font-bold text-slate-950">Saídas por arquivo ou pasta</h3>
+                  <p className="mt-1 text-sm text-slate-600">Selecione um XML ou uma pasta inteira. O sistema identifica o tipo e salva cada documento na base.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => xmlInputRef.current?.click()}
+                    className="rounded-full border border-cyan-200 bg-white px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-100"
+                  >
+                    Selecionar XMLs
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => pastaInputRef.current?.click()}
+                    className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500"
+                  >
+                    Selecionar pasta
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void importarXmlSelecionados()}
+                    disabled={importandoXml || xmlArquivos.length === 0}
+                    className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
+                  >
+                    {importandoXml ? 'Importando...' : 'Importar selecionados'}
+                  </button>
+                </div>
+              </div>
+
+              <input
+                ref={xmlInputRef}
+                type="file"
+                accept=".xml,application/xml,text/xml"
+                multiple
+                className="hidden"
+                onChange={(e) => atualizarXmlArquivos(e.target.files)}
+              />
+              <input
+                ref={pastaInputRef}
+                type="file"
+                accept=".xml,application/xml,text/xml"
+                multiple
+                className="hidden"
+                onChange={(e) => atualizarXmlArquivos(e.target.files)}
+              />
+
+              <div className="mt-4 rounded-2xl border border-cyan-200 bg-white px-4 py-3 text-sm text-slate-700">
+                {xmlArquivos.length === 0 ? (
+                  <p>Nenhum XML selecionado.</p>
+                ) : (
+                  <div>
+                    <p className="font-semibold text-slate-900">{xmlArquivos.length} arquivo(s) selecionado(s)</p>
+                    <p className="mt-1 text-xs text-slate-500">{xmlArquivos.slice(0, 3).map((arquivo) => arquivo.webkitRelativePath || arquivo.name).join(' | ')}{xmlArquivos.length > 3 ? ' ...' : ''}</p>
+                  </div>
+                )}
+              </div>
+
+              {resultadoXml?.erros?.length ? (
+                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <p className="font-semibold">{resultadoXml.erros.length} arquivo(s) não importado(s)</p>
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {resultadoXml.erros.slice(0, 5).map((erro) => (
+                      <li key={`${erro.nome}-${erro.erro}`}>{erro.nome}: {erro.erro}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
 
             {resumo && (
               <div className="mt-6 space-y-6">

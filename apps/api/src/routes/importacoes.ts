@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { carregarCertificado, decodificarDocZip, enviarSOAPComCert, getServiceUrl, montarEnvelope, montarEndpoints, obterUfAutorEnv, parseDocumentoFiscalXml, type TipoDocumento } from '@dfecentral/sdk';
+import { carregarCertificado, decodificarDocZip, enviarSOAPComCert, getServiceUrl, inferirTipoDocumentoXml, montarEnvelope, montarEndpoints, obterUfAutorEnv, parseDocumentoFiscalXml, type TipoDocumento } from '@dfecentral/sdk';
 import { salvarNoCache } from '../db/cache.js';
 import { registrarConsulta } from '../db/audit.js';
 import { obterDistribuicaoDfe, salvarDistribuicaoDfe } from '../db/distribuicoes.js';
@@ -49,6 +49,39 @@ function parseCStat(body: string): string {
 function parseXMotivo(body: string): string {
   const match = body.match(/<xMotivo>([^<]+)<\/xMotivo>/);
   return match ? match[1] : '';
+}
+
+type XmlUploadItem = { nome?: string; xml: string };
+
+async function importarXmlManual(itens: XmlUploadItem[], usuarioId?: string) {
+  const importados: Array<{ nome: string; tipo: TipoDocumento; chaveAcesso: string }> = [];
+  const erros: Array<{ nome: string; erro: string }> = [];
+
+  for (const item of itens) {
+    const nome = String(item.nome || 'xml').trim() || 'xml';
+    const xml = String(item.xml || '').trim();
+    if (!xml) {
+      erros.push({ nome, erro: 'XML vazio' });
+      continue;
+    }
+
+    const tipo = inferirTipoDocumentoXml(xml);
+    if (!tipo) {
+      erros.push({ nome, erro: 'Nao foi possivel identificar o tipo do XML' });
+      continue;
+    }
+
+    const documento = parseDocumentoFiscalXml(xml, tipo);
+    if (!documento) {
+      erros.push({ nome, erro: `Nao foi possivel interpretar o XML (${tipo.toUpperCase()})` });
+      continue;
+    }
+
+    await salvarNoCache(documento);
+    importados.push({ nome, tipo: documento.tipo, chaveAcesso: documento.chaveAcesso });
+  }
+
+  return { importados, erros, usuarioId };
 }
 
 async function executarImportacaoDistribuicao(tipo: Importavel, cnpj: string, uf: string, ultNSUInicial = '000000000000000', usuarioId?: string) {
@@ -200,6 +233,37 @@ export async function importarDistribuicaoLenta(log?: { info?: (data: unknown, m
 }
 
 export async function importacoesRoutes(app: FastifyInstance) {
+  app.post('/xml', async (request, reply) => {
+    const body = request.body as { arquivos?: XmlUploadItem[] } | undefined;
+    const arquivos = Array.isArray(body?.arquivos) ? body!.arquivos : [];
+
+    if (arquivos.length === 0) {
+      return reply.status(400).send({ sucesso: false, erro: 'Nenhum XML enviado' });
+    }
+
+    try {
+      const usuarioId = (request as any).conta?.id;
+      const resultado = await importarXmlManual(arquivos, usuarioId);
+
+      await registrarConsulta({
+        tipo: 'importacao:xml',
+        consulta: String(arquivos.length),
+        resultado: `sucesso:${resultado.importados.length}:${resultado.erros.length}`,
+        ip: request.ip,
+        usuarioId,
+      });
+
+      return {
+        sucesso: true,
+        importados: resultado.importados.length,
+        erros: resultado.erros,
+        documentos: resultado.importados,
+      };
+    } catch (error: any) {
+      return reply.status(500).send({ sucesso: false, erro: error?.message || 'Falha ao importar XML' });
+    }
+  });
+
   app.post('/:tipo', async (request, reply) => {
     const { tipo } = request.params as { tipo: string };
     const body = request.body as { cnpj?: string; uf?: string; ultNSU?: string } | undefined;
