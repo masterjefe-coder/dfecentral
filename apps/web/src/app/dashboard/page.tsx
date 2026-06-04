@@ -50,6 +50,23 @@ type ContaResumo = {
   restanteMensal?: number | null;
 };
 
+type PerfilUsuario = {
+  nome?: string;
+  email?: string;
+  cnpj?: string | null;
+  cnpjAtivo?: string | null;
+  razaoSocial?: string | null;
+  nomeFantasia?: string | null;
+  ie?: string | null;
+  uf?: string | null;
+  municipio?: string | null;
+  regimeTributario?: string | null;
+  telefone?: string | null;
+  emailFiscal?: string | null;
+  responsavel?: string | null;
+  plano?: string;
+};
+
 type XmlImportado = {
   nome: string;
   tipo: string;
@@ -154,11 +171,13 @@ export default function DashboardPage() {
   const [carregandoResumo, setCarregandoResumo] = useState(false);
   const [carregandoAtividades, setCarregandoAtividades] = useState(false);
   const [carregandoConta, setCarregandoConta] = useState(false);
+  const [carregandoPerfil, setCarregandoPerfil] = useState(false);
   const [resultado, setResultado] = useState<{ tipo: string; importados: number; ultNSU?: string; erro?: string } | null>(null);
   const [resultadoXml, setResultadoXml] = useState<XmlImportacaoResultado | null>(null);
   const [resumo, setResumo] = useState<Record<Movimento, ResumoMovimento> | null>(null);
   const [atividades, setAtividades] = useState<AtividadeRecente[]>([]);
   const [conta, setConta] = useState<ContaResumo | null>(null);
+  const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
   const [erroImportacao, setErroImportacao] = useState('');
   const [erroResumo, setErroResumo] = useState('');
   const [arquivosImportacao, setArquivosImportacao] = useState<File[]>([]);
@@ -269,6 +288,20 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const carregarPerfil = useCallback(async () => {
+    setCarregandoPerfil(true);
+    try {
+      const res = await fetch('/api/auth/me', { cache: 'no-store' });
+      const data = await res.json();
+      if (!data.sucesso) throw new Error(data.erro || 'Falha ao carregar perfil.');
+      setPerfil(data.dados?.usuario || null);
+    } catch {
+      setPerfil(null);
+    } finally {
+      setCarregandoPerfil(false);
+    }
+  }, []);
+
   const carregarResumo = useCallback(async () => {
     if (cnpjLimpo.length !== 14) {
       setResumo(null);
@@ -311,10 +344,11 @@ export default function DashboardPage() {
       void carregarResumo();
       void carregarAtividades();
       void carregarConta();
+      void carregarPerfil();
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [carregarResumo, carregarAtividades, carregarConta, cnpjLimpo, filtroMovimento]);
+  }, [carregarResumo, carregarAtividades, carregarConta, carregarPerfil, cnpjLimpo, filtroMovimento]);
 
   const importarTipo = async (tipo: TipoImport) => {
     if (cnpjLimpo.length !== 14) {
@@ -484,6 +518,63 @@ export default function DashboardPage() {
               <p className="mt-1 text-sm text-slate-600">{item.sub}</p>
             </div>
           ))}
+        </section>
+
+        <section className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="surface-card-strong rounded-[2rem] p-6 text-slate-900">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="section-kicker">Empresa ativa</p>
+                <h2 className="mt-2 text-2xl font-bold text-slate-950">{perfil?.razaoSocial || perfil?.nome || 'Perfil não carregado'}</h2>
+                <p className="mt-2 text-sm text-slate-600">{perfil?.nomeFantasia || 'Complete os dados fiscais na página Empresa.'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">UF</p>
+                <p className="mt-1 text-2xl font-bold text-slate-950">{perfil?.uf || '-'}</p>
+              </div>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                ['CNPJ', perfil?.cnpjAtivo || perfil?.cnpj || '-'],
+                ['IE', perfil?.ie || '-'],
+                ['Município', perfil?.municipio || '-'],
+                ['Regime', perfil?.regimeTributario || '-'],
+                ['Telefone', perfil?.telefone || '-'],
+                ['E-mail fiscal', perfil?.emailFiscal || perfil?.email || '-'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950 break-words">{value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
+              <Link href="/empresa" className="rounded-full bg-slate-950 px-3 py-2 text-white hover:bg-slate-800">Completar dados</Link>
+              <Link href="/configuracoes" className="rounded-full border border-slate-200 bg-white px-3 py-2 text-slate-700 hover:bg-slate-100">Configurações</Link>
+            </div>
+          </div>
+
+          <div className="surface-card-strong rounded-[2rem] p-6 text-slate-900">
+            <p className="section-kicker">Atalhos fiscais</p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-950">Fluxos principais</h2>
+            <div className="mt-4 grid gap-3">
+              {[
+                ['/entradas', 'Entradas', 'Compras e documentos recebidos'],
+                ['/saidas', 'Saídas', 'Emissões e saídas fiscais'],
+                ['/relatorios', 'Relatórios', 'Visão analítica e exportação'],
+                ['/api-central', 'API', 'Chaves, integração e importação manual'],
+              ].map(([href, label, desc]) => (
+                <Link key={href} href={href} className="rounded-2xl border border-slate-200 bg-white p-4 hover:bg-slate-50">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-slate-950">{label}</p>
+                    <span className="text-xs text-slate-500">Abrir</span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">{desc}</p>
+                </Link>
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-slate-500">{carregandoPerfil ? 'Carregando perfil...' : 'O perfil da empresa é carregado da API e atualizado na página Empresa.'}</p>
+          </div>
         </section>
 
         <section className="mt-4 grid gap-4 md:grid-cols-3">
