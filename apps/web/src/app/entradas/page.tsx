@@ -1,21 +1,15 @@
-import Link from 'next/link';
 import { ReportsPanel } from '../../components/reports-panel';
+import { AppShell } from '../../components/app-shell';
 
 export default function EntradasPage() {
   return (
-    <main className="min-h-screen app-shell bg-slate-50 px-4 py-10 text-slate-900">
-      <div className="relative mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center justify-between">
-          <Link href="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Voltar</Link>
-          <Link href="/saidas" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Saídas</Link>
-        </div>
+    <AppShell active="/entradas" title="Entradas" description="Visão focada em documentos recebidos, com filtros, gráfico e exportação.">
         <ReportsPanel
           mode="relatorios"
           defaultMovimento="recebidas"
           title="Documentos recebidos"
           description="Visão focada em entradas com filtros, gráfico e exportação."
         />
-      </div>
-    </main>
+    </AppShell>
   );
 }

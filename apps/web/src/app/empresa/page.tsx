@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AppShell } from '../../components/app-shell';
 
 type Usuario = { nome: string; email: string; cnpj?: string | null; plano?: string };
 type Empresa = { id: string; nome: string; cnpj: string };
@@ -9,6 +10,28 @@ type MembroEquipe = { id: string; nome: string; cnpj: string; usuarioId: string;
 type ConviteEquipe = { id: string; nome: string; email: string; papel: string; status: string; token: string; criadoEm: string };
 type Assinatura = { plano: string; assinaturaStatus: string; assinaturaMetodoPagamento?: string; assinaturaCancelEm?: string | null; assinaturaRenovaEm?: string | null };
 type Certificado = { cnpj: string; certificadoCnpj: string; nomeArquivo: string; mimeType: string; tamanhoBytes: number; validadeEm: string; criadoEm: string; atualizadoEm: string };
+
+function validarCnpj(cnpj: string): boolean {
+  const nums = cnpj.replace(/\D/g, '');
+  if (nums.length !== 14) return false;
+  if (/^(\d)\1+$/.test(nums)) return false;
+
+  const calcular = (base: string, pesos: number[]) => {
+    const soma = base.split('').reduce((acc, digito, indice) => acc + Number(digito) * pesos[indice], 0);
+    const resto = soma % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  };
+
+  const base12 = nums.slice(0, 12);
+  const digito1 = calcular(base12, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const digito2 = calcular(`${base12}${digito1}`, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return nums === `${base12}${digito1}${digito2}`;
+}
+
+function formatarCnpj(valor: string): string {
+  const nums = valor.replace(/\D/g, '').slice(0, 14);
+  return nums.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
+}
 
 export default function EmpresaPage() {
   const [aba, setAba] = useState<'dados' | 'equipe' | 'contabilidade'>('dados');
@@ -40,6 +63,12 @@ export default function EmpresaPage() {
   const [enviandoPacote, setEnviandoPacote] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState('');
+
+  const nomeInvalido = nome.trim().length < 2;
+  const cnpjLimpo = cnpj.replace(/\D/g, '').slice(0, 14);
+  const cnpjInvalido = cnpjLimpo.length > 0 ? !validarCnpj(cnpjLimpo) : true;
+  const certificadoExpiraEm = certificado?.validadeEm ? new Date(certificado.validadeEm) : null;
+  const certificadoExpiraEmBreve = certificadoExpiraEm ? (certificadoExpiraEm.getTime() - Date.now()) < 1000 * 60 * 60 * 24 * 30 : false;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -124,6 +153,15 @@ export default function EmpresaPage() {
   }
 
   async function salvar() {
+    if (nomeInvalido) {
+      setMensagem('Informe um nome com pelo menos 2 caracteres.');
+      return;
+    }
+    if (cnpjInvalido) {
+      setMensagem('Informe um CNPJ valido antes de salvar.');
+      return;
+    }
+
     setSalvando(true);
     setMensagem('');
     try {
@@ -154,15 +192,14 @@ export default function EmpresaPage() {
         }),
       });
 
-      if (cnpj.replace(/\D/g, '').length === 14) {
-        const cnpjLimpo = cnpj.replace(/\D/g, '').slice(0, 14);
+      if (cnpjLimpo.length === 14) {
         await fetch('/api/empresas/ativa', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ cnpjAtivo: cnpjLimpo }),
         });
         setEmpresaAtiva(cnpjLimpo);
-        setCnpj(cnpjLimpo);
+        setCnpj(formatarCnpj(cnpjLimpo));
       }
     } finally {
       setSalvando(false);
@@ -410,8 +447,12 @@ export default function EmpresaPage() {
 
   function adicionarEmpresa() {
     const cnpjLimpo = novaEmpresaCnpj.replace(/\D/g, '').slice(0, 14);
-    if (!novaEmpresaNome.trim() || cnpjLimpo.length !== 14) {
-      setMensagem('Informe nome e CNPJ valido para adicionar outra empresa.');
+    if (novaEmpresaNome.trim().length < 2) {
+      setMensagem('Informe um nome com pelo menos 2 caracteres para a empresa.');
+      return;
+    }
+    if (!validarCnpj(cnpjLimpo)) {
+      setMensagem('Informe um CNPJ valido para adicionar outra empresa.');
       return;
     }
 
@@ -457,18 +498,12 @@ export default function EmpresaPage() {
   }
 
   return (
-    <main className="min-h-screen app-shell bg-slate-50 px-4 py-10 text-slate-900">
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.10),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_28%)]" />
-      <div className="relative mx-auto max-w-4xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link href="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Voltar ao dashboard</Link>
-          <Link href="/auth/entrar" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Conta</Link>
-        </div>
-
+    <AppShell active="/empresa" title="Empresa" description="Dados da conta, empresas adicionais, assinatura, certificados e integrações em um só lugar.">
+      <div className="space-y-6">
         <section className="surface-card-strong rounded-[2rem] border border-slate-200 bg-white/90 p-6 sm:p-8 backdrop-blur shadow-2xl shadow-slate-900/10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-700">Configuração da empresa</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight">Dados da conta</h1>
-          <p className="mt-2 text-sm text-slate-600">Atualize o nome exibido e o CNPJ principal usado na operação.</p>
+          <p className="mt-2 text-sm text-slate-600">Atualize o nome exibido, valide o CNPJ principal e mantenha os certificados e integrações em dia.</p>
 
           <div className="mt-6 flex flex-wrap gap-2">
             {[
@@ -491,11 +526,23 @@ export default function EmpresaPage() {
 
           {aba === 'dados' ? (
             <div className="mt-6 grid gap-4">
-              <Field label="Nome" value={nome} onChange={setNome} />
-              <Field label="CNPJ" value={cnpj} onChange={setCnpj} />
+              <Field label="Nome" value={nome} onChange={setNome} placeholder="Nome comercial ou razão social" />
+              <Field label="CNPJ" value={cnpj} onChange={(valor) => setCnpj(formatarCnpj(valor))} placeholder="00.000.000/0000-00" />
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className={`rounded-2xl border px-4 py-3 text-sm ${nomeInvalido ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
+                  {nomeInvalido ? 'Informe um nome com pelo menos 2 caracteres.' : 'Nome válido.'}
+                </div>
+                <div className={`rounded-2xl border px-4 py-3 text-sm ${cnpjInvalido ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
+                  {cnpjInvalido ? 'CNPJ inválido ou incompleto.' : `CNPJ válido: ${formatarCnpj(cnpjLimpo)}`}
+                </div>
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Info label="E-mail" value={usuario?.email || '-'} />
                 <Info label="Plano" value={usuario?.plano?.toUpperCase() || '-'} />
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Empresa ativa</p>
+                <p className="mt-2 font-mono text-slate-950">{empresaAtiva ? formatarCnpj(empresaAtiva) : 'Nenhuma selecionada'}</p>
               </div>
 
             <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
@@ -568,11 +615,16 @@ export default function EmpresaPage() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-cyan-200 bg-cyan-50 p-4">
+            <div id="certificados" className="rounded-3xl border border-cyan-200 bg-cyan-50 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-700">Certificado digital</p>
               <p className="mt-2 text-sm text-slate-700">
                 O certificado do CNPJ ativo fica criptografado no servidor e é usado para consultas oficiais e importação automática.
               </p>
+              {certificadoExpiraEmBreve ? (
+                <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Atenção: este certificado vence em {certificadoExpiraEm?.toLocaleDateString('pt-BR')}.
+                </p>
+              ) : null}
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
                 <label className="block">
                   <span className="mb-2 block text-sm font-medium text-slate-700">Arquivo .pfx/.p12</span>
@@ -725,12 +777,12 @@ export default function EmpresaPage() {
           ) : null}
 
           {mensagem ? <p className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{mensagem}</p> : null}
-          <button onClick={salvar} disabled={salvando} className="inline-flex w-fit rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
+          <button onClick={salvar} disabled={salvando || nomeInvalido || cnpjInvalido} className="inline-flex w-fit rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
             {salvando ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </section>
       </div>
-    </main>
+    </AppShell>
   );
 }
 

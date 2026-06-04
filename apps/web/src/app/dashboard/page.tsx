@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type DragE
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import JSZip from 'jszip';
+import { AppShell } from '../../components/app-shell';
 
 type TipoImport = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'bpe' | 'cteos';
 type TipoResumo = TipoImport | 'nfse' | 'dce';
@@ -434,9 +435,12 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen app-shell bg-slate-50 text-slate-900">
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.10),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_28%)]" />
-      <main className="relative mx-auto max-w-7xl px-4 py-6 sm:py-10">
+    <AppShell
+      active="/dashboard"
+      title="Dashboard"
+      description="Centro operacional com abas para entradas e saídas, importação manual de XML/ZIP, consultas e atalhos para a gestão da empresa."
+    >
+      <main className="relative">
         <div className="mb-8 rounded-[2rem] border border-slate-200 bg-white/90 p-5 sm:p-6 backdrop-blur shadow-2xl shadow-slate-900/10">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
@@ -589,23 +593,27 @@ export default function DashboardPage() {
               </label>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-[180px_1fr_auto] sm:items-end">
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Movimento</span>
-                <select
-                  value={filtroMovimento}
-                  onChange={(e) => setFiltroMovimento(e.target.value as FiltroMovimento)}
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500"
-                >
-                  <option value="todas">Todas</option>
-                  <option value="emitidas">Saídas</option>
-                  <option value="recebidas">Entradas</option>
-                </select>
-              </label>
-
-              <p className="text-sm text-slate-500">
-                Escolha a visão para o resumo recente. O filtro também vale para as consultas abaixo.
-              </p>
+            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Abas rápidas</p>
+                <div className="mt-2 inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                  {([
+                    ['todas', 'Todas'],
+                    ['emitidas', 'Saídas'],
+                    ['recebidas', 'Entradas'],
+                  ] as const).map(([valor, label]) => (
+                    <button
+                      key={valor}
+                      type="button"
+                      onClick={() => setFiltroMovimento(valor)}
+                      className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${filtroMovimento === valor ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-sm text-slate-500">Troque entre entradas e saídas sem sair da dashboard.</p>
+              </div>
 
               <button onClick={() => void carregarResumo()} disabled={carregandoResumo || cnpjLimpo.length !== 14} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-40">
                 {carregandoResumo ? 'Carregando resumo...' : 'Atualizar resumo'}
@@ -865,7 +873,7 @@ export default function DashboardPage() {
           </aside>
         </section>
       </main>
-    </div>
+    </AppShell>
   );
 }
 
