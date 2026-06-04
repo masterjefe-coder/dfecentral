@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import JSZip from 'jszip';
 
 type TipoImport = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'bpe' | 'cteos';
 type TipoResumo = TipoImport | 'nfse' | 'dce';
@@ -65,6 +66,7 @@ type ArquivoImportacaoPreview = {
   tipo: 'xml' | 'zip';
   status: 'ok' | 'warn' | 'erro';
   detalhe?: string;
+  internos?: string[];
 };
 
 const TIPOS_IMPORT: Array<{ tipo: TipoImport; nome: string; cor: string; descricao: string }> = [
@@ -180,7 +182,26 @@ export default function DashboardPage() {
       const tipo = tipoArquivo(arquivo);
 
       if (tipo === 'zip') {
-        return { nome, tipo, status: 'warn' as const, detalhe: 'ZIP será expandido na importação.' };
+        try {
+          const zip = await JSZip.loadAsync(await arquivo.arrayBuffer());
+          const internos = Object.values(zip.files)
+            .filter((entrada) => !entrada.dir && /\.xml$/i.test(entrada.name))
+            .map((entrada) => entrada.name);
+
+          if (internos.length === 0) {
+            return { nome, tipo, status: 'erro' as const, detalhe: 'ZIP sem XMLs.', internos: [] };
+          }
+
+          return {
+            nome,
+            tipo,
+            status: 'ok' as const,
+            detalhe: `ZIP com ${internos.length} XML(s).`,
+            internos,
+          };
+        } catch {
+          return { nome, tipo, status: 'erro' as const, detalhe: 'ZIP invalido ou corrompido.' };
+        }
       }
 
       const texto = await arquivo.text();
@@ -699,6 +720,11 @@ export default function DashboardPage() {
                         <span className="font-mono">{item.tipo.toUpperCase()}</span>
                       </div>
                       <p className="mt-1">{item.detalhe}</p>
+                      {item.internos?.length ? (
+                        <p className="mt-1 truncate text-[11px] opacity-80">
+                          {item.internos.slice(0, 3).join(' | ')}{item.internos.length > 3 ? ' ...' : ''}
+                        </p>
+                      ) : null}
                     </div>
                   ))}
                 </div>
