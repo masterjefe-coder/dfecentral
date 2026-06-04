@@ -4,7 +4,21 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '../../components/app-shell';
 
-type Usuario = { nome: string; email: string; cnpj?: string | null; plano?: string };
+type Usuario = {
+  nome: string;
+  email: string;
+  cnpj?: string | null;
+  plano?: string;
+  razaoSocial?: string | null;
+  nomeFantasia?: string | null;
+  ie?: string | null;
+  uf?: string | null;
+  municipio?: string | null;
+  regimeTributario?: string | null;
+  telefone?: string | null;
+  emailFiscal?: string | null;
+  responsavel?: string | null;
+};
 type Empresa = { id: string; nome: string; cnpj: string };
 type MembroEquipe = { id: string; nome: string; cnpj: string; usuarioId: string; criadoEm: string };
 type ConviteEquipe = { id: string; nome: string; email: string; papel: string; status: string; token: string; criadoEm: string };
@@ -38,6 +52,15 @@ export default function EmpresaPage() {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [nome, setNome] = useState('');
   const [cnpj, setCnpj] = useState('');
+  const [razaoSocial, setRazaoSocial] = useState('');
+  const [nomeFantasia, setNomeFantasia] = useState('');
+  const [ie, setIe] = useState('');
+  const [ufEmpresa, setUfEmpresa] = useState('');
+  const [municipio, setMunicipio] = useState('');
+  const [regimeTributario, setRegimeTributario] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [emailFiscal, setEmailFiscal] = useState('');
+  const [responsavel, setResponsavel] = useState('');
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [novaEmpresaNome, setNovaEmpresaNome] = useState('');
   const [novaEmpresaCnpj, setNovaEmpresaCnpj] = useState('');
@@ -67,6 +90,7 @@ export default function EmpresaPage() {
   const nomeInvalido = nome.trim().length < 2;
   const cnpjLimpo = cnpj.replace(/\D/g, '').slice(0, 14);
   const cnpjInvalido = cnpjLimpo.length > 0 ? !validarCnpj(cnpjLimpo) : true;
+  const ufInvalida = ufEmpresa.trim().length > 0 ? !/^[A-Z]{2}$/.test(ufEmpresa.trim().toUpperCase()) : false;
   const certificadoExpiraEm = certificado?.validadeEm ? new Date(certificado.validadeEm) : null;
   const certificadoExpiraEmBreve = certificadoExpiraEm ? (certificadoExpiraEm.getTime() - Date.now()) < 1000 * 60 * 60 * 24 * 30 : false;
 
@@ -95,6 +119,15 @@ export default function EmpresaPage() {
         setUsuario(info);
         setNome(info?.nome || '');
         cnpjCarregado = info?.cnpj || '';
+        setRazaoSocial(info?.razaoSocial || '');
+        setNomeFantasia(info?.nomeFantasia || '');
+        setIe(info?.ie || '');
+        setUfEmpresa(info?.uf || '');
+        setMunicipio(info?.municipio || '');
+        setRegimeTributario(info?.regimeTributario || '');
+        setTelefone(info?.telefone || '');
+        setEmailFiscal(info?.emailFiscal || '');
+        setResponsavel(info?.responsavel || '');
       }
 
       const empresasData = await empresasRes.json();
@@ -161,6 +194,10 @@ export default function EmpresaPage() {
       setMensagem('Informe um CNPJ valido antes de salvar.');
       return;
     }
+    if (ufInvalida) {
+      setMensagem('Informe uma UF valida antes de salvar.');
+      return;
+    }
 
     setSalvando(true);
     setMensagem('');
@@ -168,7 +205,19 @@ export default function EmpresaPage() {
       const res = await fetch('/api/auth/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, cnpj }),
+        body: JSON.stringify({
+          nome,
+          cnpj,
+          razaoSocial: razaoSocial || null,
+          nomeFantasia: nomeFantasia || null,
+          ie: ie || null,
+          uf: ufEmpresa || null,
+          municipio: municipio || null,
+          regimeTributario: regimeTributario || null,
+          telefone: telefone || null,
+          emailFiscal: emailFiscal || null,
+          responsavel: responsavel || null,
+        }),
       });
       const data = await res.json();
       if (!data.sucesso) {
@@ -534,6 +583,26 @@ export default function EmpresaPage() {
                 </div>
                 <div className={`rounded-2xl border px-4 py-3 text-sm ${cnpjInvalido ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
                   {cnpjInvalido ? 'CNPJ inválido ou incompleto.' : `CNPJ válido: ${formatarCnpj(cnpjLimpo)}`}
+                </div>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Dados fiscais</p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <Field label="Razão social" value={razaoSocial} onChange={setRazaoSocial} placeholder="Razão social completa" />
+                  <Field label="Nome fantasia" value={nomeFantasia} onChange={setNomeFantasia} placeholder="Nome fantasia" />
+                  <Field label="Inscrição estadual" value={ie} onChange={setIe} placeholder="IE" />
+                  <Field label="UF" value={ufEmpresa} onChange={(valor) => setUfEmpresa(valor.toUpperCase().slice(0, 2))} placeholder="SC" />
+                  <Field label="Município" value={municipio} onChange={setMunicipio} placeholder="Município sede" />
+                  <Field label="Regime tributário" value={regimeTributario} onChange={setRegimeTributario} placeholder="simples | presumido | real | mei" />
+                  <Field label="Telefone" value={telefone} onChange={setTelefone} placeholder="(00) 00000-0000" />
+                  <Field label="E-mail fiscal" value={emailFiscal} onChange={setEmailFiscal} type="email" placeholder="financeiro@empresa.com.br" />
+                  <Field label="Responsável" value={responsavel} onChange={setResponsavel} placeholder="Nome do responsável" />
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div className={`rounded-2xl border px-4 py-3 text-sm ${ufInvalida ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
+                    {ufInvalida ? 'UF inválida.' : 'UF válida.'}
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">Esses dados ajudam a emissão, a importação e a integração com a contabilidade.</div>
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">

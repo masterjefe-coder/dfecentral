@@ -77,11 +77,32 @@ export async function atualizarSenhaUsuario(usuarioId: string, senha: string): P
 
 export async function atualizarPerfilUsuario(
   usuarioId: string,
-  input: { nome?: string; cnpj?: string | null },
+  input: {
+    nome?: string;
+    cnpj?: string | null;
+    razaoSocial?: string | null;
+    nomeFantasia?: string | null;
+    ie?: string | null;
+    uf?: string | null;
+    municipio?: string | null;
+    regimeTributario?: string | null;
+    telefone?: string | null;
+    emailFiscal?: string | null;
+    responsavel?: string | null;
+  },
 ): Promise<UsuarioAuth | null> {
   const updates: Partial<typeof usuarios.$inferInsert> = { atualizadoEm: new Date() };
   if (typeof input.nome === 'string' && input.nome.trim()) updates.nome = input.nome.trim();
   if (input.cnpj !== undefined) updates.cnpj = input.cnpj ? input.cnpj.replace(/\D/g, '') : null;
+  if (input.razaoSocial !== undefined) updates.razaoSocial = input.razaoSocial?.trim() || null;
+  if (input.nomeFantasia !== undefined) updates.nomeFantasia = input.nomeFantasia?.trim() || null;
+  if (input.ie !== undefined) updates.ie = input.ie?.trim() || null;
+  if (input.uf !== undefined) updates.uf = input.uf?.trim().toUpperCase().slice(0, 2) || null;
+  if (input.municipio !== undefined) updates.municipio = input.municipio?.trim() || null;
+  if (input.regimeTributario !== undefined) updates.regimeTributario = input.regimeTributario?.trim() || null;
+  if (input.telefone !== undefined) updates.telefone = input.telefone?.trim() || null;
+  if (input.emailFiscal !== undefined) updates.emailFiscal = input.emailFiscal?.trim().toLowerCase() || null;
+  if (input.responsavel !== undefined) updates.responsavel = input.responsavel?.trim() || null;
 
   const resultado = await db.update(usuarios).set(updates).where(eq(usuarios.id, usuarioId)).returning();
   return resultado[0] || null;

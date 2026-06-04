@@ -38,6 +38,15 @@ const resetSchema = z.object({
 const perfilSchema = z.object({
   nome: z.string().min(2).optional(),
   cnpj: z.string().optional().nullable(),
+  razaoSocial: z.string().optional().nullable(),
+  nomeFantasia: z.string().optional().nullable(),
+  ie: z.string().optional().nullable(),
+  uf: z.string().optional().nullable(),
+  municipio: z.string().optional().nullable(),
+  regimeTributario: z.string().optional().nullable(),
+  telefone: z.string().optional().nullable(),
+  emailFiscal: z.string().email().optional().nullable(),
+  responsavel: z.string().optional().nullable(),
 });
 
 const preferenciasSchema = z.object({
@@ -136,6 +145,15 @@ function respostaUsuario(usuario: Awaited<ReturnType<typeof criarUsuario>>) {
     email: usuario.email,
     cnpj,
     cnpjAtivo: usuario.cnpjAtivo || cnpj,
+    razaoSocial: usuario.razaoSocial || null,
+    nomeFantasia: usuario.nomeFantasia || null,
+    ie: usuario.ie || null,
+    uf: usuario.uf || null,
+    municipio: usuario.municipio || null,
+    regimeTributario: usuario.regimeTributario || null,
+    telefone: usuario.telefone || null,
+    emailFiscal: usuario.emailFiscal || null,
+    responsavel: usuario.responsavel || null,
     plano: usuario.plano,
     apiKey: usuario.apiKey,
   };
