@@ -10,6 +10,7 @@ type TipoImport = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'bpe' | 'cteos';
 type TipoResumo = TipoImport | 'nfse' | 'dce';
 type Movimento = 'emitidas' | 'recebidas';
 type FiltroMovimento = Movimento | 'todas';
+type FiltroLoteStatus = 'todos' | 'sucesso' | 'erro';
 
 type DocumentoResumo = {
   chaveAcesso: string;
@@ -170,6 +171,9 @@ export default function DashboardPage() {
   const [filtroMovimento, setFiltroMovimento] = useState<FiltroMovimento>('todas');
   const [carregando, setCarregando] = useState<TipoImport | 'all' | null>(null);
   const [consultandoLote, setConsultandoLote] = useState(false);
+  const [filtroLoteTipo, setFiltroLoteTipo] = useState('todos');
+  const [filtroLoteStatus, setFiltroLoteStatus] = useState<FiltroLoteStatus>('todos');
+  const [paginaLote, setPaginaLote] = useState(1);
   const [carregandoResumo, setCarregandoResumo] = useState(false);
   const [carregandoAtividades, setCarregandoAtividades] = useState(false);
   const [carregandoConta, setCarregandoConta] = useState(false);
@@ -193,11 +197,38 @@ export default function DashboardPage() {
   const cnpjLimpo = useMemo(() => cnpj.replace(/\D/g, '').slice(0, 14), [cnpj]);
   const totalResumido = useMemo(() => somarResumo(resumo), [resumo]);
   const totalImportacoes = useMemo(() => atividades.filter((item) => item.tipo.startsWith('importacao:') && item.resultado.startsWith('sucesso')).length, [atividades]);
+  const tiposLoteDisponiveis = useMemo(() => {
+    const tipos = new Set<string>();
+    for (const item of resultadoLote?.itens || []) {
+      tipos.add((item.tipo || 'auto').toLowerCase());
+    }
+    return ['todos', ...Array.from(tipos).sort()];
+  }, [resultadoLote]);
+
+  const itensLoteFiltrados = useMemo(() => {
+    const itens = resultadoLote?.itens || [];
+    return itens.filter((item) => {
+      const tipo = (item.tipo || 'auto').toLowerCase();
+      if (filtroLoteTipo !== 'todos' && tipo !== filtroLoteTipo) return false;
+      if (filtroLoteStatus === 'sucesso') return item.sucesso;
+      if (filtroLoteStatus === 'erro') return !item.sucesso;
+      return true;
+    });
+  }, [resultadoLote, filtroLoteStatus, filtroLoteTipo]);
+
+  const itensPorPaginaLote = 5;
+  const totalPaginasLote = Math.max(1, Math.ceil(itensLoteFiltrados.length / itensPorPaginaLote));
+  const paginaLoteAtual = Math.min(paginaLote, totalPaginasLote);
+  const itensLotePagina = itensLoteFiltrados.slice((paginaLoteAtual - 1) * itensPorPaginaLote, paginaLoteAtual * itensPorPaginaLote);
 
   useEffect(() => {
     pastaInputRef.current?.setAttribute('webkitdirectory', '');
     pastaInputRef.current?.setAttribute('directory', '');
   }, []);
+
+  useEffect(() => {
+    setPaginaLote(1);
+  }, [filtroLoteStatus, filtroLoteTipo, resultadoLote]);
 
   const prevalidarArquivos = useCallback(async (arquivos: File[]) => {
     const resultados = await Promise.all(arquivos.map(async (arquivo) => {
@@ -448,6 +479,9 @@ export default function DashboardPage() {
         erro: items.filter((item: any) => !item.sucesso).length,
         itens: items,
       });
+      setFiltroLoteTipo('todos');
+      setFiltroLoteStatus('todos');
+      setPaginaLote(1);
     } catch {
       setErroImportacao('Nao foi possivel consultar o lote.');
     } finally {
@@ -845,8 +879,46 @@ export default function DashboardPage() {
                     <strong>{resultadoLote.sucesso} sucesso(s)</strong>
                     <span>{resultadoLote.erro} erro(s) em {resultadoLote.total} consulta(s)</span>
                   </div>
+
+                  <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_auto] lg:items-end">
+                    <label className="block">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-cyan-800">Filtrar por tipo</span>
+                      <select
+                        value={filtroLoteTipo}
+                        onChange={(e) => setFiltroLoteTipo(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-semibold text-cyan-950 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      >
+                        {tiposLoteDisponiveis.map((tipo) => (
+                          <option key={tipo} value={tipo}>
+                            {tipo === 'todos' ? 'Todos' : tipo.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-cyan-800">Filtrar por status</p>
+                      <div className="mt-1 inline-flex rounded-xl border border-cyan-200 bg-white p-1">
+                        {([
+                          ['todos', 'Todos'],
+                          ['sucesso', 'Sucesso'],
+                          ['erro', 'Erro'],
+                        ] as const).map(([valor, label]) => (
+                          <button
+                            key={valor}
+                            type="button"
+                            onClick={() => setFiltroLoteStatus(valor)}
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${filtroLoteStatus === valor ? 'bg-cyan-600 text-white' : 'text-cyan-800 hover:bg-cyan-50'}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="mt-3 space-y-2">
-                    {resultadoLote.itens.slice(0, 5).map((item) => (
+                    {itensLotePagina.length > 0 ? itensLotePagina.map((item) => (
                       <div key={item.chaveAcesso} className="rounded-xl bg-white/80 px-3 py-2 ring-1 ring-cyan-200">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold">{item.tipo ? item.tipo.toUpperCase() : 'AUTO'}</span>
@@ -855,7 +927,36 @@ export default function DashboardPage() {
                         <p className="mt-1 truncate font-mono text-[11px]">{item.chaveAcesso}</p>
                         {item.erro ? <p className="mt-1 text-xs text-rose-700">{item.erro}</p> : null}
                       </div>
-                    ))}
+                    )) : (
+                      <div className="rounded-xl bg-white/80 px-3 py-3 ring-1 ring-cyan-200">
+                        Nenhum resultado para os filtros selecionados.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-cyan-800">
+                    <span>
+                      Mostrando {itensLoteFiltrados.length === 0 ? 0 : (paginaLoteAtual - 1) * itensPorPaginaLote + 1}-{Math.min(paginaLoteAtual * itensPorPaginaLote, itensLoteFiltrados.length)} de {itensLoteFiltrados.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaginaLote((valor) => Math.max(1, valor - 1))}
+                        disabled={paginaLoteAtual <= 1}
+                        className="rounded-full border border-cyan-200 bg-white px-3 py-1.5 font-semibold text-cyan-800 disabled:opacity-40"
+                      >
+                        Anterior
+                      </button>
+                      <span className="font-semibold">Página {paginaLoteAtual} de {totalPaginasLote}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPaginaLote((valor) => Math.min(totalPaginasLote, valor + 1))}
+                        disabled={paginaLoteAtual >= totalPaginasLote}
+                        className="rounded-full border border-cyan-200 bg-white px-3 py-1.5 font-semibold text-cyan-800 disabled:opacity-40"
+                      >
+                        Próxima
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
