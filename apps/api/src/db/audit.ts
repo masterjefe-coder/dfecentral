@@ -24,11 +24,16 @@ export async function registrarConsulta(registro: RegistroConsulta): Promise<voi
   }
 }
 
-export async function listarConsultasRecentes(cnpj?: string, limite = 12) {
+export async function listarConsultasRecentes(usuarioId?: string, cnpj?: string, limite = 12) {
+  if (!usuarioId) return [];
+
+  const filtros = [eq(consultas.usuarioId, usuarioId), like(consultas.tipo, 'importacao:%')];
+  if (cnpj) filtros.push(eq(consultas.consulta, cnpj));
+
   const query = db
     .select()
     .from(consultas)
-    .where(cnpj ? and(like(consultas.tipo, 'importacao:%'), eq(consultas.consulta, cnpj)) : like(consultas.tipo, 'importacao:%'))
+    .where(and(...filtros))
     .orderBy(desc(consultas.criadoEm))
     .limit(Math.min(100, Math.max(1, limite)));
 

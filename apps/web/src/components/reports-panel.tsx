@@ -57,13 +57,15 @@ export function ReportsPanel({
   const [erro, setErro] = useState('');
   const [documentos, setDocumentos] = useState<Documento[]>([]);
 
+  const parseValor = (valor?: string | null) => Number(String(valor || '0').replace(/\./g, '').replace(',', '.')) || 0;
+
   const cnpjLimpo = useMemo(() => cnpj.replace(/\D/g, '').slice(0, 14), [cnpj]);
   const documentosOrdenados = useMemo(
     () => [...documentos].sort((a, b) => new Date(b.dataEmissao).getTime() - new Date(a.dataEmissao).getTime()),
     [documentos],
   );
   const totalValor = useMemo(
-    () => documentos.reduce((acc, doc) => acc + (Number(String(doc.valorTotal || '0').replace(',', '.')) || 0), 0),
+    () => documentos.reduce((acc, doc) => acc + parseValor(doc.valorTotal), 0),
     [documentos],
   );
   const porTipo = useMemo(() => {
@@ -71,16 +73,16 @@ export function ReportsPanel({
       const docsTipo = documentosOrdenados.filter((doc) => doc.tipo === item.tipo);
       const emitidas = docsTipo.filter((doc) => !(doc.cnpjDestinatario && doc.cnpjDestinatario === cnpjLimpo));
       const recebidas = docsTipo.filter((doc) => doc.cnpjDestinatario && doc.cnpjDestinatario === cnpjLimpo);
-      return {
-        tipo: item.nome,
-        codigo: item.tipo,
-        total: docsTipo.length,
-        emitidas: emitidas.length,
-        recebidas: recebidas.length,
-        valorTotal: docsTipo.reduce((acc, doc) => acc + (Number(String(doc.valorTotal || '0').replace(/\./g, '').replace(',', '.')) || 0), 0),
-      };
-    });
-  }, [cnpjLimpo, documentosOrdenados]);
+        return {
+          tipo: item.nome,
+          codigo: item.tipo,
+          total: docsTipo.length,
+          emitidas: emitidas.length,
+          recebidas: recebidas.length,
+          valorTotal: docsTipo.reduce((acc, doc) => acc + parseValor(doc.valorTotal), 0),
+        };
+      });
+    }, [cnpjLimpo, documentosOrdenados]);
   const maxTipo = Math.max(1, ...porTipo.map((item) => item.total));
 
   useEffect(() => {
@@ -213,8 +215,6 @@ export function ReportsPanel({
   }
 
   function exportarXlsx() {
-    const parseValor = (valor?: string | null) => Number(String(valor || '0').replace(/\./g, '').replace(',', '.')) || 0;
-
     const resumo = [
       ['Campo', 'Valor'],
       ['CNPJ', cnpjLimpo],

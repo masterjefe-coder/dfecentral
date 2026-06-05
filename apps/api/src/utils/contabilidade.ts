@@ -186,6 +186,7 @@ export async function enviarPacoteXmlMensal(opcoes: {
         corpo: pacote.buffer,
         contentType: 'application/zip',
         categoria: 'pacote',
+        dataEmissao: inicioMes(opcoes.mes),
         nomeArquivo: `xmls-${formatarMesArquivo(opcoes.mes)}.zip`,
       })
     : null;

@@ -637,6 +637,15 @@ export function inferirTipoDocumentoXml(xml: string): DocumentoFiscal['tipo'] | 
     const tipoNfe = tipoPorChave(chaveNfe) || tipoPorModelo(String(parsed?.nfeProc?.NFe?.infNFe?.ide?.mod || parsed?.NFe?.infNFe?.ide?.mod || ''));
     if (tipoNfe === 'nfe' || tipoNfe === 'nfce') return tipoNfe;
 
+    const infNfse = parsed?.CompNfse?.Nfse?.InfNfse
+      ?? parsed?.CompNfse?.Nfse?.infNfse
+      ?? parsed?.CompNfse?.Nfse?.InfNFSe
+      ?? parsed?.Nfse?.InfNfse
+      ?? parsed?.Nfse?.infNfse
+      ?? parsed?.InfNfse
+      ?? parsed?.InfNFSe;
+    if (infNfse) return 'nfse';
+
     const chaveCte = String(
       parsed?.cteProc?.CTe?.infCte?.Id
       || parsed?.procCTe?.CTe?.infCte?.Id

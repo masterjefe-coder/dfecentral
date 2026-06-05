@@ -47,6 +47,14 @@ function formatarCnpj(valor: string): string {
   return nums.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
 }
 
+function validarEmail(valor: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor.trim());
+}
+
+function validarMes(valor: string): boolean {
+  return /^\d{4}-\d{2}$/.test(valor.trim());
+}
+
 export default function EmpresaPage() {
   const [aba, setAba] = useState<'dados' | 'equipe' | 'contabilidade'>('dados');
   const [usuario, setUsuario] = useState<Usuario | null>(null);
@@ -103,18 +111,27 @@ export default function EmpresaPage() {
 
   useEffect(() => {
     void (async () => {
-      const [meRes, empresasRes, ativaRes, prefsRes, equipeRes, assinaturaRes, certificadoRes] = await Promise.all([
-        fetch('/api/auth/me', { cache: 'no-store' }),
-        fetch('/api/empresas', { cache: 'no-store' }),
-        fetch('/api/empresas/ativa', { cache: 'no-store' }),
-        fetch('/api/auth/prefs', { cache: 'no-store' }),
-        fetch('/api/equipe', { cache: 'no-store' }),
-        fetch('/api/billing/subscription', { cache: 'no-store' }),
-        fetch('/api/certificados', { cache: 'no-store' }),
+      const fetchJson = async (url: string) => {
+        try {
+          const res = await fetch(url, { cache: 'no-store' });
+          return await res.json();
+        } catch {
+          return null;
+        }
+      };
+
+      const [meData, empresasData, ativaData, prefsData, equipeData, assinaturaData, certificadoData] = await Promise.all([
+        fetchJson('/api/auth/me'),
+        fetchJson('/api/empresas'),
+        fetchJson('/api/empresas/ativa'),
+        fetchJson('/api/auth/prefs'),
+        fetchJson('/api/equipe'),
+        fetchJson('/api/billing/subscription'),
+        fetchJson('/api/certificados'),
       ]);
-      const meData = await meRes.json();
+
       let cnpjCarregado = '';
-      if (meData.sucesso) {
+      if (meData?.sucesso) {
         const info = meData.dados?.usuario as Usuario;
         setUsuario(info);
         setNome(info?.nome || '');
@@ -130,16 +147,15 @@ export default function EmpresaPage() {
         setResponsavel(info?.responsavel || '');
       }
 
-      const empresasData = await empresasRes.json();
-      if (empresasData.sucesso) {
+      if (empresasData?.sucesso) {
         const listaEmpresas = empresasData.dados?.empresas || [];
         setEmpresas(listaEmpresas);
         if (!cnpjCarregado && listaEmpresas[0]?.cnpj) {
           cnpjCarregado = listaEmpresas[0].cnpj;
         }
       }
-      const ativaData = await ativaRes.json();
-      if (ativaData.sucesso) {
+
+      if (ativaData?.sucesso) {
         const cnpjAtivo = ativaData.dados?.cnpjAtivo || '';
         setEmpresaAtiva(cnpjAtivo);
         if (cnpjAtivo) cnpjCarregado = cnpjAtivo;
@@ -147,27 +163,23 @@ export default function EmpresaPage() {
 
       setCnpj(cnpjCarregado);
 
-      const prefsData = await prefsRes.json();
-      if (prefsData.sucesso && prefsData.dados?.preferencias) {
+      if (prefsData?.sucesso && prefsData.dados?.preferencias) {
         const prefs = prefsData.dados.preferencias as Record<string, unknown>;
         if (typeof prefs.contabilidadeEmail === 'string') setContabilidadeEmail(prefs.contabilidadeEmail);
         if (typeof prefs.contabilidadeEnvioAutomatico === 'boolean') setContabilidadeAuto(prefs.contabilidadeEnvioAutomatico);
         if (typeof prefs.recebeaquiWebhookUrl === 'string') setWebhookUrl(prefs.recebeaquiWebhookUrl);
       }
 
-      const equipeData = await equipeRes.json();
-      if (equipeData.sucesso) {
+      if (equipeData?.sucesso) {
         setMembros(equipeData.dados?.membros || []);
         setConvites(equipeData.dados?.convites || []);
       }
 
-      const assinaturaData = await assinaturaRes.json();
-      if (assinaturaData.sucesso) {
+      if (assinaturaData?.sucesso) {
         setAssinatura(assinaturaData.dados?.assinatura || null);
       }
 
-      const certificadoData = await certificadoRes.json();
-      if (certificadoData.sucesso) {
+      if (certificadoData?.sucesso) {
         setCertificado(certificadoData.dados?.certificado || null);
       }
     })();
@@ -324,6 +336,15 @@ export default function EmpresaPage() {
   }
 
   async function convidarMembro() {
+    if (novoConviteNome.trim().length < 2) {
+      setMensagem('Informe um nome com pelo menos 2 caracteres para o convite.');
+      return;
+    }
+    if (!validarEmail(novoConviteEmail)) {
+      setMensagem('Informe um e-mail valido para o convite.');
+      return;
+    }
+
     const res = await fetch('/api/equipe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -359,6 +380,14 @@ export default function EmpresaPage() {
       setMensagem('Informe a chave do documento para enviar o XML.');
       return;
     }
+    if (!/^\d{44}$/.test(xmlChave.replace(/\D/g, ''))) {
+      setMensagem('Informe uma chave de 44 digitos para o XML.');
+      return;
+    }
+    if (xmlEmail.trim() && !validarEmail(xmlEmail)) {
+      setMensagem('Informe um e-mail valido para o envio do XML.');
+      return;
+    }
 
     setEnviandoXml(true);
     setMensagem('');
@@ -386,6 +415,10 @@ export default function EmpresaPage() {
       setMensagem('Informe o mes no formato AAAA-MM.');
       return;
     }
+    if (!validarMes(pacoteMes)) {
+      setMensagem('Informe o mes no formato AAAA-MM.');
+      return;
+    }
 
     setEnviandoPacote(true);
     setMensagem('');
@@ -408,6 +441,10 @@ export default function EmpresaPage() {
 
   async function baixarPacoteMensal() {
     if (!pacoteMes.trim()) {
+      setMensagem('Informe o mes no formato AAAA-MM.');
+      return;
+    }
+    if (!validarMes(pacoteMes)) {
       setMensagem('Informe o mes no formato AAAA-MM.');
       return;
     }
@@ -733,7 +770,7 @@ export default function EmpresaPage() {
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Contabilidade</p>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <Field label="E-mail da contabilidade" value={contabilidadeEmail} onChange={setContabilidadeEmail} />
+                <Field label="E-mail da contabilidade" value={contabilidadeEmail} onChange={setContabilidadeEmail} type="email" />
                 <label className="block self-end rounded-2xl border border-slate-200 bg-white px-4 py-3">
                   <span className="mb-2 block text-sm font-medium text-slate-700">Enviar XML automaticamente</span>
                   <button
@@ -747,7 +784,7 @@ export default function EmpresaPage() {
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
                 <Field label="Chave do XML" value={xmlChave} onChange={setXmlChave} />
-                <Field label="E-mail opcional" value={xmlEmail} onChange={setXmlEmail} />
+                <Field label="E-mail opcional" value={xmlEmail} onChange={setXmlEmail} type="email" />
                 <button onClick={enviarXmlContabilidade} disabled={enviandoXml} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
                   {enviandoXml ? 'Enviando...' : 'Enviar XML'}
                 </button>
@@ -800,7 +837,7 @@ export default function EmpresaPage() {
               <p className="mt-2 text-sm text-slate-600">Convide pessoas por e-mail para acessar a mesma operação.</p>
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_160px_auto]">
                 <Field label="Nome" value={novoConviteNome} onChange={setNovoConviteNome} />
-                <Field label="E-mail" value={novoConviteEmail} onChange={setNovoConviteEmail} />
+                <Field label="E-mail" value={novoConviteEmail} onChange={setNovoConviteEmail} type="email" />
                 <label className="block">
                   <span className="mb-2 block text-sm font-medium text-slate-700">Papel</span>
                   <select value={novoConvitePapel} onChange={(e) => setNovoConvitePapel(e.target.value as any)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none">

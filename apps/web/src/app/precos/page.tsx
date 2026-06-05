@@ -28,10 +28,11 @@ const arquivamento = [
   },
 ];
 
-export default async function PrecosPage({ searchParams }: { searchParams?: Promise<{ plano?: string; metodo?: string }> }) {
+export default async function PrecosPage({ searchParams }: { searchParams?: Promise<{ plano?: string; metodo?: string; arquivamento?: string }> }) {
   const params = await searchParams;
   const planoAtivo = params?.plano;
   const metodoAtivo = params?.metodo === 'pix' ? 'pix' : 'cartao';
+  const arquivamentoAtivo = params?.arquivamento;
 
   return (
     <StaticPage tone="light" kicker="Planos" title="Preços simples" description="Escolha um plano que acompanhe o volume fiscal da sua operação.">
@@ -143,7 +144,7 @@ export default async function PrecosPage({ searchParams }: { searchParams?: Prom
               </div>
               <p className="mt-3 text-2xl font-bold text-slate-950">{item.preco}</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">{item.texto}</p>
-              {item.codigo ? <CheckoutAddonButton arquivamento={item.codigo} label={`Ativar ${item.nome}`} /> : null}
+              {item.codigo ? <CheckoutAddonButton arquivamento={item.codigo} label={`Ativar ${item.nome}`} autoStart={arquivamentoAtivo === item.codigo} /> : null}
             </div>
           ))}
         </div>

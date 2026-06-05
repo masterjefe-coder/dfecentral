@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { carregarCertificado, decodificarDocZip, enviarSOAPComCert, getServiceUrl, inferirTipoDocumentoXml, montarEnvelope, montarEndpoints, obterUfAutorEnv, parseDocumentoFiscalXml, type TipoDocumento } from '@dfecentral/sdk';
 import JSZip from 'jszip';
+import { desc } from 'drizzle-orm';
 import { salvarNoCache } from '../db/cache.js';
 import { registrarConsulta } from '../db/audit.js';
 import { obterDistribuicaoDfe, salvarDistribuicaoDfe } from '../db/distribuicoes.js';
@@ -212,7 +213,7 @@ export async function importarDistribuicaoLenta(log?: { info?: (data: unknown, m
   const { certificadosDigitais } = await import('../db/schema.js');
   const agora = new Date();
   const ufAutor = obterUfAutorEnv('SC');
-  const certificados = await db.select().from(certificadosDigitais).orderBy(certificadosDigitais.atualizadoEm);
+  const certificados = await db.select().from(certificadosDigitais).orderBy(desc(certificadosDigitais.atualizadoEm));
   const porCnpj = new Map<string, typeof certificados>();
 
   for (const cert of certificados) {

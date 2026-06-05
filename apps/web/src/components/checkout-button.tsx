@@ -108,12 +108,22 @@ export function CheckoutButton(
 export function CheckoutAddonButton({
   arquivamento,
   label,
+  autoStart = false,
 }: {
   arquivamento: ArquivamentoCheckout;
   label: string;
+  autoStart?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
+  const autoStartDone = useRef(false);
+
+  useEffect(() => {
+    if (!autoStart || autoStartDone.current) return;
+    autoStartDone.current = true;
+    void iniciarCheckout();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]);
 
   async function iniciarCheckout() {
     setLoading(true);
@@ -122,7 +132,7 @@ export function CheckoutAddonButton({
     try {
       const me = await fetch('/api/auth/session', { cache: 'no-store' });
       if (!me.ok) {
-        window.location.href = `/auth/entrar?redirect=${encodeURIComponent('/precos')}`;
+        window.location.href = `/auth/entrar?redirect=${encodeURIComponent(`/precos?arquivamento=${arquivamento}`)}`;
         return;
       }
 
@@ -141,7 +151,7 @@ export function CheckoutAddonButton({
 
       if (!response.ok || !data?.sucesso) {
         if (response.status === 401) {
-          window.location.href = `/auth/entrar?redirect=${encodeURIComponent('/precos')}`;
+          window.location.href = `/auth/entrar?redirect=${encodeURIComponent(`/precos?arquivamento=${arquivamento}`)}`;
           return;
         }
         setErro(data?.erro || 'Nao foi possivel iniciar o checkout.');

@@ -47,11 +47,35 @@ export function AuthPanel({ mode, token, redirectTo = '/dashboard', initialError
   const publicWebBase = process.env.WEB_BASE_URL || process.env.APP_BASE_URL || 'https://www.dfecentral.com.br';
   const googleHref = `${publicWebBase.replace(/\/$/, '')}/api/auth/google/iniciar?next=${encodeURIComponent(redirectTo)}`;
 
+  function emailValido(valor: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor.trim());
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErro('');
     setSucesso('');
 
+    if ((mode === 'login' || mode === 'forgot' || mode === 'register') && !emailValido(form.email)) {
+      setErro('Informe um e-mail valido.');
+      return;
+    }
+    if ((mode === 'login' || mode === 'register') && !form.senha.trim()) {
+      setErro('Informe uma senha.');
+      return;
+    }
+    if (mode === 'register' && form.nome.trim().length < 2) {
+      setErro('Informe um nome com pelo menos 2 caracteres.');
+      return;
+    }
+    if (mode === 'register' && form.cnpj.trim() && !/^\d{14}$/.test(form.cnpj.replace(/\D/g, ''))) {
+      setErro('Informe um CNPJ valido se quiser preencher esse campo.');
+      return;
+    }
+    if (mode === 'reset' && !token) {
+      setErro('Token de redefinição ausente.');
+      return;
+    }
     if ((mode === 'register' || mode === 'reset') && form.senha !== form.confirmarSenha) {
       setErro('As senhas precisam ser iguais.');
       return;

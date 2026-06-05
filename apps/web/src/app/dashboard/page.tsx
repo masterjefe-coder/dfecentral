@@ -145,6 +145,10 @@ function nomeArquivo(file: File) {
   return file.webkitRelativePath || file.name;
 }
 
+function chaveLoteValida(valor: string) {
+  return /^\d{44}$|^\d{50}$|^\d{56}$/.test(valor);
+}
+
 function tipoArquivo(file: File): 'xml' | 'zip' {
   return file.name.toLowerCase().endsWith('.zip') ? 'zip' : 'xml';
 }
@@ -265,6 +269,9 @@ export default function DashboardPage() {
     }));
 
     setPreviewsImportacao(resultados);
+    if (resultados.some((item) => item.status === 'erro')) {
+      setErroImportacao('Remova os arquivos com erro antes de importar.');
+    }
     return resultados;
   }, []);
 
@@ -407,6 +414,8 @@ export default function DashboardPage() {
       }
 
       setResultado({ tipo: data.tipo, importados: data.importados || 0, ultNSU: data.ultNSU });
+      await carregarResumo();
+      await carregarAtividades();
     } catch {
       setErroImportacao('Nao foi possivel importar os documentos.');
     } finally {
@@ -436,6 +445,7 @@ export default function DashboardPage() {
         setResultado((prev) => ({ tipo: prev ? `${prev.tipo}, ${tipo.tipo.toUpperCase()}` : tipo.tipo.toUpperCase(), importados: (prev?.importados || 0) + (data.importados || 0), ultNSU: data.ultNSU }));
       }
       await carregarResumo();
+      await carregarAtividades();
     } catch (error: any) {
       setErroImportacao(error?.message || 'Nao foi possivel importar todos os documentos.');
     } finally {
@@ -448,10 +458,15 @@ export default function DashboardPage() {
       .split(/[\n,;]+/)
       .map((item) => item.trim())
       .filter(Boolean)
-      .map((chaveAcesso) => ({ chaveAcesso }));
+      .map((chaveAcesso) => chaveAcesso.replace(/\D/g, ''));
 
     if (itens.length === 0) {
       setErroImportacao('Informe ao menos uma chave, uma por linha.');
+      return;
+    }
+
+    if (itens.some((chaveAcesso) => !chaveLoteValida(chaveAcesso))) {
+      setErroImportacao('Cada chave deve ter 44, 50 ou 56 digitos numericos.');
       return;
     }
 
@@ -463,7 +478,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/consultas/lote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itens }),
+        body: JSON.stringify({ itens: itens.map((chaveAcesso) => ({ chaveAcesso })) }),
       });
       const data = await res.json();
 
@@ -1025,7 +1040,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => void importarXmlSelecionados()}
-                    disabled={importandoXml || arquivosImportacao.length === 0}
+                    disabled={importandoXml || arquivosImportacao.length === 0 || previewsImportacao.some((item) => item.status === 'erro')}
                     className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
                   >
                     {importandoXml ? 'Importando...' : 'Importar selecionados'}
@@ -1060,6 +1075,10 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
+
+              {previewsImportacao.some((item) => item.status === 'erro') ? (
+                <p className="mt-2 text-sm text-rose-700">Alguns arquivos estao invalidos e bloqueiam a importacao.</p>
+              ) : null}
 
               {previewsImportacao.length > 0 && (
                 <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">

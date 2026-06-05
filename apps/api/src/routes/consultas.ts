@@ -37,7 +37,7 @@ export async function consultasRoutes(app: FastifyInstance) {
       }> = [];
 
       for (const item of itens) {
-        const chaveAcesso = String(item?.chaveAcesso || '').replace(/\s/g, '');
+        const chaveAcesso = String(item?.chaveAcesso || '').replace(/\s/g, '').replace(/\D/g, '');
         const tipo = item?.tipo;
 
         if (!chaveAcesso) {
@@ -45,7 +45,12 @@ export async function consultasRoutes(app: FastifyInstance) {
           continue;
         }
 
-        const resultado = await consultarNFeporChave({ chaveAcesso, tipo }, config);
+        if (!/^\d{44}$|^\d{50}$|^\d{56}$/.test(chaveAcesso)) {
+          resultados.push({ chaveAcesso, tipo, sucesso: false, fonte: 'mock', erro: 'Chave invalida' });
+          continue;
+        }
+
+        const resultado = await consultarNFeporChave({ chaveAcesso }, config);
         if (resultado.sucesso && resultado.documento) {
           await salvarNoCache(resultado.documento);
           resultados.push({
@@ -90,12 +95,13 @@ export async function consultasRoutes(app: FastifyInstance) {
     const { cnpj, limite = 12 } = request.query as { cnpj?: string; limite?: string | number };
     const cnpjLimpo = String(cnpj || '').replace(/\D/g, '').slice(0, 14);
     const limiteNum = Math.min(50, Math.max(1, Number(limite) || 12));
+    const usuarioId = (request as any).conta?.id;
 
     if (cnpj && !/^\d{14}$/.test(cnpjLimpo)) {
       return reply.status(400).send({ sucesso: false, erro: 'CNPJ invalido' });
     }
 
-    const registros = await listarConsultasRecentes(cnpjLimpo || undefined, limiteNum);
+    const registros = await listarConsultasRecentes(usuarioId, cnpjLimpo || undefined, limiteNum);
 
     return {
       sucesso: true,

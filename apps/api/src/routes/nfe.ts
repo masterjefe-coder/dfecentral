@@ -9,6 +9,7 @@ import { gerarPdfDanfe } from '../utils/danfe.js';
 import { registrarConsulta } from '../db/audit.js';
 import { arquivarXmlEmR2, enviarXmlContabilidadeAutomatico } from '../utils/contabilidade.js';
 import { obterSdkConfigComCertificado } from '../utils/certificados.js';
+import { obterEmpresaAtiva } from '../db/auth.js';
 
 function tipoDaChave(chave: string) {
   const modelo = chave.slice(20, 22);
@@ -157,6 +158,7 @@ export async function nfeRoutes(app: FastifyInstance) {
 
     const { config, cleanup } = await obterSdkConfigComCertificado({ usuarioId });
     try {
+      const cnpjAtivo = usuarioId ? await obterEmpresaAtiva(usuarioId) : null;
       const resultado = await consultarNFeporChave({ chaveAcesso: chave }, config);
 
       if (!resultado.sucesso || !resultado.documento?.xml) {
@@ -177,7 +179,7 @@ export async function nfeRoutes(app: FastifyInstance) {
           xml: resultado.documento.xml,
           dataEmissao: new Date(resultado.documento.dataEmissao),
           tipo: 'nfe',
-          direcao: 'emitidas',
+          direcao: cnpjAtivo && resultado.documento.cnpjDestinatario === cnpjAtivo ? 'entradas' : 'emitidas',
         });
       } catch (error) {
         console.error('[contabilidade] erro no envio automatico:', error);
