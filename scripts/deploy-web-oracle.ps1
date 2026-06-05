@@ -128,6 +128,7 @@ MAIL_ROOT="`$APP_ROOT/mailserver" MAILBOX='$Mailbox' PASSWORD='$MailboxPassword'
 $remoteCommand += @"
 APP_ROOT='$RemoteRoot' REPO_DIR="`$REPO_DIR" bash "`$REPO_DIR/ops/oracle/deploy-web-vm.sh";
 "@
+$remoteCommand = $remoteCommand -replace "`r", ''
 & ssh -i $KeyPath -o StrictHostKeyChecking=accept-new "$User@$ServerHost" $remoteCommand
 if ($LASTEXITCODE -ne 0) {
   throw "Deploy falhou na VM."
