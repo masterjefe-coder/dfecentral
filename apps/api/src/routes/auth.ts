@@ -36,17 +36,17 @@ const resetSchema = z.object({
 });
 
 const perfilSchema = z.object({
-  nome: z.string().min(2).optional(),
-  cnpj: z.string().optional().nullable(),
-  razaoSocial: z.string().optional().nullable(),
-  nomeFantasia: z.string().optional().nullable(),
-  ie: z.string().optional().nullable(),
-  uf: z.string().optional().nullable(),
-  municipio: z.string().optional().nullable(),
-  regimeTributario: z.string().optional().nullable(),
-  telefone: z.string().optional().nullable(),
-  emailFiscal: z.string().email().optional().nullable(),
-  responsavel: z.string().optional().nullable(),
+  nome: z.string().trim().min(2).max(200).optional(),
+  cnpj: z.string().trim().max(32).optional().nullable(),
+  razaoSocial: z.string().trim().max(200).optional().nullable(),
+  nomeFantasia: z.string().trim().max(200).optional().nullable(),
+  ie: z.string().trim().max(30).optional().nullable(),
+  uf: z.string().trim().toUpperCase().max(2).optional().nullable(),
+  municipio: z.string().trim().max(120).optional().nullable(),
+  regimeTributario: z.string().trim().max(20).optional().nullable(),
+  telefone: z.string().trim().max(30).optional().nullable(),
+  emailFiscal: z.string().trim().toLowerCase().email().max(255).optional().nullable(),
+  responsavel: z.string().trim().max(200).optional().nullable(),
 });
 
 const preferenciasSchema = z.object({

@@ -612,8 +612,8 @@ export default function EmpresaPage() {
 
           {aba === 'dados' ? (
             <div className="mt-6 grid gap-4">
-              <Field label="Nome" value={nome} onChange={setNome} placeholder="Nome comercial ou razão social" />
-              <Field label="CNPJ" value={cnpj} onChange={(valor) => setCnpj(formatarCnpj(valor))} placeholder="00.000.000/0000-00" />
+              <Field label="Nome" value={nome} onChange={setNome} placeholder="Nome comercial ou razão social" maxLength={200} />
+              <Field label="CNPJ" value={cnpj} onChange={(valor) => setCnpj(formatarCnpj(valor))} placeholder="00.000.000/0000-00" maxLength={18} />
               <div className="grid gap-3 md:grid-cols-2">
                 <div className={`rounded-2xl border px-4 py-3 text-sm ${nomeInvalido ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
                   {nomeInvalido ? 'Informe um nome com pelo menos 2 caracteres.' : 'Nome válido.'}
@@ -625,15 +625,15 @@ export default function EmpresaPage() {
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Dados fiscais</p>
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <Field label="Razão social" value={razaoSocial} onChange={setRazaoSocial} placeholder="Razão social completa" />
-                  <Field label="Nome fantasia" value={nomeFantasia} onChange={setNomeFantasia} placeholder="Nome fantasia" />
-                  <Field label="Inscrição estadual" value={ie} onChange={setIe} placeholder="IE" />
-                  <Field label="UF" value={ufEmpresa} onChange={(valor) => setUfEmpresa(valor.toUpperCase().slice(0, 2))} placeholder="SC" />
-                  <Field label="Município" value={municipio} onChange={setMunicipio} placeholder="Município sede" />
-                  <Field label="Regime tributário" value={regimeTributario} onChange={setRegimeTributario} placeholder="simples | presumido | real | mei" />
-                  <Field label="Telefone" value={telefone} onChange={setTelefone} placeholder="(00) 00000-0000" />
-                  <Field label="E-mail fiscal" value={emailFiscal} onChange={setEmailFiscal} type="email" placeholder="financeiro@empresa.com.br" />
-                  <Field label="Responsável" value={responsavel} onChange={setResponsavel} placeholder="Nome do responsável" />
+                  <Field label="Razão social" value={razaoSocial} onChange={setRazaoSocial} placeholder="Razão social completa" maxLength={200} />
+                  <Field label="Nome fantasia" value={nomeFantasia} onChange={setNomeFantasia} placeholder="Nome fantasia" maxLength={200} />
+                  <Field label="Inscrição estadual" value={ie} onChange={setIe} placeholder="IE" maxLength={30} />
+                  <Field label="UF" value={ufEmpresa} onChange={(valor) => setUfEmpresa(valor.toUpperCase().slice(0, 2))} placeholder="SC" maxLength={2} />
+                  <Field label="Município" value={municipio} onChange={setMunicipio} placeholder="Município sede" maxLength={120} />
+                  <Field label="Regime tributário" value={regimeTributario} onChange={setRegimeTributario} placeholder="simples | presumido | real | mei" maxLength={20} />
+                  <Field label="Telefone" value={telefone} onChange={setTelefone} placeholder="(00) 00000-0000" maxLength={30} />
+                  <Field label="E-mail fiscal" value={emailFiscal} onChange={setEmailFiscal} type="email" placeholder="financeiro@empresa.com.br" maxLength={255} />
+                  <Field label="Responsável" value={responsavel} onChange={setResponsavel} placeholder="Nome do responsável" maxLength={200} />
                 </div>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div className={`rounded-2xl border px-4 py-3 text-sm ${ufInvalida ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
@@ -655,8 +655,8 @@ export default function EmpresaPage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Multiempresa local</p>
               <p className="mt-2 text-sm text-slate-600">Lista auxiliar de CNPJs para uso rápido no dia a dia.</p>
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
-                <Field label="Nome da empresa" value={novaEmpresaNome} onChange={setNovaEmpresaNome} />
-                <Field label="CNPJ" value={novaEmpresaCnpj} onChange={setNovaEmpresaCnpj} />
+                <Field label="Nome da empresa" value={novaEmpresaNome} onChange={setNovaEmpresaNome} maxLength={200} />
+                <Field label="CNPJ" value={novaEmpresaCnpj} onChange={setNovaEmpresaCnpj} maxLength={18} />
                 <button onClick={adicionarEmpresa} className="mt-auto inline-flex h-12 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
                   Adicionar
                 </button>
@@ -836,8 +836,8 @@ export default function EmpresaPage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Equipe</p>
               <p className="mt-2 text-sm text-slate-600">Convide pessoas por e-mail para acessar a mesma operação.</p>
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_160px_auto]">
-                <Field label="Nome" value={novoConviteNome} onChange={setNovoConviteNome} />
-                <Field label="E-mail" value={novoConviteEmail} onChange={setNovoConviteEmail} type="email" />
+                <Field label="Nome" value={novoConviteNome} onChange={setNovoConviteNome} maxLength={200} />
+                <Field label="E-mail" value={novoConviteEmail} onChange={setNovoConviteEmail} type="email" maxLength={255} />
                 <label className="block">
                   <span className="mb-2 block text-sm font-medium text-slate-700">Papel</span>
                   <select value={novoConvitePapel} onChange={(e) => setNovoConvitePapel(e.target.value as any)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none">
@@ -892,11 +892,11 @@ export default function EmpresaPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; type?: string }) {
+function Field({ label, value, onChange, placeholder, type = 'text', maxLength }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; type?: string; maxLength?: number }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>
-      <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100" />
+      <input type={type} value={value} placeholder={placeholder} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100" />
     </label>
   );
 }

@@ -9,6 +9,13 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+function limitarTexto(valor: string | null | undefined, max: number): string | null | undefined {
+  if (valor === undefined) return undefined;
+  if (valor === null) return null;
+  const texto = valor.trim();
+  return texto ? texto.slice(0, max) : null;
+}
+
 export function gerarApiKey(): string {
   return randomBytes(32).toString('hex');
 }
@@ -92,17 +99,17 @@ export async function atualizarPerfilUsuario(
   },
 ): Promise<UsuarioAuth | null> {
   const updates: Partial<typeof usuarios.$inferInsert> = { atualizadoEm: new Date() };
-  if (typeof input.nome === 'string' && input.nome.trim()) updates.nome = input.nome.trim();
-  if (input.cnpj !== undefined) updates.cnpj = input.cnpj ? input.cnpj.replace(/\D/g, '') : null;
-  if (input.razaoSocial !== undefined) updates.razaoSocial = input.razaoSocial?.trim() || null;
-  if (input.nomeFantasia !== undefined) updates.nomeFantasia = input.nomeFantasia?.trim() || null;
-  if (input.ie !== undefined) updates.ie = input.ie?.trim() || null;
-  if (input.uf !== undefined) updates.uf = input.uf?.trim().toUpperCase().slice(0, 2) || null;
-  if (input.municipio !== undefined) updates.municipio = input.municipio?.trim() || null;
-  if (input.regimeTributario !== undefined) updates.regimeTributario = input.regimeTributario?.trim() || null;
-  if (input.telefone !== undefined) updates.telefone = input.telefone?.trim() || null;
-  if (input.emailFiscal !== undefined) updates.emailFiscal = input.emailFiscal?.trim().toLowerCase() || null;
-  if (input.responsavel !== undefined) updates.responsavel = input.responsavel?.trim() || null;
+  if (typeof input.nome === 'string' && input.nome.trim()) updates.nome = input.nome.trim().slice(0, 200);
+  if (input.cnpj !== undefined) updates.cnpj = input.cnpj ? input.cnpj.replace(/\D/g, '').slice(0, 14) : null;
+  if (input.razaoSocial !== undefined) updates.razaoSocial = limitarTexto(input.razaoSocial, 200);
+  if (input.nomeFantasia !== undefined) updates.nomeFantasia = limitarTexto(input.nomeFantasia, 200);
+  if (input.ie !== undefined) updates.ie = limitarTexto(input.ie, 30);
+  if (input.uf !== undefined) updates.uf = limitarTexto(input.uf?.toUpperCase(), 2);
+  if (input.municipio !== undefined) updates.municipio = limitarTexto(input.municipio, 120);
+  if (input.regimeTributario !== undefined) updates.regimeTributario = limitarTexto(input.regimeTributario, 20);
+  if (input.telefone !== undefined) updates.telefone = limitarTexto(input.telefone, 30);
+  if (input.emailFiscal !== undefined) updates.emailFiscal = limitarTexto(input.emailFiscal?.toLowerCase(), 255);
+  if (input.responsavel !== undefined) updates.responsavel = limitarTexto(input.responsavel, 200);
 
   const resultado = await db.update(usuarios).set(updates).where(eq(usuarios.id, usuarioId)).returning();
   return resultado[0] || null;
