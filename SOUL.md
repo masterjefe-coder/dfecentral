@@ -28,6 +28,7 @@
 - `apps/web/src/app/*` for UI changes.
 - `packages/sdk/src/*` for parsing and shared logic.
 - `ops/oracle/*` for VM deploy and service wiring.
+- On the Oracle VM, prefer `bash /opt/apps/dfecentral/shared/bin/dfecentral-ops.sh status|health|logs` for safe read-only triage.
 
 ## Local-Only Scripts
 - `scripts/*.mjs` are operational helpers.

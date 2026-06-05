@@ -115,6 +115,10 @@ sudo cp "$REPO_DIR/ops/oracle/dfecentral-scraper.service" /etc/systemd/system/df
 sudo cp "$REPO_DIR/ops/oracle/dfecentral-contabilidade-mensal.service" /etc/systemd/system/dfecentral-contabilidade-mensal.service
 sudo cp "$REPO_DIR/ops/oracle/dfecentral-contabilidade-mensal.timer" /etc/systemd/system/dfecentral-contabilidade-mensal.timer
 
+echo "Instalando ferramentas operacionais..."
+install -m 0755 "$REPO_DIR/ops/oracle/dfecentral-ops.sh" "$APP_ROOT/shared/bin/dfecentral-ops.sh"
+install -m 0755 "$REPO_DIR/ops/oracle/healthcheck.sh" "$APP_ROOT/shared/bin/healthcheck.sh"
+
 echo "Instalando Caddyfile..."
 sudo cp "$REPO_DIR/ops/oracle/dfecentral.Caddyfile" /etc/caddy/sites-enabled/dfecentral.Caddyfile
 

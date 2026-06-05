@@ -51,6 +51,10 @@ done < "$NORMALIZED_ENV_FILE"
 
 cd "$REPO_DIR"
 
+mkdir -p "$APP_ROOT/shared/bin"
+install -m 0755 "$REPO_DIR/ops/oracle/dfecentral-ops.sh" "$APP_ROOT/shared/bin/dfecentral-ops.sh"
+install -m 0755 "$REPO_DIR/ops/oracle/healthcheck.sh" "$APP_ROOT/shared/bin/healthcheck.sh"
+
 echo ">>> Sincronizando checkout com o bare repo..."
 git fetch "$REPO_GIT_DIR" "$BRANCH" 2>/dev/null || git fetch "$REPO_GIT_DIR" main 2>/dev/null || true
 git reset --hard FETCH_HEAD
