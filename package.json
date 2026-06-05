@@ -16,7 +16,12 @@
     "db:push": "turbo db:push",
     "db:migrate": "turbo db:migrate",
     "deploy": "powershell -ExecutionPolicy Bypass -File scripts/push-and-deploy-web.ps1",
-    "deploy:oracle": "powershell -ExecutionPolicy Bypass -File scripts/deploy-web-oracle.ps1"
+    "deploy:oracle": "powershell -ExecutionPolicy Bypass -File scripts/deploy-web-oracle.ps1",
+    "tools:check-cert-config": "node scripts/tools/check-cert-config.mjs",
+    "tools:delete-cert": "node scripts/tools/delete-cert.mjs",
+    "tools:find-doc-keys": "node scripts/tools/find-doc-keys.mjs",
+    "tools:inspect-certs": "node scripts/tools/inspect-certs.mjs",
+    "tools:migrate-certificate": "node scripts/tools/migrate-certificate.mjs"
   },
   "devDependencies": {
     "turbo": "^2.4.0",
