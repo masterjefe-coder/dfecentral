@@ -56,7 +56,7 @@ function encontrarXmlAninhado(valor: unknown, visitados = new Set<unknown>()): s
   return null;
 }
 
-function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | null {
+function parseDocumentoFromXML(xml: string, tipo: string, chaveFallback = ''): DocumentoFiscal | null {
   try {
     const parsed = parser.parse(xml);
     const nfeProc = parsed?.nfeProc?.NFe?.infNFe ?? parsed?.NFe?.infNFe;
@@ -83,7 +83,7 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
       };
     }
 
-    const procBPe = parsed?.procBPe?.BPe?.infBPe ?? parsed?.BPe?.infBPe;
+    const procBPe = parsed?.procBPe?.BPe?.infBPe ?? parsed?.procBPe?.BPe?.InfBPe ?? parsed?.BPe?.infBPe ?? parsed?.BPe?.InfBPe;
     if (procBPe) {
       return {
         chaveAcesso: String(procBPe.Id || '').replace(/^BPe/i, '') || '',
@@ -102,7 +102,13 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
       };
     }
 
-    const procCTeOS = parsed?.procCTeOS?.CTeOS?.infCTeOS ?? parsed?.CTeOS?.infCTeOS ?? parsed?.procCTeOS?.CTe?.infCte;
+    const procCTeOS = parsed?.procCTeOS?.CTeOS?.infCTeOS
+      ?? parsed?.procCTeOS?.CTeOS?.InfCTeOS
+      ?? parsed?.CTeOS?.infCTeOS
+      ?? parsed?.CTeOS?.InfCTeOS
+      ?? parsed?.procCTeOS?.CTe?.infCte
+      ?? parsed?.procCTeOS?.CTe?.infCteOS
+      ?? parsed?.CTe?.infCte;
     if (procCTeOS) {
       return {
         chaveAcesso: String(procCTeOS.Id || '').replace(/^CTeOS/i, '').replace(/^CTe/i, '') || '',
@@ -140,7 +146,7 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
       };
     }
 
-    const procDCe = parsed?.procDCe?.DCe?.infDCe ?? parsed?.DCe?.infDCe;
+    const procDCe = parsed?.procDCe?.DCe?.infDCe ?? parsed?.procDCe?.DCe?.InfDCe ?? parsed?.DCe?.infDCe ?? parsed?.DCe?.InfDCe;
     if (procDCe) {
       return {
         chaveAcesso: String(procDCe.Id || '').replace(/^DCe/i, '') || '',
@@ -156,6 +162,66 @@ function parseDocumentoFromXML(xml: string, tipo: string): DocumentoFiscal | nul
         status: 'autorizada',
         xml,
         protocolo: parsed?.procDCe?.protDCe?.infProt?.nProt || parsed?.protDCe?.infProt?.nProt || undefined,
+      };
+    }
+
+    const procMDFe = parsed?.mdfeProc?.MDFe?.infMDFe ?? parsed?.procMDFe?.MDFe?.infMDFe ?? parsed?.MDFe?.infMDFe;
+    if (procMDFe) {
+      return {
+        chaveAcesso: String(procMDFe.Id || '').replace(/^MDFe/i, '') || '',
+        tipo: tipo as DocumentoFiscal['tipo'],
+        numero: String(procMDFe.ide?.nMDF || procMDFe.ide?.nDoc || '').replace(/^0+/, ''),
+        serie: String(procMDFe.ide?.serie || '').replace(/^0+/, ''),
+        dataEmissao: procMDFe.ide?.dhEmi || new Date().toISOString(),
+        cnpjEmitente: procMDFe.emit?.CNPJ || '',
+        razaoSocialEmitente: procMDFe.emit?.xNome || '',
+        valorTotal: String(procMDFe.infCarga?.vCarga || procMDFe.total?.vCarga || procMDFe.total?.vNF || '0'),
+        status: 'autorizada',
+        xml,
+        protocolo: parsed?.mdfeProc?.protMDFe?.infProt?.nProt || parsed?.procMDFe?.protMDFe?.infProt?.nProt || parsed?.protMDFe?.infProt?.nProt || undefined,
+      };
+    }
+
+    const infNfse = parsed?.CompNfse?.Nfse?.InfNfse
+      ?? parsed?.CompNfse?.Nfse?.infNfse
+      ?? parsed?.CompNfse?.Nfse?.InfNFSe
+      ?? parsed?.Nfse?.InfNfse
+      ?? parsed?.Nfse?.infNfse
+      ?? parsed?.InfNfse
+      ?? parsed?.InfNFSe;
+
+    if (infNfse) {
+      const tomador = infNfse?.TomadorServico || infNfse?.Tomador || {};
+      const prestador = infNfse?.PrestadorServico || infNfse?.Prestador || {};
+      const identificacaoTomador = tomador?.IdentificacaoTomador || tomador?.Identificacao || {};
+      const identificacaoPrestador = prestador?.IdentificacaoPrestador || prestador?.Identificacao || {};
+      const cpfCnpjTomador = identificacaoTomador?.CpfCnpj || {};
+      const cpfCnpjPrestador = identificacaoPrestador?.CpfCnpj || {};
+      const valores = infNfse?.Servico?.Valores || infNfse?.Valores || {};
+      const chaveAcesso = String(
+        chaveFallback
+        || infNfse?.Id
+        || infNfse?.IdNfse
+        || infNfse?.ChaveAcesso
+        || infNfse?.Chave
+        || xml.match(/\b\d{50}\b/)?.[0]
+        || '',
+      ).replace(/\D/g, '');
+
+      return {
+        chaveAcesso,
+        tipo: tipo as DocumentoFiscal['tipo'],
+        numero: String(infNfse?.IdentificacaoNfse?.Numero || infNfse?.Numero || infNfse?.numero || '').replace(/^0+/, ''),
+        serie: String(infNfse?.IdentificacaoNfse?.Serie || infNfse?.Serie || infNfse?.serie || '').replace(/^0+/, ''),
+        dataEmissao: infNfse?.DataEmissao || infNfse?.Emissao || infNfse?.Competencia || new Date().toISOString(),
+        cnpjEmitente: String(cpfCnpjPrestador?.Cnpj || cpfCnpjPrestador?.CNPJ || cpfCnpjPrestador?.Cpf || cpfCnpjPrestador?.CPF || ''),
+        razaoSocialEmitente: prestador?.RazaoSocial || prestador?.razaoSocial || '',
+        cnpjDestinatario: String(cpfCnpjTomador?.Cnpj || cpfCnpjTomador?.CNPJ || cpfCnpjTomador?.Cpf || cpfCnpjTomador?.CPF || '') || undefined,
+        razaoSocialDestinatario: tomador?.RazaoSocial || tomador?.razaoSocial || undefined,
+        valorTotal: String(valores?.ValorServicos || valores?.ValorTotal || valores?.ValorLiquidoNfse || valores?.valorServicos || '0'),
+        status: 'autorizada',
+        xml,
+        protocolo: String(infNfse?.NumeroProtocolo || infNfse?.CodigoVerificacao || infNfse?.codigoVerificacao || '').trim() || undefined,
       };
     }
 
@@ -314,6 +380,61 @@ async function consultarDocumentoOficialPorChave(
     }
   }
 
+  if (tipo === 'mdfe') {
+    const distDFeUrl = getServiceUrl(endpoints, uf, 'mdfeDistDFeInteresse');
+    if (!distDFeUrl) {
+      return { sucesso: false, erro: `Endpoint oficial indisponivel para MDFE/${uf}`, fonte: 'sefaz' };
+    }
+
+    try {
+      const cert = carregarCertificado(config.certificado.caminho, config.certificado.senha);
+      const body = `<mdfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/mdfe/wsdl/MDFeDistribuicaoDFe">
+        <mdfeDadosMsg>
+          <distDFeInt xmlns="http://www.portalfiscal.inf.br/mdfe" versao="1.00">
+            <tpAmb>${config.ambiente}</tpAmb>
+            <cUFAutor>${normalizarUfAutor(info?.uf || config.ufPadrao || 'PR').codigo}</cUFAutor>
+            <CNPJ>${cert.cnpj}</CNPJ>
+            <consChMDFe>
+              <chMDFe>${chave}</chMDFe>
+            </consChMDFe>
+          </distDFeInt>
+        </mdfeDadosMsg>
+      </mdfeDistDFeInteresse>`;
+
+      const action = 'http://www.portalfiscal.inf.br/mdfe/wsdl/MDFeDistribuicaoDFe/mdfeDistDFeInteresse';
+      const response = await enviarSOAPComCert(
+        distDFeUrl,
+        montarEnvelope(body, '1.2'),
+        action,
+        config.certificado.caminho,
+        config.certificado.senha,
+        config.timeout || 60000,
+        '1.2',
+      );
+
+      if (response.statusCode === 200) {
+        const parsed = parser.parse(response.body);
+        const inner = encontrarXmlAninhado(parsed) || response.body;
+        const result = inner.match(/<mdfeDistDFeInteresseResult[^>]*>([\s\S]*?)<\/mdfeDistDFeInteresseResult>/)?.[1] || inner;
+        const docZip = result.match(/<docZip[^>]*>([^<]+)<\/docZip>/)?.[1] || null;
+
+        if (docZip) {
+          const xmlDecoded = decodificarDocZip(docZip);
+          const doc = parseDocumentoFromXML(xmlDecoded, tipo);
+          if (doc) {
+            return { sucesso: true, documento: { ...doc, xml: xmlDecoded }, fonte: 'sefaz' };
+          }
+        }
+      }
+    } catch (error: any) {
+      return {
+        sucesso: false,
+        erro: error?.message || 'Erro na distribuicao MDF-e',
+        fonte: 'sefaz',
+      };
+    }
+  }
+
   const serviceMap: Record<string, string> = {
     cte: 'cteConsulta',
     bpe: 'bpeConsulta',
@@ -453,7 +574,7 @@ async function consultarNfseOficial(chave: string, config: SdkConfig): Promise<C
     }
 
     const xmlDecoded = decodificarDocZip(payload.nfseXmlGZipB64);
-    const doc = parseDocumentoFromXML(xmlDecoded, 'nfse');
+    const doc = parseDocumentoFromXML(xmlDecoded, 'nfse', chave);
     if (!doc) {
       return {
         sucesso: false,
@@ -519,11 +640,13 @@ export function inferirTipoDocumentoXml(xml: string): DocumentoFiscal['tipo'] | 
     const chaveCte = String(
       parsed?.cteProc?.CTe?.infCte?.Id
       || parsed?.procCTe?.CTe?.infCte?.Id
+      || parsed?.procCTe?.CTe?.infCTeOS?.Id
       || parsed?.CTe?.infCte?.Id
+      || parsed?.CTe?.infCTeOS?.Id
       || parsed?.resCTe?.chCTe
       || '',
     );
-    const tipoCte = tipoPorChave(chaveCte) || tipoPorModelo(String(parsed?.cteProc?.CTe?.infCte?.ide?.mod || parsed?.procCTe?.CTe?.infCte?.ide?.mod || parsed?.CTe?.infCte?.ide?.mod || ''));
+    const tipoCte = tipoPorChave(chaveCte) || tipoPorModelo(String(parsed?.cteProc?.CTe?.infCte?.ide?.mod || parsed?.procCTe?.CTe?.infCte?.ide?.mod || parsed?.procCTe?.CTe?.infCTeOS?.ide?.mod || parsed?.CTe?.infCte?.ide?.mod || parsed?.CTe?.infCTeOS?.ide?.mod || ''));
     if (tipoCte === 'cte' || tipoCte === 'cteos') return tipoCte;
 
     const chaveMdfe = String(
@@ -538,20 +661,24 @@ export function inferirTipoDocumentoXml(xml: string): DocumentoFiscal['tipo'] | 
 
     const chaveBpe = String(
       parsed?.procBPe?.BPe?.infBPe?.Id
+      || parsed?.procBPe?.BPe?.InfBPe?.Id
       || parsed?.BPe?.infBPe?.Id
+      || parsed?.BPe?.InfBPe?.Id
       || parsed?.resBPe?.chBPe
       || '',
     );
-    const tipoBpe = tipoPorChave(chaveBpe) || tipoPorModelo(String(parsed?.procBPe?.BPe?.infBPe?.ide?.mod || parsed?.BPe?.infBPe?.ide?.mod || ''));
+    const tipoBpe = tipoPorChave(chaveBpe) || tipoPorModelo(String(parsed?.procBPe?.BPe?.infBPe?.ide?.mod || parsed?.procBPe?.BPe?.InfBPe?.ide?.mod || parsed?.BPe?.infBPe?.ide?.mod || parsed?.BPe?.InfBPe?.ide?.mod || ''));
     if (tipoBpe === 'bpe') return tipoBpe;
 
     const chaveDce = String(
       parsed?.procDCe?.DCe?.infDCe?.Id
+      || parsed?.procDCe?.DCe?.InfDCe?.Id
       || parsed?.DCe?.infDCe?.Id
+      || parsed?.DCe?.InfDCe?.Id
       || parsed?.resDCe?.chDCe
       || '',
     );
-    const tipoDce = tipoPorChave(chaveDce) || tipoPorModelo(String(parsed?.procDCe?.DCe?.infDCe?.ide?.mod || parsed?.DCe?.infDCe?.ide?.mod || ''));
+    const tipoDce = tipoPorChave(chaveDce) || tipoPorModelo(String(parsed?.procDCe?.DCe?.infDCe?.ide?.mod || parsed?.procDCe?.DCe?.InfDCe?.ide?.mod || parsed?.DCe?.infDCe?.ide?.mod || parsed?.DCe?.InfDCe?.ide?.mod || ''));
     if (tipoDce === 'dce') return tipoDce;
 
     return null;
@@ -600,6 +727,17 @@ export async function consultarNFeporChave(
     return {
       sucesso: false,
       erro: `Consulta oficial indisponivel para ${tipoDetectado.toUpperCase()}`,
+      fonte: 'sefaz',
+    };
+  }
+
+  if (tipoDetectado === 'mdfe') {
+    const oficial = await consultarDocumentoOficialPorChave(chave, 'mdfe', config);
+    if (oficial.sucesso) return oficial;
+
+    return {
+      sucesso: false,
+      erro: oficial.erro || 'Consulta oficial indisponivel para MDFE',
       fonte: 'sefaz',
     };
   }

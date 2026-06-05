@@ -27,6 +27,7 @@ const MSG_TAG: Record<Importavel, string> = {
 const INTERVALO_NORMAL_MS = 5 * 60 * 1000;
 const INTERVALO_ERRO_MS = 15 * 60 * 1000;
 const INTERVALO_656_MS = 60 * 60 * 1000;
+const TIPOS_DISTRIBUICAO: Importavel[] = ['nfe', 'nfce', 'cte', 'mdfe'];
 
 function parseDocZipTags(body: string): string[] {
   return [...body.matchAll(/<docZip[^>]*>([^<]+)<\/docZip>/g)].map((match) => match[1]);
@@ -219,54 +220,56 @@ export async function importarDistribuicaoLenta(log?: { info?: (data: unknown, m
     porCnpj.get(cert.cnpj)!.push(cert);
   }
 
-  const resultados: Array<{ cnpj: string; uf: string; importados: number; cStat: string; xMotivo: string }> = [];
+  const resultados: Array<{ cnpj: string; uf: string; tipo: Importavel; importados: number; cStat: string; xMotivo: string }> = [];
 
   for (const [cnpj, rows] of porCnpj) {
     const cert = rows[0];
-    const cursor = await obterDistribuicaoDfe(cert.usuarioId, cnpj, 'nfe');
-    if (cursor?.proximaExecucaoEm && new Date(cursor.proximaExecucaoEm).getTime() > agora.getTime()) {
-      continue;
-    }
+    for (const tipo of TIPOS_DISTRIBUICAO) {
+      const cursor = await obterDistribuicaoDfe(cert.usuarioId, cnpj, tipo);
+      if (cursor?.proximaExecucaoEm && new Date(cursor.proximaExecucaoEm).getTime() > agora.getTime()) {
+        continue;
+      }
 
-    const ultNSU = cursor?.ultNsu || '000000000000000';
+      const ultNSU = cursor?.ultNsu || '000000000000000';
 
-    try {
-      const resultado = await executarImportacaoDistribuicao('nfe', cnpj, ufAutor.sigla, ultNSU, cert.usuarioId);
-      const proximaExecucaoEm = new Date(
-        agora.getTime() + (
-          resultado.cStat === '656'
-            ? INTERVALO_656_MS
-            : resultado.cStat === '138'
-              ? 60 * 1000
-              : INTERVALO_NORMAL_MS
-        )
-      );
+      try {
+        const resultado = await executarImportacaoDistribuicao(tipo, cnpj, ufAutor.sigla, ultNSU, cert.usuarioId);
+        const proximaExecucaoEm = new Date(
+          agora.getTime() + (
+            resultado.cStat === '656'
+              ? INTERVALO_656_MS
+              : resultado.cStat === '138'
+                ? 60 * 1000
+                : INTERVALO_NORMAL_MS
+          )
+        );
 
-      await salvarDistribuicaoDfe({
-        usuarioId: cert.usuarioId,
-        cnpj,
-        tipo: 'nfe',
-        ufIndice: 0,
-        ultNsu: resultado.ultNSU,
-        ultimoCStat: resultado.cStat,
-        ultimoXMotivo: resultado.xMotivo,
-        proximaExecucaoEm,
-      });
+        await salvarDistribuicaoDfe({
+          usuarioId: cert.usuarioId,
+          cnpj,
+          tipo,
+          ufIndice: 0,
+          ultNsu: resultado.ultNSU,
+          ultimoCStat: resultado.cStat,
+          ultimoXMotivo: resultado.xMotivo,
+          proximaExecucaoEm,
+        });
 
-      resultados.push({ cnpj, uf: ufAutor.sigla, importados: resultado.importados.length, cStat: resultado.cStat, xMotivo: resultado.xMotivo });
-      log?.info?.({ cnpj, uf: ufAutor.sigla, importados: resultado.importados.length, cStat: resultado.cStat }, 'Distribuicao DFe executada');
-    } catch (error: any) {
-      await salvarDistribuicaoDfe({
-        usuarioId: cert.usuarioId,
-        cnpj,
-        tipo: 'nfe',
-        ufIndice: 0,
-        ultNsu: ultNSU,
-        ultimoCStat: 'erro',
-        ultimoXMotivo: error?.message || 'Falha na distribuicao DFe',
-        proximaExecucaoEm: new Date(agora.getTime() + INTERVALO_ERRO_MS),
-      });
-      log?.warn?.({ cnpj, uf: ufAutor.sigla, erro: error?.message }, 'Falha na distribuicao DFe');
+        resultados.push({ cnpj, uf: ufAutor.sigla, importados: resultado.importados.length, cStat: resultado.cStat, xMotivo: resultado.xMotivo, tipo });
+        log?.info?.({ cnpj, uf: ufAutor.sigla, tipo, importados: resultado.importados.length, cStat: resultado.cStat }, 'Distribuicao DFe executada');
+      } catch (error: any) {
+        await salvarDistribuicaoDfe({
+          usuarioId: cert.usuarioId,
+          cnpj,
+          tipo,
+          ufIndice: 0,
+          ultNsu: cursor?.ultNsu || '000000000000000',
+          ultimoCStat: 'erro',
+          ultimoXMotivo: error?.message || 'Falha na distribuicao DFe',
+          proximaExecucaoEm: new Date(agora.getTime() + INTERVALO_ERRO_MS),
+        });
+        log?.warn?.({ cnpj, uf: ufAutor.sigla, tipo, erro: error?.message }, 'Falha na distribuicao DFe');
+      }
     }
   }
 

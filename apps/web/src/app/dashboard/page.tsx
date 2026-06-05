@@ -166,14 +166,17 @@ export default function DashboardPage() {
   const [cnpj, setCnpj] = useState('');
   const [uf, setUf] = useState('SP');
   const [ultNSU, setUltNSU] = useState('000000000000000');
+  const [chavesLote, setChavesLote] = useState('');
   const [filtroMovimento, setFiltroMovimento] = useState<FiltroMovimento>('todas');
   const [carregando, setCarregando] = useState<TipoImport | 'all' | null>(null);
+  const [consultandoLote, setConsultandoLote] = useState(false);
   const [carregandoResumo, setCarregandoResumo] = useState(false);
   const [carregandoAtividades, setCarregandoAtividades] = useState(false);
   const [carregandoConta, setCarregandoConta] = useState(false);
   const [carregandoPerfil, setCarregandoPerfil] = useState(false);
   const [resultado, setResultado] = useState<{ tipo: string; importados: number; ultNSU?: string; erro?: string } | null>(null);
   const [resultadoXml, setResultadoXml] = useState<XmlImportacaoResultado | null>(null);
+  const [resultadoLote, setResultadoLote] = useState<{ total: number; sucesso: number; erro: number; itens: Array<{ chaveAcesso: string; tipo?: string; sucesso: boolean; fonte: string; erro?: string }> } | null>(null);
   const [resumo, setResumo] = useState<Record<Movimento, ResumoMovimento> | null>(null);
   const [atividades, setAtividades] = useState<AtividadeRecente[]>([]);
   const [conta, setConta] = useState<ContaResumo | null>(null);
@@ -407,6 +410,86 @@ export default function DashboardPage() {
     } finally {
       setCarregando(null);
     }
+  };
+
+  const consultarLote = async () => {
+    const itens = chavesLote
+      .split(/[\n,;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((chaveAcesso) => ({ chaveAcesso }));
+
+    if (itens.length === 0) {
+      setErroImportacao('Informe ao menos uma chave, uma por linha.');
+      return;
+    }
+
+    setConsultandoLote(true);
+    setErroImportacao('');
+    setResultadoLote(null);
+
+    try {
+      const res = await fetch('/api/consultas/lote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itens }),
+      });
+      const data = await res.json();
+
+      if (!data.sucesso) {
+        setErroImportacao(data.erro || 'Falha na consulta em lote.');
+        return;
+      }
+
+      const items = Array.isArray(data.resultados) ? data.resultados : [];
+      setResultadoLote({
+        total: Number(data.total || items.length || 0),
+        sucesso: items.filter((item: any) => item.sucesso).length,
+        erro: items.filter((item: any) => !item.sucesso).length,
+        itens: items,
+      });
+    } catch {
+      setErroImportacao('Nao foi possivel consultar o lote.');
+    } finally {
+      setConsultandoLote(false);
+    }
+  };
+
+  const baixarResultadoLote = () => {
+    if (!resultadoLote) return;
+
+    const conteudo = JSON.stringify(resultadoLote, null, 2);
+    const blob = new Blob([conteudo], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `consulta-lote-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const baixarResultadoLoteCsv = () => {
+    if (!resultadoLote) return;
+
+    const esc = (valor: string) => `"${String(valor).replace(/"/g, '""')}"`;
+    const linhas = [
+      ['chaveAcesso', 'tipo', 'sucesso', 'fonte', 'erro'],
+      ...resultadoLote.itens.map((item) => [
+        item.chaveAcesso,
+        item.tipo || '',
+        item.sucesso ? 'sim' : 'nao',
+        item.fonte,
+        item.erro || '',
+      ]),
+    ];
+    const conteudo = linhas.map((linha) => linha.map(esc).join(',')).join('\n');
+    const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `consulta-lote-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const importarXmlSelecionados = async () => {
@@ -709,6 +792,73 @@ export default function DashboardPage() {
               <button onClick={() => void carregarResumo()} disabled={carregandoResumo || cnpjLimpo.length !== 14} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-40">
                 {carregandoResumo ? 'Carregando resumo...' : 'Atualizar resumo'}
               </button>
+            </div>
+
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Consulta em lote</p>
+                  <h3 className="mt-1 text-lg font-bold text-slate-950">Consultar várias chaves de uma vez</h3>
+                  <p className="mt-1 text-sm text-slate-600">Cole uma chave por linha. O sistema usa certificado digital quando houver consulta oficial disponível.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {resultadoLote && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={baixarResultadoLote}
+                        className="rounded-full border border-cyan-200 bg-white px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-50"
+                      >
+                        Baixar JSON
+                      </button>
+                      <button
+                        type="button"
+                        onClick={baixarResultadoLoteCsv}
+                        className="rounded-full border border-cyan-200 bg-white px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-50"
+                      >
+                        Baixar CSV
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void consultarLote()}
+                    disabled={consultandoLote}
+                    className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-40"
+                  >
+                    {consultandoLote ? 'Consultando...' : 'Consultar lote'}
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                value={chavesLote}
+                onChange={(e) => setChavesLote(e.target.value)}
+                placeholder="Cole as chaves aqui, uma por linha"
+                rows={5}
+                className="mt-4 w-full rounded-2xl border border-slate-300 px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+
+              {resultadoLote && (
+                <div className="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <strong>{resultadoLote.sucesso} sucesso(s)</strong>
+                    <span>{resultadoLote.erro} erro(s) em {resultadoLote.total} consulta(s)</span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {resultadoLote.itens.slice(0, 5).map((item) => (
+                      <div key={item.chaveAcesso} className="rounded-xl bg-white/80 px-3 py-2 ring-1 ring-cyan-200">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">{item.tipo ? item.tipo.toUpperCase() : 'AUTO'}</span>
+                          <span className={item.sucesso ? 'text-emerald-700' : 'text-rose-700'}>{item.sucesso ? 'OK' : 'ERRO'}</span>
+                        </div>
+                        <p className="mt-1 truncate font-mono text-[11px]">{item.chaveAcesso}</p>
+                        {item.erro ? <p className="mt-1 text-xs text-rose-700">{item.erro}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {(erroImportacao || erroResumo) && (
