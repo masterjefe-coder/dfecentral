@@ -18,6 +18,23 @@ echo "APP_ROOT: $APP_ROOT"
 mkdir -p "$APP_ROOT/shared/bin" "$APP_ROOT/backups" "$APP_ROOT/runtime"
 mkdir -p "$APP_ROOT/web" "$APP_ROOT/api" "$APP_ROOT/consulta"
 
+cleanup_mailserver_legacy() {
+  local mail_root="$APP_ROOT/mailserver"
+  if [ -d "$mail_root" ] || sudo docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx 'dfecentral-mailserver'; then
+    echo "Removendo mailserver legado..."
+    if command -v docker >/dev/null 2>&1 && [ -d "$mail_root" ] && [ -f "$mail_root/docker-compose.yml" ]; then
+      (cd "$mail_root" && sudo docker compose down --volumes --remove-orphans) >/dev/null 2>&1 || true
+    fi
+    sudo docker rm -f dfecentral-mailserver >/dev/null 2>&1 || true
+    for port in 25 465 587 993; do
+      sudo iptables -D INPUT -p tcp -m tcp --dport "$port" -j ACCEPT >/dev/null 2>&1 || true
+    done
+    sudo rm -rf "$mail_root"
+  fi
+}
+
+cleanup_mailserver_legacy
+
 if [ ! -f "$ENV_FILE" ]; then
   if [ -f "$ENV_EXAMPLE" ]; then
     echo "Criando $ENV_FILE a partir do template..."

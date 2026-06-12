@@ -46,8 +46,3 @@ consulta.dfecentral.com.br {
 
   reverse_proxy 127.0.0.1:3005
 }
-
-# === Mail: provisionar certificado TLS ===
-mail.dfecentral.com.br {
-  respond "DFeCentral mail"
-}

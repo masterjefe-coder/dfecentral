@@ -1,10 +1,7 @@
 param(
   [string]$Remote = "origin",
   [string]$Branch = "main",
-  [string]$KeyPath = "C:\Projetos\oci_recuperacao",
-  [switch]$DeployMailserver = $false,
-  [string]$Mailbox = "contato@dfecentral.com.br",
-  [string]$MailboxPassword = ""
+  [string]$KeyPath = "C:\Projetos\oci_recuperacao"
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,13 +31,6 @@ $deployArgs = @(
   '-Branch', $Branch,
   '-KeyPath', $KeyPath
 )
-if ($DeployMailserver) {
-  $deployArgs += '-DeployMailserver'
-  $deployArgs += @('-Mailbox', $Mailbox)
-  if ($MailboxPassword) {
-    $deployArgs += @('-MailboxPassword', $MailboxPassword)
-  }
-}
 & powershell @deployArgs
 if ($LASTEXITCODE -ne 0) {
   throw "Deploy Oracle falhou."
